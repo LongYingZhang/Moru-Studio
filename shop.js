@@ -344,9 +344,9 @@
         '<div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>' +
       "</div>" +
     "</div>";
+  const NAV_BOOT_KEY = "ly-nav-boot";
 
   let bootHiding = false;
-  let navTimer = 0;
 
   function bootNodes() {
     return {
@@ -356,7 +356,7 @@
     };
   }
 
-  function ensureBoot() {
+  function ensureBoot(resetVideo) {
     let { root } = bootNodes();
     if (!root) {
       document.body.insertAdjacentHTML("afterbegin", BOOT_HTML);
@@ -364,11 +364,12 @@
     }
     root.classList.remove("is-out");
     document.documentElement.classList.add("is-booting");
-    const { video, bar } = bootNodes();
-    if (bar) bar.style.transform = "scaleX(0.02)";
+    document.documentElement.style.background = "#000";
+    const { video } = bootNodes();
     if (video) {
       try {
-        video.currentTime = 0;
+        if (resetVideo) video.currentTime = 0;
+        video.loop = true;
         const play = video.play();
         if (play && play.catch) play.catch(() => {});
       } catch (_) {}
@@ -386,41 +387,47 @@
     setTimeout(() => {
       if (root.parentNode) root.remove();
       bootHiding = false;
-    }, 380);
+    }, 280);
   }
 
-  function runBootProgress(options) {
-    const opts = options || {};
-    const minMs = opts.minMs != null ? opts.minMs : 900;
-    const onDone = opts.onDone;
-    const { root, bar } = ensureBoot();
-    if (!root || !bar) {
-      if (onDone) onDone();
-      return;
+  function pageLoadProgress() {
+    const images = Array.prototype.slice.call(document.images || []);
+    const imgRatio = images.length
+      ? images.filter((img) => img.complete).length / images.length
+      : 1;
+    let base = 0.08;
+    if (document.readyState === "interactive") base = 0.42;
+    if (document.readyState === "complete") base = 0.78;
+    const mixed = base + (1 - base) * imgRatio * (document.readyState === "complete" ? 1 : 0.55);
+    if (document.readyState !== "complete" || imgRatio < 1) {
+      return Math.max(0.04, Math.min(0.96, mixed));
     }
+    return 1;
+  }
+
+  function runBootProgress() {
+    const { root, bar, video } = ensureBoot(true);
+    if (!root || !bar) return;
     bootHiding = false;
-    const started = performance.now();
-    let progress = 0.02;
-    bar.style.transform = "scaleX(0.02)";
+    let shown = 0.04;
+    bar.style.transform = "scaleX(0.04)";
+    if (video) {
+      try {
+        video.currentTime = 0;
+        video.loop = true;
+        const play = video.play();
+        if (play && play.catch) play.catch(() => {});
+      } catch (_) {}
+    }
 
     function frame() {
       if (!document.getElementById("boot")) return;
-      const waitingNav = typeof onDone === "function";
-      const loaded = waitingNav ? false : document.readyState === "complete";
-      const elapsed = performance.now() - started;
-      const target = waitingNav
-        ? Math.min(0.92, 0.12 + elapsed / 700)
-        : loaded
-          ? 1
-          : Math.min(0.9, 0.08 + elapsed / 2200);
-      progress += (target - progress) * (loaded || waitingNav ? 0.2 : 0.07);
-      bar.style.transform = "scaleX(" + Math.max(0.02, Math.min(1, progress)).toFixed(4) + ")";
-      if (waitingNav && elapsed >= minMs) {
-        bar.style.transform = "scaleX(1)";
-        onDone();
-        return;
-      }
-      if (!waitingNav && loaded && progress > 0.995 && elapsed >= minMs) {
+      const target = pageLoadProgress();
+      const done = target >= 1;
+      shown += (target - shown) * (done ? 0.28 : 0.12);
+      if (done) shown = Math.max(shown, 0.98);
+      bar.style.transform = "scaleX(" + Math.max(0.04, Math.min(1, shown)).toFixed(4) + ")";
+      if (done && shown > 0.995) {
         bar.style.transform = "scaleX(1)";
         hideBoot();
         return;
@@ -432,15 +439,16 @@
 
   function navigate(url, replace) {
     if (!url) return;
-    clearTimeout(navTimer);
-    document.documentElement.style.background = "#000";
-    document.documentElement.classList.add("is-booting");
-    runBootProgress({
-      minMs: 420,
-      onDone: () => {
+    try { sessionStorage.setItem(NAV_BOOT_KEY, "1"); } catch (_) {}
+    ensureBoot(true);
+    const { bar } = bootNodes();
+    if (bar) bar.style.transform = "scaleX(0.08)";
+    // 等一帧画出加载层，再跳转；进度条只在目标页按真实加载走一遍
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
         if (replace) location.replace(url);
         else location.assign(url);
-      }
+      });
     });
   }
 
@@ -474,7 +482,8 @@
     true
   );
 
-  runBootProgress({ minMs: 900 });
+  try { sessionStorage.removeItem(NAV_BOOT_KEY); } catch (_) {}
+  runBootProgress();
 
   window.Shop = {
     products: PRODUCTS,
