@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>结算</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&family=Space+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shop.css">
+</head>
+<body>
+<div class="page">
+  <header class="page-head">
+    <div class="page-title">
+      <h1>结算</h1>
+      <small>CHECKOUT</small>
+    </div>
+  </header>
+  <form class="checkout" id="form" novalidate>
+    <section>
+      <span class="block-label">订单商品</span>
+      <div id="items"></div>
+    </section>
+    <section>
+      <span class="block-label">收件信息</span>
+      <div class="fields">
+        <label class="field">姓名
+          <input id="field-name" name="name" type="text" placeholder="张三" autocomplete="name">
+        </label>
+        <label class="field">电话
+          <input id="field-phone" name="phone" type="tel" placeholder="+86 138 0000 0000" autocomplete="tel">
+        </label>
+        <label class="field wide">配送地址
+          <textarea id="field-address" name="address" rows="2" placeholder="省市区、街道及门牌号"></textarea>
+        </label>
+      </div>
+    </section>
+    <section>
+      <span class="block-label">支付方式</span>
+      <div class="pays" id="pays">
+        <button class="pay is-on" type="button" data-method="wechat">
+          <span class="pay-top">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 5.5h16v10H8l-4 3v-13Z" stroke="currentColor" stroke-width="1.5"/></svg>
+            <i class="dot"></i>
+          </span>
+          微信支付
+        </button>
+        <button class="pay" type="button" data-method="alipay">
+          <span class="pay-top">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="6" width="17" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 10h17" stroke="currentColor" stroke-width="1.5"/></svg>
+            <i class="dot"></i>
+          </span>
+          支付宝
+        </button>
+        <button class="pay" type="button" data-method="card">
+          <span class="pay-top">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3 10h18" stroke="currentColor" stroke-width="1.5"/></svg>
+            <i class="dot"></i>
+          </span>
+          银联 / 卡
+        </button>
+      </div>
+    </section>
+    <section class="totals">
+      <div><span>商品金额</span><span id="subtotal"></span></div>
+      <div><span>标准配送</span><span>¥0.00</span></div>
+      <div class="due"><span>应付总额</span><b id="total"></b></div>
+    </section>
+    <div class="checkout-actions">
+      <button class="btn light pay-btn" id="submit" type="submit">
+        <span class="label" id="submit-text">确认支付</span>
+        <span class="icon-slot" aria-hidden="true">
+          <svg class="go" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg class="load" width="16" height="16" viewBox="0 0 24 24" fill="none"><g><path d="M6.37 8.75A6.5 6.5 0 0 1 18.11 9.78M19.38 7.06 18.11 9.78 15.39 8.51M17.63 15.25A6.5 6.5 0 0 1 5.89 14.22M4.62 16.94 5.89 14.22 8.61 15.49" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></g></svg>
+          <svg class="tick" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </button>
+      <a class="btn dark" id="checkoutCancel" href="cart.html">取消</a>
+    </div>
+    <p class="agree">支付即表示你已阅读并同意 <a href="terms.html" target="_blank">购物须知与隐私政策</a></p>
+    <div class="status" id="status"></div>
+  </form>
+</div>
+
+<div class="backdrop qr-backdrop" id="qrBackdrop" aria-hidden="true">
+  <div class="qr-sheet" role="dialog" aria-modal="true" aria-labelledby="qrTitle">
+    <div class="qr-head">
+      <span class="qr-title" id="qrTitle">微信扫码支付</span>
+      <b id="qrAmount"></b>
+    </div>
+    <div class="qr-code">
+      <img id="qrImg" src="assets/pay/demo-qr.png" alt="收款码">
+      <span class="qr-missing">收款码未上传<br><small id="qrMissingPath">assets/pay/demo-qr.png</small></span>
+    </div>
+    <div class="status" id="qrStatus"></div>
+    <div class="qr-actions">
+      <button class="btn light" id="qrPaid" type="button">我已支付 <span>→</span></button>
+      <button class="btn dark" id="qrCancel" type="button">取消</button>
+    </div>
+  </div>
+</div>
+
+<script src="shop.js"></script>
+<script>
+(function () {
+  if (Shop.cartLines().length === 0) {
+    location.replace("cart.html");
+    return;
+  }
+  const esc = Shop.escapeHtml;
+  const lines = Shop.cartLines();
+  const total = Shop.cartTotal();
+  document.getElementById("items").innerHTML = lines.map(({ product, qty, subtotal }) => `
+    <div class="order-line">
+      <img alt="${esc(product.name)}" src="${product.image}">
+      <div>
+        <p>${esc(product.name)}</p>
+        <small>${Shop.formatPrice(product.price)} × ${qty}</small>
+      </div>
+      <b>${Shop.formatPrice(subtotal)}</b>
+    </div>`).join("");
+  document.getElementById("subtotal").textContent = Shop.formatPrice(total, true);
+  document.getElementById("total").textContent = Shop.formatPrice(total, true);
+
+  const pays = document.querySelectorAll(".pay");
+  let method = "wechat";
+  pays.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      pays.forEach((el) => el.classList.remove("is-on"));
+      btn.classList.add("is-on");
+      method = btn.dataset.method;
+    });
+  });
+
+  const form = document.getElementById("form");
+  const status = document.getElementById("status");
+  const submit = document.getElementById("submit");
+  const submitText = document.getElementById("submit-text");
+
+  function setLabel(text) {
+    submitText.classList.add("is-swap");
+    setTimeout(() => {
+      submitText.textContent = text;
+      submitText.classList.remove("is-swap");
+    }, 150);
+  }
+
+  const qrBackdrop = document.getElementById("qrBackdrop");
+  const qrImg = document.getElementById("qrImg");
+  const qrCode = qrImg.closest(".qr-code");
+  const qrStatus = document.getElementById("qrStatus");
+  const qrMissingPath = document.getElementById("qrMissingPath");
+  const DEMO_QR = "assets/pay/demo-qr.png";
+  const PAY_QR = {
+    wechat: { title: "微信扫码支付", src: DEMO_QR, alt: "微信收款码" },
+    alipay: { title: "支付宝扫码支付", src: DEMO_QR, alt: "支付宝收款码" },
+    card: { title: "银联扫码支付", src: DEMO_QR, alt: "银联收款码" },
+  };
+  const markMissing = () => qrCode.classList.add("is-missing");
+  qrImg.addEventListener("error", markMissing);
+  qrImg.addEventListener("load", () => qrCode.classList.remove("is-missing"));
+
+  function orderNo() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, "0");
+    return "LY" + String(d.getFullYear()).slice(2) + p(d.getMonth() + 1) + p(d.getDate()) +
+      p(d.getHours()) + p(d.getMinutes()) + String(Math.floor(Math.random() * 1000)).padStart(3, "0");
+  }
+
+  let currentNo = "";
+
+  function openQr() {
+    const pay = PAY_QR[method] || PAY_QR.wechat;
+    currentNo = orderNo();
+    document.getElementById("qrTitle").textContent = pay.title;
+    document.getElementById("qrAmount").textContent = Shop.formatPrice(total, true);
+    qrMissingPath.textContent = pay.src;
+    qrCode.classList.remove("is-missing");
+    qrImg.alt = pay.alt;
+    qrImg.src = pay.src + (pay.src.includes("?") ? "&" : "?") + "t=" + Date.now();
+    qrStatus.className = "status";
+    qrStatus.textContent = "";
+    qrBackdrop.classList.add("open");
+    qrBackdrop.setAttribute("aria-hidden", "false");
+  }
+
+  async function placeOrder(no) {
+    const response = await fetch("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        no,
+        method,
+        name: form.elements.name.value.trim(),
+        phone: form.elements.phone.value.trim(),
+        address: form.elements.address.value.trim(),
+        items: lines.map(({ product, qty }) => ({ id: product.id, qty }))
+      })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "订单提交失败，请稍后重试");
+    Shop.saveLastOrder({
+      no: result.no || no,
+      total: typeof result.total === "number" ? result.total : total,
+      method,
+      createdAt: new Date().toISOString(),
+      name: form.elements.name.value.trim(),
+      phone: form.elements.phone.value.trim(),
+      address: form.elements.address.value.trim(),
+      items: lines.map(({ product, qty }) => ({
+        name: product.name, image: product.image, price: product.price, qty
+      }))
+    });
+    return result;
+  }
+
+  function closeQr() {
+    qrBackdrop.classList.remove("open");
+    qrBackdrop.setAttribute("aria-hidden", "true");
+  }
+
+  function finish(doneLabel, doneText) {
+    submit.disabled = true;
+    submit.classList.add("is-paying");
+    setLabel("处理中");
+    status.className = "status";
+    status.textContent = "正在提交订单";
+    setTimeout(() => {
+      Shop.clearCart();
+      submit.classList.remove("is-paying");
+      submit.classList.add("is-done");
+      setLabel(doneLabel);
+      status.textContent = doneText;
+      setTimeout(() => { location.href = "order.html"; }, 1000);
+    }, 1600);
+  }
+
+  document.getElementById("qrCancel").addEventListener("click", closeQr);
+  qrBackdrop.addEventListener("click", (e) => { if (e.target === qrBackdrop) closeQr(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeQr(); });
+  const qrPaid = document.getElementById("qrPaid");
+  qrPaid.addEventListener("click", async () => {
+    qrPaid.disabled = true;
+    qrStatus.className = "status";
+    qrStatus.textContent = "正在提交订单";
+    try {
+      await placeOrder(currentNo);
+      closeQr();
+      finish("已提交", "订单 " + currentNo + " 已提交，确认收款后会尽快发货");
+    } catch (err) {
+      qrStatus.textContent = err.message;
+      qrStatus.classList.add("bad");
+    } finally {
+      qrPaid.disabled = false;
+    }
+  });
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const name = form.elements.name.value.trim();
+    const phone = form.elements.phone.value.trim();
+    const address = form.elements.address.value.trim();
+    const missing = [];
+    if (!name) missing.push("姓名");
+    if (!/^[+\d][\d\s-]{6,}$/.test(phone)) missing.push("有效电话");
+    if (!address) missing.push("配送地址");
+    if (missing.length) {
+      status.className = "status bad";
+      status.textContent = "请填写" + missing.join("、");
+      return;
+    }
+    status.className = "status";
+    status.textContent = "";
+    openQr();
+  });
+})();
+</script>
+</body>
+</html>

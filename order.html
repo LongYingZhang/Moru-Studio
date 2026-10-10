@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>订单已提交</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&family=Space+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shop.css">
+</head>
+<body>
+<div class="page">
+  <header class="page-head">
+    <div class="page-title">
+      <h1>订单</h1>
+      <small>ORDER</small>
+    </div>
+  </header>
+  <main>
+    <div class="empty" id="empty" hidden>
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M6.5 8.5h11l-.8 10.2a1.5 1.5 0 0 1-1.5 1.3H8.8a1.5 1.5 0 0 1-1.5-1.3L6.5 8.5Z" stroke="currentColor" stroke-width="1.4"/>
+        <path d="M9 8.5V7a3 3 0 0 1 6 0v1.5" stroke="currentColor" stroke-width="1.4"/>
+      </svg>
+      <p>没有找到最近的订单</p>
+      <small>NO RECENT ORDER</small>
+      <a class="btn light" href="index.html">返回画册挑选 <span>→</span></a>
+    </div>
+
+    <div class="receipt" id="receipt" hidden>
+      <section class="receipt-hero">
+        <span class="done-mark" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        <h2>订单已提交</h2>
+        <p>我们确认收款后会尽快为你发货</p>
+      </section>
+
+      <section class="receipt-panel">
+        <div class="panel-head">
+          <span class="block-label">订单商品</span>
+          <span class="panel-meta" id="itemCount"></span>
+        </div>
+        <div id="items"></div>
+        <div class="receipt-total"><span>实付</span><b id="total"></b></div>
+      </section>
+
+      <section class="receipt-panel receipt-ship">
+        <div class="panel-head">
+          <span class="block-label">收件信息</span>
+          <span class="panel-meta" id="method"></span>
+        </div>
+        <dl class="ship">
+          <div><dt>收件人</dt><dd id="shipName"></dd></div>
+          <div><dt>电话</dt><dd id="shipPhone"></dd></div>
+          <div><dt>地址</dt><dd id="shipAddress"></dd></div>
+          <div class="ship-no">
+            <dt>订单号</dt>
+            <dd>
+              <span id="orderNo"></span>
+              <button class="copy-btn" type="button" data-copy aria-label="复制订单号">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M16 5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16" stroke="currentColor" stroke-width="1.8"/></svg>
+              </button>
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <p class="receipt-note" data-contact-row>如有问题请联系：<span data-contact></span></p>
+
+      <div class="drawer-actions">
+        <a class="btn light" href="index.html">继续逛逛 <span>→</span></a>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="added-toast" id="addedToast" aria-hidden="true"></div>
+
+<script src="shop.js"></script>
+<script>
+(function () {
+  const order = Shop.lastOrder();
+  if (!order || !order.no) {
+    document.getElementById("empty").hidden = false;
+    return;
+  }
+  const esc = Shop.escapeHtml;
+  const items = Array.isArray(order.items) ? order.items : [];
+  const count = items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+
+  document.getElementById("receipt").hidden = false;
+  document.getElementById("orderNo").textContent = order.no;
+  document.getElementById("itemCount").textContent = Shop.pad(count) + " 件";
+  document.getElementById("total").textContent = Shop.formatPrice(order.total, true);
+  document.getElementById("method").textContent = Shop.paymentLabels[order.method] || "";
+  document.getElementById("shipName").textContent = order.name || "";
+  document.getElementById("shipPhone").textContent = order.phone || "";
+  document.getElementById("shipAddress").textContent = order.address || "";
+  document.getElementById("items").innerHTML = items.map((item) => `
+    <div class="order-line">
+      <img alt="${esc(item.name)}" src="${esc(item.image || "")}">
+      <div>
+        <p>${esc(item.name)}</p>
+        <small>${Shop.formatPrice(item.price)} × ${item.qty}</small>
+      </div>
+      <b>${Shop.formatPrice(item.price * item.qty)}</b>
+    </div>`).join("");
+
+  const toast = document.getElementById("addedToast");
+  let toastTimer = 0;
+  function notice(text) {
+    toast.textContent = text;
+    toast.classList.add("is-on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("is-on"), 2000);
+  }
+
+  async function copyNo() {
+    try {
+      await navigator.clipboard.writeText(order.no);
+    } catch (_) {
+      const area = document.createElement("textarea");
+      area.value = order.no;
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
+    }
+    notice("订单号已复制");
+  }
+  document.querySelectorAll("[data-copy]").forEach((btn) => btn.addEventListener("click", copyNo));
+})();
+</script>
+</body>
+</html>

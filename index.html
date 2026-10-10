@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LONGYING STUDIO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&family=Space+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shop.css">
+</head>
+<body>
+<div class="home">
+  <aside class="rail">
+    <div class="topbar">
+      <a class="logo" href="index.html"><img src="ZHANGLONGYING__STUDIO_7.svg?v=2" alt="LONGYING STUDIO"></a>
+      <a class="bag-link" href="cart.html">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6.5 8.5h11l-.8 10.2a1.5 1.5 0 0 1-1.5 1.3H8.8a1.5 1.5 0 0 1-1.5-1.3L6.5 8.5Z" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M9 8.5V7a3 3 0 0 1 6 0v1.5" stroke="currentColor" stroke-width="1.6"/>
+        </svg>
+        <span>购物袋</span>
+        <span class="count" data-cart-count>00</span>
+      </a>
+    </div>
+    <div class="cards" id="cards"></div>
+    <a class="rail-foot" href="terms.html">购物须知与隐私政策</a>
+  </aside>
+
+  <section class="hero" id="hero">
+    <div class="hero-photo" id="heroPhoto"></div>
+    <div class="hero-shade"></div>
+    <div class="hero-center">
+      <p class="hint">点击展开全屏画册</p>
+    </div>
+    <div class="hero-foot">
+      <div class="hero-info">
+        <h1 id="heroTitle"></h1>
+        <div class="specs" id="heroSpecs"></div>
+      </div>
+      <button class="inspect" id="inspectBtn" type="button">检视档案 <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M3 9 9 3M4.5 3H9v4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+  </section>
+</div>
+
+<div class="lightbox" id="lightbox">
+  <div class="lb-stage" id="lbStage">
+    <button class="nav-arrow prev" id="lbPrev" type="button" aria-label="上一张">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M14.5 6 8.5 12l6 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="lb-frame"><img id="lbImg" alt=""></div>
+    <button class="nav-arrow next" id="lbNext" type="button" aria-label="下一张">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="m9.5 6 6 6-6 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+  <footer class="lb-foot">
+    <div class="specs" id="lbSpecs"></div>
+    <div class="thumbs" id="thumbs"></div>
+  </footer>
+</div>
+
+<div class="backdrop" id="backdrop">
+  <aside class="drawer" id="drawer">
+    <div>
+      <div class="kicker">检视档案</div>
+      <h2 id="drawerTitle"></h2>
+    </div>
+    <div class="drawer-photo"><img id="drawerImg" alt=""></div>
+    <p class="desc" id="drawerDesc" hidden></p>
+    <div class="spec-card" id="drawerSpecs"></div>
+    <div class="price-row">
+      <span class="kicker">定价</span>
+      <b id="drawerPrice"></b>
+    </div>
+    <div class="drawer-actions">
+      <button class="btn light" id="addBtn" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6.5 8.5h11l-.8 10.2a1.5 1.5 0 0 1-1.5 1.3H8.8a1.5 1.5 0 0 1-1.5-1.3L6.5 8.5Z" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M9 8.5V7a3 3 0 0 1 6 0v1.5" stroke="currentColor" stroke-width="1.6"/>
+        </svg>
+        加入购物袋/订购
+      </button>
+      <a class="btn dark" id="detailLink" href="product.html">查看商品详情 →</a>
+    </div>
+  </aside>
+</div>
+
+<script src="shop.js"></script>
+<script>
+(function () {
+  const products = Shop.products;
+  const esc = Shop.escapeHtml;
+  let index = 0;
+  const cards = document.getElementById("cards");
+  const heroPhoto = document.getElementById("heroPhoto");
+  const heroTitle = document.getElementById("heroTitle");
+  const heroSpecs = document.getElementById("heroSpecs");
+  const lightbox = document.getElementById("lightbox");
+  const lbImg = document.getElementById("lbImg");
+  const lbSpecs = document.getElementById("lbSpecs");
+  const thumbs = document.getElementById("thumbs");
+  const backdrop = document.getElementById("backdrop");
+  const portfolioCard = `
+    <a class="card" href="https://zhanglongying.pages.dev" target="_blank" rel="noopener" style="--card:#F3F3F1" aria-label="设计师作品集">
+      <span class="photo" style="background-image:url('assets/cards/06.jpg');left:0%;top:-56.3606%;width:106.4159%;height:263.7755%"></span>
+      <img class="face" src="assets/cards/06-ui.svg" alt="">
+      <span class="card-tag">链接</span>
+    </a>`;
+
+  if (!products.length) {
+    cards.innerHTML = portfolioCard + '<div class="catalog-empty">当前没有在售商品<br><span>请稍后再来看看</span></div>';
+    heroTitle.textContent = "暂无在售商品";
+    heroSpecs.innerHTML = '<div class="spec"><b>状态</b><span>商品正在整理中</span></div>';
+    document.querySelector(".hint").textContent = "后台上架商品后会自动显示";
+    document.getElementById("hero").classList.add("is-empty");
+    document.getElementById("inspectBtn").hidden = true;
+    return;
+  }
+
+  function specHtml(product) {
+    const rows = [];
+    if (product.dimension) rows.push(["尺寸", product.dimension]);
+    if (product.material) rows.push(["材质", product.material]);
+    return rows.map(([k, v]) => `<div class="spec"><b>${esc(k)}</b><span>${esc(v)}</span></div>`).join("");
+  }
+
+  function drawerSpecHtml(product) {
+    const rows = [];
+    if (product.dimension) rows.push(["尺寸", product.dimension]);
+    if (product.material) rows.push(["材质", product.material]);
+    if (product.weight) rows.push(["重量", product.weight]);
+    return rows.map(([k, v]) => `<div class="spec-row"><em>${esc(k)}</em><span>${esc(v)}</span></div>`).join("");
+  }
+
+  cards.innerHTML = portfolioCard + products.map((p) => `
+    <button class="card" type="button" data-id="${p.id}" style="--card:${p.cardBg}" aria-label="${esc(p.no)} ${esc(p.name)} ${esc(p.nameEn)}">
+      <span class="photo" style="background-image:url('${p.cardImage}');${p.cardPhoto}"></span>
+      ${p.cardFace ? `<img class="face" src="${p.cardFace}" alt="">` : ""}
+    </button>`).join("");
+
+  thumbs.innerHTML = products.map((p) => `
+    <button class="thumb" type="button" data-id="${p.id}" style="background-image:url('${p.image}')" aria-label="${esc(p.name)}"></button>`).join("");
+
+  function show(next, fade) {
+    if (next < 0) next = products.length - 1;
+    if (next >= products.length) next = 0;
+    index = next;
+    const product = products[index];
+    document.querySelectorAll(".card").forEach((card) => {
+      card.classList.toggle("is-on", Number(card.dataset.id) === product.id);
+    });
+    document.querySelectorAll(".thumb").forEach((thumb) => {
+      thumb.classList.toggle("is-on", Number(thumb.dataset.id) === product.id);
+    });
+    const apply = () => {
+      heroPhoto.style.backgroundImage = `url('${product.image}')`;
+      heroPhoto.style.backgroundPosition = product.heroPosition || "center center";
+      heroTitle.textContent = product.name;
+      heroSpecs.innerHTML = specHtml(product);
+      document.getElementById("drawerTitle").textContent = product.name;
+      document.getElementById("drawerImg").src = product.image;
+      document.getElementById("drawerImg").alt = product.name;
+      const desc = document.getElementById("drawerDesc");
+      desc.hidden = !product.desc;
+      desc.textContent = product.desc || "";
+      document.getElementById("drawerSpecs").innerHTML = drawerSpecHtml(product);
+      document.getElementById("drawerSpecs").hidden = !drawerSpecHtml(product);
+      document.getElementById("drawerPrice").textContent = Shop.formatPrice(product.price);
+      document.getElementById("detailLink").href = `product.html?id=${product.id}`;
+      lbSpecs.innerHTML = specHtml(product);
+    };
+    if (fade) {
+      heroPhoto.classList.add("is-dim");
+      if (lightbox.classList.contains("open")) lbImg.classList.add("is-dim");
+      setTimeout(() => {
+        apply();
+        heroPhoto.classList.remove("is-dim");
+        lbImg.src = product.image;
+        lbImg.alt = product.name;
+        lbImg.classList.remove("is-dim");
+      }, 150);
+    } else {
+      apply();
+      lbImg.src = product.image;
+      lbImg.alt = product.name;
+    }
+    const on = cards.querySelector(".is-on");
+    if (on && cards.scrollHeight > cards.clientHeight) {
+      const box = cards.getBoundingClientRect();
+      const rect = on.getBoundingClientRect();
+      const shift = rect.top < box.top ? rect.top - box.top : rect.bottom > box.bottom ? rect.bottom - box.bottom : 0;
+      if (shift) cards.scrollBy({ top: shift, behavior: fade ? "smooth" : "auto" });
+    }
+  }
+
+  cards.addEventListener("click", (e) => {
+    const card = e.target.closest(".card");
+    if (!card || !card.dataset.id) return;
+    show(products.findIndex((p) => p.id === Number(card.dataset.id)), true);
+  });
+
+  document.getElementById("hero").addEventListener("click", (e) => {
+    if (e.target.closest("#inspectBtn")) return;
+    openLightbox();
+  });
+  document.getElementById("inspectBtn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    openDrawer();
+  });
+
+  function openLightbox() {
+    lbImg.src = products[index].image;
+    lightbox.classList.add("open");
+    document.body.style.overflow = "hidden";
+  }
+  function closeLightbox() {
+    lightbox.classList.remove("open");
+    document.body.style.overflow = "";
+  }
+  function openDrawer() {
+    backdrop.classList.add("open");
+  }
+  function closeDrawer() {
+    backdrop.classList.remove("open");
+  }
+
+  document.getElementById("lbPrev").addEventListener("click", (e) => {
+    e.stopPropagation();
+    show(index - 1, true);
+  });
+  document.getElementById("lbNext").addEventListener("click", (e) => {
+    e.stopPropagation();
+    show(index + 1, true);
+  });
+  document.getElementById("lbStage").addEventListener("click", (e) => {
+    if (e.target.id === "lbStage") closeLightbox();
+  });
+  thumbs.addEventListener("click", (e) => {
+    const thumb = e.target.closest(".thumb");
+    if (!thumb) return;
+    show(products.findIndex((p) => p.id === Number(thumb.dataset.id)), true);
+  });
+  backdrop.addEventListener("click", (e) => {
+    if (e.target === backdrop) closeDrawer();
+  });
+  document.getElementById("addBtn").addEventListener("click", () => {
+    Shop.addToCart(products[index].id, 1);
+    closeDrawer();
+    Shop.addedNotice();
+  });
+
+  window.addEventListener("keydown", (e) => {
+    const light = lightbox.classList.contains("open");
+    if (e.key === "Escape") {
+      if (light) closeLightbox();
+      else closeDrawer();
+      return;
+    }
+    if (!light && backdrop.classList.contains("open")) return;
+    if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      show(index - 1, true);
+    } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      show(index + 1, true);
+    }
+  });
+
+  const requested = parseInt(new URLSearchParams(location.search).get("id"), 10);
+  const start = products.findIndex((p) => p.id === requested);
+  show(start >= 0 ? start : 0, false);
+})();
+</script>
+<div class="added-toast" id="addedToast" role="status" aria-live="polite" aria-hidden="true"></div>
+</body>
+</html>

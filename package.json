@@ -1,0 +1,9 @@
+{
+  "name": "longying-shop-admin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LONGYING SHOP 商品管理后台",
+  "scripts": {
+    "start": "zsh ./启动网站.command"
+  }
+}

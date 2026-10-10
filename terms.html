@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>购物须知与隐私政策</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&family=Space+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shop.css">
+</head>
+<body>
+<div class="page">
+  <header class="page-head">
+    <div class="page-title">
+      <h1>购物须知与隐私政策</h1>
+      <small>TERMS &amp; PRIVACY</small>
+    </div>
+    <a class="head-btn" href="index.html">返回画册</a>
+  </header>
+
+  <div class="doc">
+    <nav class="doc-nav" aria-label="目录">
+      <span class="doc-date">最后更新 2026-10-10</span>
+      <a class="doc-link is-on" href="#terms" data-target="terms"><span>购物须知</span><small>01–05</small></a>
+      <a class="doc-link" href="#privacy" data-target="privacy"><span>隐私政策</span><small>06–08</small></a>
+    </nav>
+
+    <main class="doc-body">
+      <div class="doc-group" id="terms">
+        <section class="doc-card">
+          <span class="doc-no">01 / 订购与付款</span>
+          <h2>订购与付款</h2>
+          <p>目前支持微信、支付宝、银联扫码付款。在结算页选择支付方式并扫码付款后，点击「我已支付」即可提交订单，订单会自动发到后台。</p>
+          <p>我们会人工核对到账情况，确认收款后订单进入待发货状态。</p>
+        </section>
+        <section class="doc-card">
+          <span class="doc-no">02 / 发货时间</span>
+          <h2>发货时间</h2>
+          <p>确认收款后，现货商品一般在 3 个工作日内发出。遇节假日或备货中的商品，发货时间可能顺延，我们会提前告知。</p>
+        </section>
+        <section class="doc-card">
+          <span class="doc-no">03 / 快递与运费</span>
+          <h2>快递与运费</h2>
+          <p>目前中国大陆地区订单免运费。发货后会生成快递单号，可以联系我们查询物流进度。</p>
+        </section>
+        <section class="doc-card">
+          <span class="doc-no">04 / 退换货</span>
+          <h2>退换货与售后</h2>
+          <p>签收后 7 天内，如商品在运输中破损或发错货，请拍照联系我们，我们会免费补发或退款。</p>
+          <p>非质量问题的退换，需商品未使用且包装完好，并在签收后 7 天内提出，退回运费由买家承担。</p>
+        </section>
+        <section class="doc-card">
+          <span class="doc-no">05 / 联系我们</span>
+          <h2>联系我们</h2>
+          <p>修改收货地址、查询订单或售后问题，都可以直接联系我们。</p>
+          <p data-contact-row>联系方式：<b data-contact></b></p>
+        </section>
+      </div>
+
+      <div class="doc-group" id="privacy">
+        <section class="doc-card">
+          <span class="doc-no">06 / 收集的信息</span>
+          <h2>我们收集的信息</h2>
+          <p>下单时我们只收集发货必需的信息：收件人姓名、联系电话、收货地址，以及订单中的商品和金额。</p>
+          <p>本站不使用广告或统计追踪。购物袋内容只保存在你自己的浏览器里，不会上传。</p>
+        </section>
+        <section class="doc-card">
+          <span class="doc-no">07 / 信息用途</span>
+          <h2>信息的用途</h2>
+          <p>这些信息只用于确认收款、打包发货和售后服务。除了交给快递公司完成配送，我们不会出售或向任何第三方提供你的个人信息。</p>
+        </section>
+        <section class="doc-card">
+          <span class="doc-no">08 / 保存与删除</span>
+          <h2>保存与删除</h2>
+          <p>订单信息保存在本店的服务器上，用于售后和对账。</p>
+          <p>你可以随时联系我们，要求删除你的订单个人信息，我们核实身份后会尽快删除。</p>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="shop.js"></script>
+<script>
+(function () {
+  const links = document.querySelectorAll(".doc-link");
+  const setActive = (id) => links.forEach((link) => link.classList.toggle("is-on", link.dataset.target === id));
+  links.forEach((link) => link.addEventListener("click", (e) => {
+    e.preventDefault();
+    document.getElementById(link.dataset.target).scrollIntoView({ behavior: "smooth", block: "start" });
+    setActive(link.dataset.target);
+  }));
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => { if (entry.isIntersecting) setActive(entry.target.id); });
+  }, { rootMargin: "-30% 0px -60% 0px" });
+  document.querySelectorAll(".doc-group").forEach((group) => observer.observe(group));
+})();
+</script>
+</body>
+</html>

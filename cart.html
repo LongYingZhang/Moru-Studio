@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>购物袋</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&family=Space+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shop.css">
+</head>
+<body>
+<div class="page">
+  <header class="page-head">
+    <div class="page-title">
+      <h1>购物袋</h1>
+      <small>SHOPPING BAG</small>
+    </div>
+    <button class="ghost" id="clear" type="button">清空购物车</button>
+  </header>
+  <main>
+    <div class="empty" id="empty" hidden>
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M6.5 8.5h11l-.8 10.2a1.5 1.5 0 0 1-1.5 1.3H8.8a1.5 1.5 0 0 1-1.5-1.3L6.5 8.5Z" stroke="currentColor" stroke-width="1.4"/>
+        <path d="M9 8.5V7a3 3 0 0 1 6 0v1.5" stroke="currentColor" stroke-width="1.4"/>
+      </svg>
+      <p>购物袋是空的</p>
+      <small>YOUR BAG IS EMPTY</small>
+      <a class="btn light" href="index.html">返回画册挑选 <span>→</span></a>
+    </div>
+    <div class="narrow" id="filled" hidden>
+      <div id="lines"></div>
+      <div class="summary">
+        <div><span>商品小计</span><strong id="subtotal"></strong></div>
+        <div><span>配送服务</span><strong>¥0</strong></div>
+        <div class="rule"></div>
+        <div><span class="total-label">应付总额</span><strong id="total"></strong></div>
+      </div>
+      <a class="btn light" href="checkout.html">前往结算 <span>→</span></a>
+      <a class="center-link" href="index.html">← 继续浏览画册</a>
+    </div>
+  </main>
+</div>
+<script src="shop.js"></script>
+<script>
+(function () {
+  const linesEl = document.getElementById("lines");
+  const empty = document.getElementById("empty");
+  const filled = document.getElementById("filled");
+  const clearBtn = document.getElementById("clear");
+
+  function render() {
+    const lines = Shop.cartLines();
+    const esc = Shop.escapeHtml;
+    const isEmpty = lines.length === 0;
+    empty.hidden = !isEmpty;
+    filled.hidden = isEmpty;
+    clearBtn.style.visibility = isEmpty ? "hidden" : "visible";
+    linesEl.innerHTML = lines.map(({ product, qty, subtotal }) => {
+      const spec = Shop.lineSpec(product);
+      return `<article class="line">
+        <div class="line-photo"><img alt="${esc(product.name)}" src="${product.image}"></div>
+        <div>
+          <h2>${esc(product.name)}</h2>
+          ${spec ? `<p>规格：${esc(spec)}</p>` : ""}
+          <p>单价：${Shop.formatPrice(product.price)}</p>
+        </div>
+        <div class="stepper">
+          <button type="button" data-action="dec" data-id="${product.id}" aria-label="减少">−</button>
+          <span>${qty}</span>
+          <button type="button" data-action="inc" data-id="${product.id}" aria-label="增加">+</button>
+        </div>
+        <div class="sum">${Shop.formatPrice(subtotal)}</div>
+        <button class="icon-btn" type="button" data-action="remove" data-id="${product.id}" aria-label="移除">×</button>
+      </article>`;
+    }).join("");
+    const total = Shop.formatPrice(Shop.cartTotal());
+    document.getElementById("subtotal").textContent = total;
+    document.getElementById("total").textContent = total;
+    Shop.refreshCount();
+  }
+
+  linesEl.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-action]");
+    if (!btn) return;
+    const id = Number(btn.dataset.id);
+    const line = Shop.cartLines().find((l) => l.product.id === id);
+    if (!line) return;
+    if (btn.dataset.action === "inc") Shop.setQty(id, line.qty + 1);
+    if (btn.dataset.action === "dec") Shop.setQty(id, Math.max(1, line.qty - 1));
+    if (btn.dataset.action === "remove") Shop.removeFromCart(id);
+    render();
+  });
+  clearBtn.addEventListener("click", () => {
+    Shop.clearCart();
+    render();
+  });
+  window.addEventListener("storage", render);
+  render();
+})();
+</script>
+</body>
+</html>

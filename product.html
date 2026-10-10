@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>商品详情</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&family=Space+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shop.css">
+</head>
+<body>
+<div class="page">
+  <header class="page-head">
+    <div class="page-title">
+      <h1>商品详情</h1>
+      <small>FULL DETAIL</small>
+    </div>
+    <a class="ghost" id="back" href="index.html">← 返回画册</a>
+  </header>
+  <main class="detail">
+    <div class="detail-photo">
+      <img id="photo" alt="">
+      <div class="photo-dots" id="dots"></div>
+      <button class="photo-nav prev" id="prev" type="button" aria-label="上一张">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M14.5 6 8.5 12l6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="photo-nav next" id="next" type="button" aria-label="下一张">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="m9.5 6 6 6-6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <div class="detail-copy">
+      <div class="name-row">
+        <div>
+          <h1 id="name"></h1>
+          <p class="en" id="en"></p>
+        </div>
+      </div>
+      <p class="price" id="price"></p>
+      <p class="desc" id="desc"></p>
+      <div class="spec-card" id="specs"></div>
+      <div class="qty-row">
+        <span>数量</span>
+        <div class="stepper">
+          <button type="button" id="dec" aria-label="减少">−</button>
+          <span id="qty">1</span>
+          <button type="button" id="inc" aria-label="增加">+</button>
+        </div>
+      </div>
+      <button class="btn panel" id="add" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6.5 8.5h11l-.8 10.2a1.5 1.5 0 0 1-1.5 1.3H8.8a1.5 1.5 0 0 1-1.5-1.3L6.5 8.5Z" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M9 8.5V7a3 3 0 0 1 6 0v1.5" stroke="currentColor" stroke-width="1.6"/>
+        </svg>
+        加入购物袋
+      </button>
+      <button class="btn light" id="pay" type="button">确认支付 <span>→</span></button>
+    </div>
+  </main>
+</div>
+<script src="shop.js"></script>
+<script>
+(function () {
+  const products = Shop.products;
+  const esc = Shop.escapeHtml;
+  if (!products.length) {
+    location.replace("index.html");
+    return;
+  }
+  const requested = parseInt(new URLSearchParams(location.search).get("id"), 10);
+  let cursor = Math.max(0, products.findIndex((p) => p.id === requested));
+  if (cursor < 0) cursor = 0;
+  let qty = 1;
+  let shot = 0;
+  const photo = document.getElementById("photo");
+  const dots = document.getElementById("dots");
+
+  function paintDots() {
+    const count = products[cursor].images.length;
+    dots.hidden = count < 2;
+    dots.innerHTML = products[cursor].images.map((_, i) =>
+      `<button type="button" class="${i === shot ? "is-on" : ""}" data-shot="${i}" aria-label="第 ${i + 1} 张"></button>`).join("");
+  }
+
+  function paint(fade) {
+    const product = products[cursor];
+    paintDots();
+    const apply = () => {
+      document.title = product.name + " · 商品详情";
+      photo.src = product.images[shot] || product.image;
+      photo.alt = product.name;
+      document.getElementById("name").textContent = product.name;
+      const en = document.getElementById("en");
+      en.textContent = product.detailEn || product.nameEn || "";
+      en.hidden = !en.textContent;
+      document.getElementById("price").textContent = Shop.formatPrice(product.price);
+      const desc = document.getElementById("desc");
+      desc.textContent = product.desc || "";
+      desc.hidden = !product.desc;
+      const rows = [];
+      if (product.dimension) rows.push(["尺寸", product.dimension]);
+      if (product.material) rows.push(["材质", product.material]);
+      if (product.weight) rows.push(["重量", product.weight]);
+      const specs = document.getElementById("specs");
+      specs.innerHTML = rows.map(([k, v]) => `<div class="spec-row"><em>${esc(k)}</em><span>${esc(v)}</span></div>`).join("");
+      specs.hidden = rows.length === 0;
+      document.getElementById("back").href = `index.html?id=${product.id}`;
+      history.replaceState(null, "", `product.html?id=${product.id}`);
+    };
+    if (fade) {
+      photo.classList.add("is-dim");
+      setTimeout(() => {
+        apply();
+        photo.classList.remove("is-dim");
+      }, 120);
+    } else apply();
+  }
+
+  document.getElementById("prev").addEventListener("click", () => {
+    const count = products[cursor].images.length;
+    if (count < 2) return;
+    shot = (shot - 1 + count) % count;
+    paint(true);
+  });
+  document.getElementById("next").addEventListener("click", () => {
+    const count = products[cursor].images.length;
+    if (count < 2) return;
+    shot = (shot + 1) % count;
+    paint(true);
+  });
+  dots.addEventListener("click", (e) => {
+    const dot = e.target.closest("[data-shot]");
+    if (!dot || Number(dot.dataset.shot) === shot) return;
+    shot = Number(dot.dataset.shot);
+    paint(true);
+  });
+  document.getElementById("dec").addEventListener("click", () => {
+    qty = Math.max(1, qty - 1);
+    document.getElementById("qty").textContent = String(qty);
+  });
+  document.getElementById("inc").addEventListener("click", () => {
+    qty = Math.min(99, qty + 1);
+    document.getElementById("qty").textContent = String(qty);
+  });
+  document.getElementById("add").addEventListener("click", () => {
+    Shop.addToCart(products[cursor].id, qty);
+    Shop.addedNotice();
+  });
+  document.getElementById("pay").addEventListener("click", () => {
+    Shop.addToCart(products[cursor].id, qty);
+    location.href = "checkout.html";
+  });
+  paint(false);
+})();
+</script>
+<div class="added-toast" id="addedToast" role="status" aria-live="polite" aria-hidden="true"></div>
+</body>
+</html>

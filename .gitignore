@@ -1,0 +1,16 @@
+# 订单、商品、登录数据只留在跑网站的那台电脑上
+admin/data/
+
+# 本机运行产生的文件
+.server.log
+.server.pid
+.venv*/
+__pycache__/
+.DS_Store
+
+# 设计稿和原始素材，网站运行用不到
+/*.svg
+!/ZHANGLONGYING__STUDIO_7.svg
+/*.pdf
+/IMG_*.jpg
+admin/*.svg

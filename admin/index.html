@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#131313" />
+    <meta
+      name="description"
+      content="LONGYING SHOP 商品管理后台"
+    />
+    <title>商品管理 · LONGYING SHOP</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%230e0e0e%22/><circle cx=%2250%22 cy=%2250%22 r=%2224%22 fill=%22white%22/></svg>" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="header-inner">
+        <div class="header-left">
+          <a class="brand" href="#/orders" aria-label="返回订单管理">
+            <span class="brand-title">后台</span>
+            <span class="brand-sub">BACKEND</span>
+          </a>
+          <nav class="main-nav" aria-label="主要导航">
+            <a href="#/orders" data-nav="orders">订单管理</a>
+            <a href="#/products" data-nav="products">在售商品</a>
+            <a href="#/new" data-nav="new">上新商品</a>
+          </nav>
+        </div>
+        <div class="header-right">
+          <button class="text-button" type="button" data-global-action="signout">
+            退出登录
+          </button>
+          <button class="header-button" type="button" data-global-action="storefront">
+            查看前台
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main id="app" class="app-shell" tabindex="-1"></main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <noscript>
+      <div class="noscript">请启用 JavaScript 后使用商品管理功能。</div>
+    </noscript>
+  </body>
+</html>
