@@ -348,6 +348,7 @@
   const VIDEO_SRC = "assets/loader/moru-loop.mp4";
 
   let bootHiding = false;
+  let pendingNav = null;
 
   function bootNodes() {
     return {
@@ -393,6 +394,7 @@
       root = document.getElementById("boot");
     }
     root.classList.remove("is-out");
+    root.classList.toggle("is-nav", !!opts.nav);
     document.documentElement.classList.add("is-booting");
     document.documentElement.style.background = "#000";
     const { video, bar } = bootNodes();
@@ -417,7 +419,9 @@
     const { root } = bootNodes();
     if (!root || bootHiding) return;
     bootHiding = true;
+    pendingNav = null;
     root.classList.add("is-out");
+    root.classList.remove("is-nav");
     document.documentElement.classList.remove("is-booting");
     document.documentElement.style.background = "";
     setTimeout(() => {
@@ -448,7 +452,8 @@
     const { root, bar, video } = ensureBoot({
       resetVideo: !continuing,
       startedAt: continuing ? navState.startedAt : null,
-      bar: floor
+      bar: floor,
+      nav: false
     });
     if (!root || !bar) return;
     bootHiding = false;
@@ -482,23 +487,21 @@
   function navigate(url, replace) {
     if (!url) return;
     const startedAt = Date.now();
-    writeNavBoot({ startedAt: startedAt, bar: 0.12, href: url });
-    ensureBoot({ resetVideo: true, startedAt: startedAt, bar: 0.12 });
-    // 先画出并开始播放，下一帧再跳转，目标页按同一时间轴接着播
+    pendingNav = { startedAt: startedAt, bar: 0.12, href: url };
+    writeNavBoot(pendingNav);
+    ensureBoot({ resetVideo: true, startedAt: startedAt, bar: 0.12, nav: true });
     requestAnimationFrame(() => {
       if (replace) location.replace(url);
       else location.assign(url);
     });
   }
 
-  function isInternalNav(anchor) {
-    if (!anchor || anchor.target === "_blank" || anchor.hasAttribute("download")) return false;
-    const href = anchor.getAttribute("href");
-    if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:") || href.startsWith("javascript:")) {
+  function isInternalHref(href) {
+    if (!href || href.charAt(0) === "#" || href.indexOf("mailto:") === 0 || href.indexOf("tel:") === 0 || href.indexOf("javascript:") === 0) {
       return false;
     }
     try {
-      const url = new URL(anchor.href, location.href);
+      const url = new URL(href, location.href);
       if (url.origin !== location.origin) return false;
       if (url.pathname === location.pathname && url.search === location.search && url.hash) return false;
       return true;
@@ -507,16 +510,21 @@
     }
   }
 
+  function isInternalNav(anchor) {
+    if (!anchor || anchor.target === "_blank" || anchor.hasAttribute("download")) return false;
+    return isInternalHref(anchor.getAttribute("href"));
+  }
+
   document.addEventListener(
     "pointerdown",
     (event) => {
       if (event.button != null && event.button !== 0) return;
       const anchor = event.target.closest("a[href]");
       if (!isInternalNav(anchor)) return;
-      // 按下瞬间就铺黑并开播，跳转后按同一时间轴接着播
       const startedAt = Date.now();
-      writeNavBoot({ startedAt: startedAt, bar: 0.1, href: anchor.href });
-      ensureBoot({ resetVideo: true, startedAt: startedAt, bar: 0.1 });
+      pendingNav = { startedAt: startedAt, bar: 0.1, href: anchor.href };
+      writeNavBoot(pendingNav);
+      ensureBoot({ resetVideo: true, startedAt: startedAt, bar: 0.1, nav: true });
     },
     true
   );
@@ -524,15 +532,13 @@
   document.addEventListener(
     "pointerup",
     (event) => {
-      try {
-        const raw = sessionStorage.getItem(NAV_BOOT_KEY);
-        const parsed = raw ? JSON.parse(raw) : null;
-        if (!parsed || !parsed.href) return;
-        const anchor = event.target.closest("a[href]");
-        if (anchor && anchor.href === parsed.href) return;
-        sessionStorage.removeItem(NAV_BOOT_KEY);
-        hideBoot();
-      } catch (_) {}
+      if (!pendingNav) return;
+      const anchor = event.target.closest("a[href]");
+      // 松手仍在同一链接上：等 click 跳转；否则取消
+      if (anchor && anchor.href === pendingNav.href) return;
+      try { sessionStorage.removeItem(NAV_BOOT_KEY); } catch (_) {}
+      pendingNav = null;
+      hideBoot();
     },
     true
   );
@@ -544,24 +550,19 @@
         return;
       }
       const anchor = event.target.closest("a[href]");
-      if (!isInternalNav(anchor)) return;
+      const href = (anchor && isInternalNav(anchor) && anchor.href) || (pendingNav && pendingNav.href);
+      if (!href || !isInternalHref(href)) return;
       event.preventDefault();
-      let startedAt = Date.now();
-      try {
-        const raw = sessionStorage.getItem(NAV_BOOT_KEY);
-        const parsed = raw ? JSON.parse(raw) : null;
-        if (parsed && parsed.href === anchor.href && parsed.startedAt) startedAt = parsed.startedAt;
-      } catch (_) {}
-      writeNavBoot({ startedAt: startedAt, bar: 0.14, href: anchor.href });
-      ensureBoot({ resetVideo: false, startedAt: startedAt, bar: 0.14 });
-      requestAnimationFrame(() => {
-        location.assign(anchor.href);
-      });
+      event.stopPropagation();
+      const startedAt = pendingNav && pendingNav.href === href ? pendingNav.startedAt : Date.now();
+      pendingNav = { startedAt: startedAt, bar: 0.14, href: href };
+      writeNavBoot(pendingNav);
+      ensureBoot({ resetVideo: false, startedAt: startedAt, bar: 0.14, nav: true });
+      location.assign(href);
     },
     true
   );
 
-  // 提前把循环视频暖进缓存，点击时能立刻出画
   try {
     const warm = document.createElement("video");
     warm.preload = "auto";

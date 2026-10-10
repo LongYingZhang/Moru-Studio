@@ -1136,6 +1136,10 @@ html.is-booting body {
   transition: opacity 0.28s ease, visibility 0.28s ease;
   -webkit-tap-highlight-color: transparent;
 }
+/* 跳转前按下时不拦截点击，否则购物袋的 click 会被挡住 */
+.boot.is-nav {
+  pointer-events: none;
+}
 .boot.is-out {
   opacity: 0;
   visibility: hidden;
