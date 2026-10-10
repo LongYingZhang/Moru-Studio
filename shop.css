@@ -1157,7 +1157,7 @@ html.is-booting body {
   width: 100%;
   aspect-ratio: 1;
   overflow: hidden;
-  background: #000;
+  background: #000 url("assets/loader/moru-loop-poster.png") center / cover no-repeat;
   line-height: 0;
 }
 .boot-video {
@@ -1166,7 +1166,7 @@ html.is-booting body {
   display: block;
   object-fit: cover;
   object-position: center;
-  background: #000;
+  background: transparent;
   border: 0;
   outline: none;
   box-shadow: none;

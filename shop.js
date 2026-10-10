@@ -350,6 +350,31 @@
   let bootHiding = false;
   let pendingNav = null;
 
+  function warmBootVideo() {
+    let warm = document.getElementById("bootWarm");
+    if (!warm) {
+      warm = document.createElement("video");
+      warm.id = "bootWarm";
+      warm.muted = true;
+      warm.defaultMuted = true;
+      warm.playsInline = true;
+      warm.setAttribute("playsinline", "");
+      warm.setAttribute("webkit-playsinline", "");
+      warm.loop = true;
+      warm.preload = "auto";
+      warm.src = VIDEO_SRC;
+      warm.setAttribute("aria-hidden", "true");
+      warm.style.cssText = "position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-999px;top:-999px";
+      (document.body || document.documentElement).appendChild(warm);
+    }
+    try {
+      warm.load();
+      const play = warm.play();
+      if (play && play.catch) play.catch(() => {});
+    } catch (_) {}
+    return warm;
+  }
+
   function bootNodes() {
     return {
       root: document.getElementById("boot"),
@@ -403,11 +428,19 @@
     }
     if (video) {
       try {
+        const warm = warmBootVideo();
         video.loop = true;
         video.muted = true;
+        video.defaultMuted = true;
         video.playsInline = true;
+        if (!video.getAttribute("src") && !video.querySelector("source")) {
+          video.src = VIDEO_SRC;
+        }
         if (opts.startedAt) syncVideoToClock(video, opts.startedAt);
         else if (opts.resetVideo) video.currentTime = 0;
+        else if (warm && warm.readyState >= 2 && isFinite(warm.currentTime)) {
+          try { video.currentTime = warm.currentTime; } catch (_) {}
+        }
         const play = video.play();
         if (play && play.catch) play.catch(() => {});
       } catch (_) {}
@@ -563,15 +596,7 @@
     true
   );
 
-  try {
-    const warm = document.createElement("video");
-    warm.preload = "auto";
-    warm.muted = true;
-    warm.playsInline = true;
-    warm.src = VIDEO_SRC;
-    warm.load();
-  } catch (_) {}
-
+  warmBootVideo();
   runBootProgress(readNavBoot());
 
   window.Shop = {
