@@ -287,7 +287,8 @@
   function safeImageSource(value) {
     const source = String(value || "");
     const isLocalAsset =
-      /^\/?assets\/[\w./-]+\.(?:jpe?g|png|webp|gif)$/i.test(source);
+      /^\/?assets\/[\w./-]+\.(?:jpe?g|png|webp|gif)$/i.test(source) ||
+      /^\/uploads\/[0-9a-f]{32}\.(?:jpg|png|webp|gif)$/.test(source);
     const isUploadedImage =
       /^data:image\/(?:jpeg|png|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(source);
 

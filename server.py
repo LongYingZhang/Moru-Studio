@@ -1,5 +1,10 @@
+import base64
+import binascii
+import email.utils
+import gzip
 import hashlib
 import hmac
+import io
 import json
 import os
 import posixpath
@@ -22,6 +27,7 @@ DATA_FILE = os.path.join(DATA_DIR, "products.json")
 ORDERS_FILE = os.path.join(DATA_DIR, "orders.json")
 AUTH_FILE = os.path.join(DATA_DIR, "auth.json")
 SESSIONS_FILE = os.path.join(DATA_DIR, "sessions.json")
+UPLOADS_DIR = os.path.join(DATA_DIR, "uploads")
 PORT = int(os.environ.get("PORT", "8787"))
 HOST = os.environ.get("HOST", "127.0.0.1")
 MAX_BODY = 50 * 1024 * 1024
@@ -35,6 +41,12 @@ PBKDF2_ROUNDS = 200_000
 ORDER_NO = re.compile(r"^LY\d{10,16}$")
 PHONE = re.compile(r"^[+\d][\d\s-]{6,}$")
 METHODS = {"wechat", "alipay", "card"}
+
+DATA_IMAGE = re.compile(r"^data:image/(jpeg|png|webp|gif);base64,([A-Za-z0-9+/=\s]+)$")
+IMAGE_EXT = {"jpeg": "jpg", "png": "png", "webp": "webp", "gif": "gif"}
+UPLOAD_NAME = re.compile(r"^[0-9a-f]{32}\.(?:jpg|png|webp|gif)$")
+GZIP_EXT = {".html", ".css", ".js", ".svg", ".json"}
+LONG_CACHE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".woff2", ".ico"}
 
 data_lock = threading.Lock()
 sessions_lock = threading.Lock()
@@ -77,6 +89,47 @@ def hash_password(password, salt):
     ).hex()
 
 
+def store_images(value):
+    """把商品里的 base64 图片存成 uploads/ 下的文件，换成文件地址。"""
+    if isinstance(value, list):
+        return [store_images(item) for item in value]
+    if isinstance(value, dict):
+        return {key: store_images(item) for key, item in value.items()}
+    if not isinstance(value, str):
+        return value
+    match = DATA_IMAGE.match(value)
+    if not match:
+        return value
+    try:
+        raw = base64.b64decode(re.sub(r"\s", "", match.group(2)), validate=True)
+    except (binascii.Error, ValueError):
+        return value
+    name = hashlib.sha256(raw).hexdigest()[:32] + "." + IMAGE_EXT[match.group(1)]
+    path = os.path.join(UPLOADS_DIR, name)
+    if not os.path.exists(path):
+        os.makedirs(UPLOADS_DIR, exist_ok=True)
+        fd, temp_path = tempfile.mkstemp(dir=UPLOADS_DIR)
+        with os.fdopen(fd, "wb") as file:
+            file.write(raw)
+        os.replace(temp_path, path)
+    return "/uploads/" + name
+
+
+def migrate_inline_images():
+    products = read_json(DATA_FILE, None)
+    if products is None:
+        return
+    stored = store_images(products)
+    if stored == products:
+        return
+    backup = DATA_FILE + ".before-uploads"
+    if not os.path.exists(backup):
+        with open(DATA_FILE, "rb") as src, open(backup, "wb") as dst:
+            dst.write(src.read())
+    write_json(DATA_FILE, stored)
+    print("已把商品图片拆分到 admin/data/uploads/")
+
+
 def now_iso():
     return datetime.now().astimezone().isoformat(timespec="seconds")
 
@@ -86,10 +139,24 @@ def clean_text(value, limit):
 
 
 class ShopHandler(SimpleHTTPRequestHandler):
+    extensions_map = {
+        **SimpleHTTPRequestHandler.extensions_map,
+        ".js": "text/javascript",
+        ".svg": "image/svg+xml",
+        ".woff2": "font/woff2",
+    }
+    cache_override = None
+
     def translate_path(self, path):
         request_path = posixpath.normpath(unquote(urlsplit(path).path))
         if request_path == "/admin":
             request_path = "/admin/"
+
+        if request_path.startswith("/uploads/"):
+            name = request_path[len("/uploads/"):]
+            if not UPLOAD_NAME.match(name):
+                return os.path.join(ADMIN_DIR, "__forbidden__")
+            return os.path.join(UPLOADS_DIR, name)
 
         if request_path.startswith("/admin/") or request_path == "/admin/":
             root = ADMIN_DIR
@@ -108,9 +175,53 @@ class ShopHandler(SimpleHTTPRequestHandler):
             resolved += "/"
         return resolved
 
+    def cache_policy(self):
+        if self.cache_override:
+            return self.cache_override
+        path = self.route()
+        if path.startswith("/uploads/"):
+            return "public, max-age=31536000, immutable"
+        if path.startswith("/api/"):
+            return "no-store"
+        if os.path.splitext(path)[1].lower() in LONG_CACHE_EXT:
+            return "public, max-age=86400"
+        return "no-cache"
+
     def end_headers(self):
-        self.send_header("Cache-Control", "no-store")
+        self.send_header("Cache-Control", self.cache_policy())
         super().end_headers()
+
+    def accepts_gzip(self):
+        return "gzip" in (self.headers.get("Accept-Encoding") or "")
+
+    def send_head(self):
+        path = self.translate_path(self.path)
+        if (
+            os.path.splitext(path)[1].lower() not in GZIP_EXT
+            or not self.accepts_gzip()
+            or not os.path.isfile(path)
+        ):
+            return super().send_head()
+        stat = os.stat(path)
+        since = self.headers.get("If-Modified-Since")
+        if since and not self.headers.get("If-None-Match"):
+            try:
+                if email.utils.parsedate_to_datetime(since).timestamp() >= int(stat.st_mtime):
+                    self.send_response(304)
+                    self.end_headers()
+                    return None
+            except (TypeError, ValueError, IndexError, OverflowError):
+                pass
+        with open(path, "rb") as file:
+            body = gzip.compress(file.read(), 6)
+        self.send_response(200)
+        self.send_header("Content-Type", self.guess_type(path))
+        self.send_header("Content-Encoding", "gzip")
+        self.send_header("Vary", "Accept-Encoding")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Last-Modified", self.date_time_string(stat.st_mtime))
+        self.end_headers()
+        return io.BytesIO(body)
 
     def log_message(self, format, *args):
         # 启动它的终端关掉后 stderr 会失效，写日志失败不能拖垮请求
@@ -124,11 +235,19 @@ class ShopHandler(SimpleHTTPRequestHandler):
     def route(self):
         return urlsplit(self.path).path
 
-    def send_json(self, status, body, cookie=None):
+    def send_json(self, status, body, cookie=None, etag=None):
         payload = (body if isinstance(body, str) else json.dumps(body, ensure_ascii=False)).encode("utf-8")
+        gzipped = len(payload) > 1024 and self.accepts_gzip()
+        if gzipped:
+            payload = gzip.compress(payload, 6)
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
+        if gzipped:
+            self.send_header("Content-Encoding", "gzip")
+            self.send_header("Vary", "Accept-Encoding")
         self.send_header("Content-Length", str(len(payload)))
+        if etag:
+            self.send_header("ETag", etag)
         if cookie:
             self.send_header("Set-Cookie", cookie)
         self.end_headers()
@@ -193,7 +312,7 @@ class ShopHandler(SimpleHTTPRequestHandler):
         if not isinstance(products, list):
             return self.send_json(400, {"error": "expected list"})
         with data_lock:
-            write_json(DATA_FILE, products)
+            write_json(DATA_FILE, store_images(products))
         self.send_json(200, {"ok": True})
 
     def do_POST(self):
@@ -220,11 +339,20 @@ class ShopHandler(SimpleHTTPRequestHandler):
 
     def get_products(self):
         with data_lock:
-            if not os.path.exists(DATA_FILE):
+            try:
+                stat = os.stat(DATA_FILE)
+            except OSError:
                 return self.send_json(404, "null")
+            etag = f'"{stat.st_mtime_ns:x}-{stat.st_size:x}"'
+            self.cache_override = "no-cache"
+            if etag in (self.headers.get("If-None-Match") or ""):
+                self.send_response(304)
+                self.send_header("ETag", etag)
+                self.end_headers()
+                return
             with open(DATA_FILE, encoding="utf-8") as file:
                 body = file.read()
-        self.send_json(200, body)
+        self.send_json(200, body, etag=etag)
 
     # ---- auth ----
 
@@ -374,6 +502,7 @@ class ShopHandler(SimpleHTTPRequestHandler):
 if __name__ == "__main__":
     if not os.path.isdir(ADMIN_DIR):
         sys.exit(f"找不到后台目录：{ADMIN_DIR}")
+    migrate_inline_images()
     server = ThreadingHTTPServer((HOST, PORT), partial(ShopHandler))
     print(f"前台：http://127.0.0.1:{PORT}/index.html")
     print(f"后台：http://127.0.0.1:{PORT}/admin/#/orders")

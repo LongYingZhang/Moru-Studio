@@ -158,13 +158,14 @@
   function watchServerProducts() {
     if (serverSnapshot == null) return;
     setInterval(() => {
-      fetch(PRODUCTS_API, { cache: "no-store" })
+      if (document.hidden) return;
+      fetch(PRODUCTS_API, { cache: "no-cache" })
         .then((response) => (response.ok ? response.text() : null))
         .then((text) => {
           if (text != null && text !== serverSnapshot) location.reload();
         })
         .catch(() => {});
-    }, 3000);
+    }, 20000);
   }
 
   function loadProducts() {

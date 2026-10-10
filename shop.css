@@ -1,3 +1,16 @@
+@font-face {
+  font-family: "Space Grotesk";
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("assets/fonts/space-grotesk.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Space Mono";
+  font-weight: 400;
+  font-display: swap;
+  src: url("assets/fonts/space-mono.woff2") format("woff2");
+}
+
 :root {
   --bg: #131313;
   --ink: #f4f4f4;
@@ -16,7 +29,7 @@ html, body { margin: 0; padding: 0; }
 body {
   background: var(--bg);
   color: var(--ink);
-  font-family: "Noto Sans SC", "Noto Sans", sans-serif;
+  font-family: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
 }
@@ -503,7 +516,7 @@ img { display: block; max-width: 100%; }
   letter-spacing: 0.14em;
   color: var(--quiet);
 }
-.ghost { letter-spacing: 0.04em; font-family: "Noto Sans SC", sans-serif; font-size: 13px; transition: color .3s ease; }
+.ghost { letter-spacing: 0.04em; font-family: inherit; font-size: 13px; transition: color .3s ease; }
 .ghost:hover { color: #fff; }
 
 .detail {
