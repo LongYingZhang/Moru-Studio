@@ -1170,7 +1170,7 @@ html.is-booting body {
   top: 0;
   left: 0;
   height: 100%;
-  width: 2400%; /* 24 frames */
+  width: 4800%; /* 48 frames */
   background-image: url("assets/loader/moru-sprite.webp");
   background-repeat: no-repeat;
   background-position: 0 0;
@@ -1178,6 +1178,7 @@ html.is-booting body {
   transform: translate3d(0, 0, 0);
   opacity: 0;
   pointer-events: none;
+  backface-visibility: hidden;
 }
 .boot-sprite.is-ready {
   background-image: none;

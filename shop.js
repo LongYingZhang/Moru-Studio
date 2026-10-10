@@ -346,8 +346,8 @@
   const SPRITE_SRC = "assets/loader/moru-sprite.webp";
   const POSTER_SRC = "assets/loader/moru-loop-poster.png";
   const BOOT_MIN_MS = 900;
-  const BOOT_FRAMES = 24;
-  const BOOT_FRAME_MS = 70; // ~14fps，接近原片，无插值闪烁
+  const BOOT_FRAMES = 48;
+  const BOOT_FRAME_MS = 1000 / 30; // 30fps，每次只进 1 帧，不插值
 
   let bootHiding = false;
   let pendingNav = null;
@@ -384,7 +384,8 @@
     const strip = document.getElementById("bootStrip");
     if (!strip) return;
     bootFrame = ((index % BOOT_FRAMES) + BOOT_FRAMES) % BOOT_FRAMES;
-    strip.style.transform = "translate3d(" + (-bootFrame * (100 / BOOT_FRAMES)) + "%,0,0)";
+    // % 相对条带自身宽度：每帧刚好移 1/48
+    strip.style.transform = "translate3d(" + (-(bootFrame * 100) / BOOT_FRAMES) + "%,0,0)";
   }
 
   function stopBootAnim() {
@@ -398,8 +399,8 @@
   function startBootAnim(fromStart) {
     const { sprite, strip } = bootNodes();
     if (!sprite || !strip || !spriteReady) return;
-    sprite.classList.add("is-ready");
     if (fromStart) setBootFrame(0);
+    sprite.classList.add("is-ready");
     if (bootAnimRaf) return;
     const step = (ts) => {
       if (!document.getElementById("bootStrip")) {
@@ -407,11 +408,10 @@
         return;
       }
       if (!bootLastTs) bootLastTs = ts;
-      const delta = ts - bootLastTs;
-      if (delta >= BOOT_FRAME_MS) {
-        const steps = Math.min(3, Math.floor(delta / BOOT_FRAME_MS));
-        bootLastTs += steps * BOOT_FRAME_MS;
-        setBootFrame(bootFrame + steps);
+      // 掉帧时也只 +1，避免一下子跳多帧看起来抽风
+      if (ts - bootLastTs >= BOOT_FRAME_MS) {
+        bootLastTs = ts;
+        setBootFrame(bootFrame + 1);
       }
       bootAnimRaf = requestAnimationFrame(step);
     };
@@ -433,14 +433,21 @@
       poster.src = POSTER_SRC;
     } catch (_) {}
     if (spriteImg) {
-      if (spriteImg.complete && spriteImg.naturalWidth) markSpriteReady();
+      if (spriteReady || (spriteImg.complete && spriteImg.naturalWidth)) markSpriteReady();
       return spriteImg;
     }
     spriteImg = new Image();
-    spriteImg.decoding = "async";
-    spriteImg.addEventListener("load", () => markSpriteReady());
+    const finish = () => {
+      const go = () => markSpriteReady();
+      if (spriteImg.decode) {
+        spriteImg.decode().then(go).catch(go);
+      } else {
+        go();
+      }
+    };
+    spriteImg.addEventListener("load", finish);
     spriteImg.src = SPRITE_SRC;
-    if (spriteImg.complete && spriteImg.naturalWidth) markSpriteReady();
+    if (spriteImg.complete && spriteImg.naturalWidth) finish();
     return spriteImg;
   }
 
