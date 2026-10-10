@@ -5,25 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Moru boot preview</title>
 <link rel="stylesheet" href="../../shop.css">
-<link rel="preload" href="moru.png" as="image">
-<style>html,body{margin:0}html.is-booting,html.is-booting body{background:#000!important}
-.boot-logo image{/* preview uses same path relative to this folder via rewrite */}
-</style>
+<link rel="preload" href="moru-loop.webp" as="image" type="image/webp">
+<style>html,body{margin:0}html.is-booting,html.is-booting body{background:#000!important}</style>
 <script>document.documentElement.classList.add("is-booting");</script>
 </head>
 <body>
-<div class="boot">
+<div class="boot" id="boot">
   <div class="boot-stage">
-    <svg class="boot-logo" xmlns="http://www.w3.org/2000/svg" viewBox="180 170 340 320" fill="none">
-      <image href="moru.png" x="0" y="0" width="700" height="622"></image>
-      <rect x="288" y="288" width="80" height="100" rx="8" fill="#777777"></rect>
-      <g class="moru-face">
-        <rect x="297" y="297" width="22" height="52" rx="3" fill="#0E0E0E"></rect>
-        <rect x="335" y="297" width="22" height="52" rx="3" fill="#0E0E0E"></rect>
-        <path d="M304 368 C314 382, 340 382, 350 368" stroke="#0E0E0E" stroke-width="8" stroke-linecap="round" fill="none"></path>
-      </g>
-    </svg>
-    <div class="boot-track"><div class="boot-bar" style="transform:scaleX(.45)"></div></div>
+    <div class="boot-sprite">
+      <img class="boot-anim" src="moru-loop.webp" alt="" width="220" height="220">
+    </div>
+    <div class="boot-track"><div class="boot-bar" id="bootBar" style="transform:scaleX(.4)"></div></div>
   </div>
 </div>
 </body>
