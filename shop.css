@@ -1154,6 +1154,7 @@ html.is-booting body {
   background: #000;
 }
 .boot-sprite {
+  position: relative;
   width: 100%;
   aspect-ratio: 1;
   overflow: hidden;
@@ -1163,17 +1164,28 @@ html.is-booting body {
   background-position: center;
   background-size: cover;
   pointer-events: none;
-  transform: translateZ(0);
-  will-change: background-position;
 }
+/* 整条雪碧图平移 + steps(24)，每步刚好一帧（转头），不是平滑左右滑 */
 .boot-sprite.is-ready {
+  background-image: none;
+}
+.boot-sprite.is-ready::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 2400%;
   background-image: url("assets/loader/moru-sprite.webp");
-  background-size: 2400% 100%;
+  background-repeat: no-repeat;
   background-position: 0 0;
+  background-size: 100% 100%;
+  transform: translate3d(0, 0, 0);
   animation: boot-sprite-play 1.92s steps(24) infinite;
+  will-change: transform;
 }
 @keyframes boot-sprite-play {
-  to { background-position: 100% 0; }
+  to { transform: translate3d(-100%, 0, 0); }
 }
 .boot-track {
   width: 72%;
