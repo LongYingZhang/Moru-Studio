@@ -140,45 +140,68 @@
   const PRODUCTS_API = "/api/products";
   let serverSnapshot = null;
 
-  function fetchServerProducts() {
+  function parseProducts(text) {
     try {
-      const xhr = new XMLHttpRequest();
-      xhr.open("GET", PRODUCTS_API, false);
-      xhr.send();
-      if (xhr.status !== 200) return null;
-      const value = JSON.parse(xhr.responseText);
-      if (!Array.isArray(value)) return null;
-      serverSnapshot = xhr.responseText;
-      return value;
+      const value = JSON.parse(text);
+      return Array.isArray(value) ? value : null;
     } catch (e) {
       return null;
     }
   }
 
+  function remember(value) {
+    serverSnapshot = JSON.stringify(value);
+    try {
+      localStorage.setItem(PRODUCTS_KEY, serverSnapshot);
+    } catch (e) {
+      try { localStorage.removeItem(PRODUCTS_KEY); } catch (_) {}
+    }
+  }
+
+  function fetchServerProducts() {
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open("GET", PRODUCTS_API, false);
+      xhr.send();
+      return xhr.status === 200 ? parseProducts(xhr.responseText) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function checkServerProducts() {
+    if (document.hidden) return;
+    fetch(PRODUCTS_API, { cache: "no-cache" })
+      .then((response) => (response.ok ? response.text() : null))
+      .then((text) => {
+        const value = parseProducts(text);
+        if (!value || JSON.stringify(value) === serverSnapshot) return;
+        remember(value);
+        location.reload();
+      })
+      .catch(() => {});
+  }
+
   function watchServerProducts() {
     if (serverSnapshot == null) return;
-    setInterval(() => {
-      if (document.hidden) return;
-      fetch(PRODUCTS_API, { cache: "no-cache" })
-        .then((response) => (response.ok ? response.text() : null))
-        .then((text) => {
-          if (text != null && text !== serverSnapshot) location.reload();
-        })
-        .catch(() => {});
-    }, 20000);
+    checkServerProducts();
+    setInterval(checkServerProducts, 20000);
   }
 
   function loadProducts() {
+    let cachedText = null;
+    try { cachedText = localStorage.getItem(PRODUCTS_KEY); } catch (e) {}
+    const cached = parseProducts(cachedText);
+    if (cached) {
+      serverSnapshot = JSON.stringify(cached);
+      return cached.map(normalizeProduct);
+    }
     const fromServer = fetchServerProducts();
     if (fromServer) {
-      try {
-        write(PRODUCTS_KEY, fromServer);
-      } catch (e) {}
+      remember(fromServer);
       return fromServer.map(normalizeProduct);
     }
-    const saved = read(PRODUCTS_KEY, null);
-    const source = Array.isArray(saved) ? saved : DEFAULT_PRODUCTS;
-    return source.map(normalizeProduct);
+    return DEFAULT_PRODUCTS.map(normalizeProduct);
   }
 
   function saveProducts(nextProducts) {

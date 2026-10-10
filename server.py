@@ -47,6 +47,24 @@ IMAGE_EXT = {"jpeg": "jpg", "png": "png", "webp": "webp", "gif": "gif"}
 UPLOAD_NAME = re.compile(r"^[0-9a-f]{32}\.(?:jpg|png|webp|gif)$")
 GZIP_EXT = {".html", ".css", ".js", ".svg", ".json"}
 LONG_CACHE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".woff2", ".ico"}
+ASSET_REF = re.compile(rb'\b(href|src)="((?:\./)?[\w][\w./-]*\.(?:css|js))"')
+VERSION_QUERY = re.compile(r"(?:^|&)v=")
+
+
+def version_assets(html, base_dir, mtime):
+    """Stamp local css/js links with their mtime so browsers can cache them for good."""
+    latest = mtime
+
+    def stamp(match):
+        nonlocal latest
+        target = os.path.normpath(os.path.join(base_dir, match.group(2).decode()))
+        if not target.startswith(SHOP_DIR + os.sep) or not os.path.isfile(target):
+            return match.group(0)
+        stamp_time = int(os.stat(target).st_mtime)
+        latest = max(latest, stamp_time)
+        return b'%s="%s?v=%x"' % (match.group(1), match.group(2), stamp_time)
+
+    return ASSET_REF.sub(stamp, html), latest
 
 data_lock = threading.Lock()
 sessions_lock = threading.Lock()
@@ -183,7 +201,10 @@ class ShopHandler(SimpleHTTPRequestHandler):
             return "public, max-age=31536000, immutable"
         if path.startswith("/api/"):
             return "no-store"
-        if os.path.splitext(path)[1].lower() in LONG_CACHE_EXT:
+        ext = os.path.splitext(path)[1].lower()
+        if ext in (".css", ".js") and VERSION_QUERY.search(urlsplit(self.path).query):
+            return "public, max-age=31536000, immutable"
+        if ext in LONG_CACHE_EXT:
             return "public, max-age=86400"
         return "no-cache"
 
@@ -196,30 +217,35 @@ class ShopHandler(SimpleHTTPRequestHandler):
 
     def send_head(self):
         path = self.translate_path(self.path)
-        if (
-            os.path.splitext(path)[1].lower() not in GZIP_EXT
-            or not self.accepts_gzip()
-            or not os.path.isfile(path)
-        ):
+        if os.path.isdir(path) and self.route().endswith("/"):
+            path = os.path.join(path, "index.html")
+        ext = os.path.splitext(path)[1].lower()
+        if ext not in GZIP_EXT or not os.path.isfile(path):
             return super().send_head()
-        stat = os.stat(path)
+        with open(path, "rb") as file:
+            body = file.read()
+        mtime = int(os.stat(path).st_mtime)
+        if ext == ".html":
+            body, mtime = version_assets(body, os.path.dirname(path), mtime)
         since = self.headers.get("If-Modified-Since")
         if since and not self.headers.get("If-None-Match"):
             try:
-                if email.utils.parsedate_to_datetime(since).timestamp() >= int(stat.st_mtime):
+                if email.utils.parsedate_to_datetime(since).timestamp() >= mtime:
                     self.send_response(304)
                     self.end_headers()
                     return None
             except (TypeError, ValueError, IndexError, OverflowError):
                 pass
-        with open(path, "rb") as file:
-            body = gzip.compress(file.read(), 6)
+        gzipped = self.accepts_gzip()
+        if gzipped:
+            body = gzip.compress(body, 6)
         self.send_response(200)
         self.send_header("Content-Type", self.guess_type(path))
-        self.send_header("Content-Encoding", "gzip")
+        if gzipped:
+            self.send_header("Content-Encoding", "gzip")
         self.send_header("Vary", "Accept-Encoding")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Last-Modified", self.date_time_string(stat.st_mtime))
+        self.send_header("Last-Modified", self.date_time_string(mtime))
         self.end_headers()
         return io.BytesIO(body)
 
