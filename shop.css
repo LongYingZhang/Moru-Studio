@@ -1153,26 +1153,27 @@ html.is-booting body {
   gap: 22px;
   background: #000;
 }
-.boot-video-wrap {
+.boot-sprite {
   width: 100%;
   aspect-ratio: 1;
   overflow: hidden;
-  background: #000;
-  line-height: 0;
-}
-.boot-video-wrap picture,
-.boot-anim {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-.boot-anim {
-  object-fit: cover;
-  object-position: center;
-  background: #000;
+  background-color: #000;
+  background-image: url("assets/loader/moru-loop-poster.png");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
   pointer-events: none;
-  transform: scale(1.02);
-  transform-origin: center;
+  transform: translateZ(0);
+  will-change: background-position;
+}
+.boot-sprite.is-ready {
+  background-image: url("assets/loader/moru-sprite.webp");
+  background-size: 2400% 100%;
+  background-position: 0 0;
+  animation: boot-sprite-play 1.92s steps(24) infinite;
+}
+@keyframes boot-sprite-play {
+  to { background-position: 100% 0; }
 }
 .boot-track {
   width: 72%;

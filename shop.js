@@ -336,25 +336,25 @@
   const BOOT_HTML =
     '<div class="boot" id="boot" aria-live="polite" aria-label="加载中">' +
       '<div class="boot-stage">' +
-        '<div class="boot-video-wrap">' +
-          "<picture>" +
-            '<source srcset="assets/loader/moru-loop.webp" type="image/webp">' +
-            '<img class="boot-anim" src="assets/loader/moru-loop.gif" alt="" width="220" height="220" decoding="async" fetchpriority="high">' +
-          "</picture>" +
-        "</div>" +
+        '<div class="boot-sprite" id="bootSprite" aria-hidden="true"></div>' +
         '<div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>' +
       "</div>" +
     "</div>";
   const NAV_BOOT_KEY = "ly-nav-boot";
-  const ANIM_SRC = "assets/loader/moru-loop.webp";
+  const SPRITE_SRC = "assets/loader/moru-sprite.webp";
+  const POSTER_SRC = "assets/loader/moru-loop-poster.png";
+  const BOOT_MIN_MS = 900;
 
   let bootHiding = false;
   let pendingNav = null;
+  let spriteReady = false;
+  let spriteImg = null;
 
   function bootNodes() {
     return {
       root: document.getElementById("boot"),
-      bar: document.getElementById("bootBar")
+      bar: document.getElementById("bootBar"),
+      sprite: document.getElementById("bootSprite")
     };
   }
 
@@ -372,12 +372,25 @@
     try { sessionStorage.setItem(NAV_BOOT_KEY, JSON.stringify(state)); } catch (_) {}
   }
 
+  function markSpriteReady(root) {
+    spriteReady = true;
+    const sprite = (root && root.querySelector(".boot-sprite")) || document.getElementById("bootSprite");
+    if (sprite) sprite.classList.add("is-ready");
+  }
+
   function warmBootAnim() {
     try {
-      const img = new Image();
-      img.decoding = "async";
-      img.src = ANIM_SRC;
+      const poster = new Image();
+      poster.src = POSTER_SRC;
     } catch (_) {}
+    if (spriteImg) return spriteImg;
+    spriteImg = new Image();
+    spriteImg.decoding = "async";
+    const onReady = () => markSpriteReady(document.getElementById("boot"));
+    spriteImg.addEventListener("load", onReady);
+    spriteImg.src = SPRITE_SRC;
+    if (spriteImg.complete && spriteImg.naturalWidth) onReady();
+    return spriteImg;
   }
 
   function ensureBoot(options) {
@@ -391,15 +404,17 @@
     root.classList.toggle("is-nav", !!opts.nav);
     document.documentElement.classList.add("is-booting");
     document.documentElement.style.background = "#000";
-    const { bar } = bootNodes();
+    const { bar, sprite } = bootNodes();
     if (bar && opts.bar != null) {
       bar.style.transform = "scaleX(" + opts.bar + ")";
     }
-    // 动图重新挂载可保证从第一帧开始播
-    const anim = root.querySelector(".boot-anim");
-    if (anim && (opts.resetVideo || opts.nav)) {
-      const src = anim.getAttribute("src");
-      anim.setAttribute("src", src);
+    warmBootAnim();
+    if (spriteReady && sprite) sprite.classList.add("is-ready");
+    // 重新触发展示时，强制动画从头播
+    if (sprite && sprite.classList.contains("is-ready") && (opts.nav || opts.resetVideo)) {
+      sprite.classList.remove("is-ready");
+      void sprite.offsetWidth;
+      sprite.classList.add("is-ready");
     }
     return bootNodes();
   }
@@ -445,17 +460,21 @@
     });
     if (!root || !bar) return;
     bootHiding = false;
+    const started = performance.now();
     let shown = floor;
     bar.style.transform = "scaleX(" + shown.toFixed(4) + ")";
 
     function frame() {
       if (!document.getElementById("boot")) return;
+      const elapsed = performance.now() - started;
       const target = pageLoadProgress(floor);
-      const done = target >= 1;
-      shown += (target - shown) * (done ? 0.3 : 0.14);
-      if (done) shown = Math.max(shown, 0.98);
+      const pageDone = target >= 1;
+      // 动画图没就绪前，进度条最多到 92%，避免条走完画面还没出
+      const capped = spriteReady ? target : Math.min(target, 0.92);
+      shown += (capped - shown) * (pageDone && spriteReady ? 0.3 : 0.14);
+      if (pageDone && spriteReady) shown = Math.max(shown, 0.98);
       bar.style.transform = "scaleX(" + Math.max(floor, Math.min(1, shown)).toFixed(4) + ")";
-      if (done && shown > 0.995) {
+      if (pageDone && spriteReady && shown > 0.995 && elapsed >= BOOT_MIN_MS) {
         bar.style.transform = "scaleX(1)";
         hideBoot();
         return;
@@ -545,6 +564,7 @@
   );
 
   warmBootAnim();
+  // 首屏海报立刻可见；雪碧图就绪后开始流畅帧动画
   runBootProgress(readNavBoot());
 
   window.Shop = {

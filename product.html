@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>商品详情</title>
 <link rel="stylesheet" href="shop.css">
-<link rel="preload" href="assets/loader/moru-loop.webp" as="image" type="image/webp">
+<link rel="preload" href="assets/loader/moru-loop-poster.png" as="image">
+<link rel="preload" href="assets/loader/moru-sprite.webp" as="image" type="image/webp">
 <style>
 html, body { margin: 0; }
 html { background: #131313; }
@@ -18,12 +19,7 @@ document.documentElement.classList.add("is-booting");
 <body>
 <div class="boot" id="boot" aria-live="polite" aria-label="加载中">
   <div class="boot-stage">
-    <div class="boot-video-wrap">
-      <picture>
-        <source srcset="assets/loader/moru-loop.webp" type="image/webp">
-        <img class="boot-anim" src="assets/loader/moru-loop.gif" alt="" width="220" height="220" decoding="async" fetchpriority="high">
-      </picture>
-    </div>
+    <div class="boot-sprite" id="bootSprite" aria-hidden="true"></div>
     <div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>
   </div>
 </div>

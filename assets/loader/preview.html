@@ -5,21 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Moru boot preview</title>
 <link rel="stylesheet" href="../../shop.css">
+<link rel="preload" href="moru-loop-poster.png" as="image">
+<link rel="preload" href="moru-sprite.webp" as="image" type="image/webp">
 <style>
 html, body { margin: 0; }
 html.is-booting, html.is-booting body { background: #000 !important; }
+.boot-sprite { background-image: url("moru-loop-poster.png"); }
+.boot-sprite.is-ready { background-image: url("moru-sprite.webp"); }
 </style>
 <script>document.documentElement.classList.add("is-booting");</script>
 </head>
 <body>
 <div class="boot" id="boot" aria-label="加载中">
   <div class="boot-stage">
-    <div class="boot-video-wrap">
-      <picture>
-        <source srcset="moru-loop.webp" type="image/webp">
-        <img class="boot-anim" src="moru-loop.gif" alt="" width="220" height="220">
-      </picture>
-    </div>
+    <div class="boot-sprite is-ready" id="bootSprite" aria-hidden="true"></div>
     <div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>
   </div>
 </div>
