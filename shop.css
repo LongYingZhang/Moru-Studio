@@ -1117,7 +1117,7 @@ label.field.wide { grid-column: 1 / -1; }
 html.is-booting,
 html.is-booting body {
   overflow: hidden;
-  background: #000;
+  background: #000 !important;
 }
 .boot {
   position: fixed;
@@ -1125,11 +1125,16 @@ html.is-booting body {
   z-index: 9999;
   display: grid;
   place-items: center;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  width: 100dvw;
+  height: 100vh;
+  height: 100dvh;
   margin: 0;
+  padding: 0;
+  border: 0;
   background: #000;
-  transition: opacity 0.35s ease, visibility 0.35s ease;
+  transition: opacity 0.28s ease, visibility 0.28s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 .boot.is-out {
   opacity: 0;
@@ -1142,14 +1147,30 @@ html.is-booting body {
   flex-direction: column;
   align-items: center;
   gap: 22px;
+  background: #000;
+}
+.boot-video-wrap {
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: #000;
+  line-height: 0;
 }
 .boot-video {
   width: 100%;
-  aspect-ratio: 1;
+  height: 100%;
   display: block;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center;
   background: #000;
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  transform: scale(1.04);
+  transform-origin: center;
   pointer-events: none;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 .boot-track {
   width: 72%;

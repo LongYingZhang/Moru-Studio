@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>商品详情</title>
 <link rel="stylesheet" href="shop.css">
+<style>
+html, body { margin: 0; }
+html { background: #131313; }
+html.is-booting, html.is-booting body { background: #000 !important; }
+</style>
 <script>
 document.documentElement.classList.add("is-booting");
 </script>
@@ -12,9 +17,11 @@ document.documentElement.classList.add("is-booting");
 <body>
 <div class="boot" id="boot" aria-live="polite" aria-label="加载中">
   <div class="boot-stage">
-    <video class="boot-video" id="bootVideo" autoplay muted loop playsinline preload="auto" poster="assets/loader/moru-loop-poster.png">
-      <source src="assets/loader/moru-loop.mp4" type="video/mp4">
-    </video>
+    <div class="boot-video-wrap">
+      <video class="boot-video" id="bootVideo" autoplay muted loop playsinline preload="auto" poster="assets/loader/moru-loop-poster.png">
+        <source src="assets/loader/moru-loop.mp4" type="video/mp4">
+      </video>
+    </div>
     <div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>
   </div>
 </div>

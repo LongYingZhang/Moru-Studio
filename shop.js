@@ -336,9 +336,11 @@
   const BOOT_HTML =
     '<div class="boot" id="boot" aria-live="polite" aria-label="加载中">' +
       '<div class="boot-stage">' +
-        '<video class="boot-video" id="bootVideo" autoplay muted loop playsinline preload="auto" poster="assets/loader/moru-loop-poster.png">' +
-          '<source src="assets/loader/moru-loop.mp4" type="video/mp4">' +
-        "</video>" +
+        '<div class="boot-video-wrap">' +
+          '<video class="boot-video" id="bootVideo" autoplay muted loop playsinline preload="auto" poster="assets/loader/moru-loop-poster.png">' +
+            '<source src="assets/loader/moru-loop.mp4" type="video/mp4">' +
+          "</video>" +
+        "</div>" +
         '<div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>' +
       "</div>" +
     "</div>";
@@ -380,6 +382,7 @@
     bootHiding = true;
     root.classList.add("is-out");
     document.documentElement.classList.remove("is-booting");
+    document.documentElement.style.background = "";
     setTimeout(() => {
       if (root.parentNode) root.remove();
       bootHiding = false;
@@ -430,6 +433,8 @@
   function navigate(url, replace) {
     if (!url) return;
     clearTimeout(navTimer);
+    document.documentElement.style.background = "#000";
+    document.documentElement.classList.add("is-booting");
     runBootProgress({
       minMs: 420,
       onDone: () => {

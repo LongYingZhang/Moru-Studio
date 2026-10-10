@@ -5,15 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Moru boot preview</title>
 <link rel="stylesheet" href="../../shop.css">
-<style>html, body { background: #000; margin: 0; }</style>
+<style>
+html, body { margin: 0; }
+html { background: #131313; }
+html.is-booting, html.is-booting body { background: #000 !important; }
+</style>
 <script>document.documentElement.classList.add("is-booting");</script>
 </head>
 <body>
 <div class="boot" id="boot" aria-label="加载中">
   <div class="boot-stage">
-    <video class="boot-video" autoplay muted loop playsinline preload="auto" poster="moru-loop-poster.png">
-      <source src="moru-loop.mp4" type="video/mp4">
-    </video>
+    <div class="boot-video-wrap">
+      <video class="boot-video" autoplay muted loop playsinline preload="auto" poster="moru-loop-poster.png">
+        <source src="moru-loop.mp4" type="video/mp4">
+      </video>
+    </div>
     <div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>
   </div>
 </div>
