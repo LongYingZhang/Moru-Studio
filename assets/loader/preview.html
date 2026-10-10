@@ -11,27 +11,36 @@
 html, body { margin: 0; }
 html.is-booting, html.is-booting body { background: #000 !important; }
 .boot-sprite { background-image: url("moru-loop-poster.png"); }
-.boot-sprite.is-ready { background-image: url("moru-sprite.webp"); }
+.boot-strip { background-image: url("moru-sprite.webp"); }
 </style>
 <script>document.documentElement.classList.add("is-booting");</script>
 </head>
 <body>
 <div class="boot" id="boot" aria-label="加载中">
   <div class="boot-stage">
-    <div class="boot-sprite is-ready" id="bootSprite" aria-hidden="true"></div>
+    <div class="boot-sprite is-ready" id="bootSprite" aria-hidden="true">
+      <div class="boot-strip" id="bootStrip"></div>
+    </div>
     <div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>
   </div>
 </div>
 <script>
-const bar = document.getElementById("bootBar");
-let p = 0.05, dir = 1;
-(function tick() {
-  p += 0.003 * dir;
-  if (p > 0.95) dir = -1;
-  if (p < 0.05) dir = 1;
-  bar.style.transform = "scaleX(" + p.toFixed(3) + ")";
+const FRAMES=24, MS=70;
+let frame=0, last=0;
+const strip=document.getElementById("bootStrip");
+const bar=document.getElementById("bootBar");
+let p=0.05, dir=1;
+function setFrame(i){
+  frame=((i%FRAMES)+FRAMES)%FRAMES;
+  strip.style.transform="translate3d("+(-frame*(100/FRAMES))+"%,0,0)";
+}
+(function tick(ts){
+  if(!last) last=ts;
+  if(ts-last>=MS){ last+=MS; setFrame(frame+1); }
+  p+=0.003*dir; if(p>0.95)dir=-1; if(p<0.05)dir=1;
+  bar.style.transform="scaleX("+p.toFixed(3)+")";
   requestAnimationFrame(tick);
-})();
+})(performance.now());
 </script>
 </body>
 </html>

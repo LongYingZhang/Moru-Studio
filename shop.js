@@ -336,7 +336,9 @@
   const BOOT_HTML =
     '<div class="boot" id="boot" aria-live="polite" aria-label="加载中">' +
       '<div class="boot-stage">' +
-        '<div class="boot-sprite" id="bootSprite" aria-hidden="true"></div>' +
+        '<div class="boot-sprite" id="bootSprite" aria-hidden="true">' +
+          '<div class="boot-strip" id="bootStrip"></div>' +
+        "</div>" +
         '<div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>' +
       "</div>" +
     "</div>";
@@ -344,17 +346,23 @@
   const SPRITE_SRC = "assets/loader/moru-sprite.webp";
   const POSTER_SRC = "assets/loader/moru-loop-poster.png";
   const BOOT_MIN_MS = 900;
+  const BOOT_FRAMES = 24;
+  const BOOT_FRAME_MS = 70; // ~14fps，接近原片，无插值闪烁
 
   let bootHiding = false;
   let pendingNav = null;
   let spriteReady = false;
   let spriteImg = null;
+  let bootAnimRaf = 0;
+  let bootFrame = 0;
+  let bootLastTs = 0;
 
   function bootNodes() {
     return {
       root: document.getElementById("boot"),
       bar: document.getElementById("bootBar"),
-      sprite: document.getElementById("bootSprite")
+      sprite: document.getElementById("bootSprite"),
+      strip: document.getElementById("bootStrip")
     };
   }
 
@@ -372,13 +380,51 @@
     try { sessionStorage.setItem(NAV_BOOT_KEY, JSON.stringify(state)); } catch (_) {}
   }
 
-  function markSpriteReady(root) {
-    spriteReady = true;
-    const sprite = (root && root.querySelector(".boot-sprite")) || document.getElementById("bootSprite");
-    if (sprite) {
-      sprite.classList.add("is-ready");
-      sprite.classList.add("is-running");
+  function setBootFrame(index) {
+    const strip = document.getElementById("bootStrip");
+    if (!strip) return;
+    bootFrame = ((index % BOOT_FRAMES) + BOOT_FRAMES) % BOOT_FRAMES;
+    strip.style.transform = "translate3d(" + (-bootFrame * (100 / BOOT_FRAMES)) + "%,0,0)";
+  }
+
+  function stopBootAnim() {
+    if (bootAnimRaf) {
+      cancelAnimationFrame(bootAnimRaf);
+      bootAnimRaf = 0;
     }
+    bootLastTs = 0;
+  }
+
+  function startBootAnim(fromStart) {
+    const { sprite, strip } = bootNodes();
+    if (!sprite || !strip || !spriteReady) return;
+    sprite.classList.add("is-ready");
+    if (fromStart) setBootFrame(0);
+    if (bootAnimRaf) return;
+    const step = (ts) => {
+      if (!document.getElementById("bootStrip")) {
+        bootAnimRaf = 0;
+        return;
+      }
+      if (!bootLastTs) bootLastTs = ts;
+      const delta = ts - bootLastTs;
+      if (delta >= BOOT_FRAME_MS) {
+        const steps = Math.min(3, Math.floor(delta / BOOT_FRAME_MS));
+        bootLastTs += steps * BOOT_FRAME_MS;
+        setBootFrame(bootFrame + steps);
+      }
+      bootAnimRaf = requestAnimationFrame(step);
+    };
+    bootAnimRaf = requestAnimationFrame(step);
+  }
+
+  function markSpriteReady() {
+    if (spriteReady) {
+      startBootAnim(false);
+      return;
+    }
+    spriteReady = true;
+    startBootAnim(true);
   }
 
   function warmBootAnim() {
@@ -386,13 +432,15 @@
       const poster = new Image();
       poster.src = POSTER_SRC;
     } catch (_) {}
-    if (spriteImg) return spriteImg;
+    if (spriteImg) {
+      if (spriteImg.complete && spriteImg.naturalWidth) markSpriteReady();
+      return spriteImg;
+    }
     spriteImg = new Image();
     spriteImg.decoding = "async";
-    const onReady = () => markSpriteReady(document.getElementById("boot"));
-    spriteImg.addEventListener("load", onReady);
+    spriteImg.addEventListener("load", () => markSpriteReady());
     spriteImg.src = SPRITE_SRC;
-    if (spriteImg.complete && spriteImg.naturalWidth) onReady();
+    if (spriteImg.complete && spriteImg.naturalWidth) markSpriteReady();
     return spriteImg;
   }
 
@@ -403,26 +451,22 @@
       document.body.insertAdjacentHTML("afterbegin", BOOT_HTML);
       root = document.getElementById("boot");
     }
+    // 若页面自带 boot 但没有 strip，补上
+    let { sprite, strip } = bootNodes();
+    if (sprite && !strip) {
+      sprite.innerHTML = '<div class="boot-strip" id="bootStrip"></div>';
+      strip = document.getElementById("bootStrip");
+    }
     root.classList.remove("is-out");
     root.classList.toggle("is-nav", !!opts.nav);
     document.documentElement.classList.add("is-booting");
     document.documentElement.style.background = "#000";
-    const { bar, sprite } = bootNodes();
+    const { bar } = bootNodes();
     if (bar && opts.bar != null) {
       bar.style.transform = "scaleX(" + opts.bar + ")";
     }
     warmBootAnim();
-    if (spriteReady && sprite) {
-      sprite.classList.add("is-ready");
-      // 只重启动画，不卸 is-ready（卸开会闪海报）
-      if (opts.nav || opts.resetVideo) {
-        sprite.classList.remove("is-running");
-        void sprite.offsetWidth;
-        sprite.classList.add("is-running");
-      } else {
-        sprite.classList.add("is-running");
-      }
-    }
+    if (spriteReady) startBootAnim(!!(opts.nav || opts.resetVideo));
     return bootNodes();
   }
 
@@ -431,6 +475,7 @@
     if (!root || bootHiding) return;
     bootHiding = true;
     pendingNav = null;
+    stopBootAnim();
     root.classList.add("is-out");
     root.classList.remove("is-nav");
     document.documentElement.classList.remove("is-booting");

@@ -1165,27 +1165,25 @@ html.is-booting body {
   background-size: cover;
   pointer-events: none;
 }
-/* 海报垫底，条带盖上，避免 is-ready 切换时闪黑 */
-.boot-sprite.is-ready::before {
-  content: "";
+.boot-strip {
   position: absolute;
   top: 0;
   left: 0;
   height: 100%;
-  /* 72 动画帧 + 末尾重复第 1 帧，避免循环时闪黑 */
-  width: 7300%;
+  width: 2400%; /* 24 frames */
   background-image: url("assets/loader/moru-sprite.webp");
   background-repeat: no-repeat;
   background-position: 0 0;
   background-size: 100% 100%;
   transform: translate3d(0, 0, 0);
-  will-change: transform;
+  opacity: 0;
+  pointer-events: none;
 }
-.boot-sprite.is-ready.is-running::before {
-  animation: boot-sprite-play 2s steps(72) infinite;
+.boot-sprite.is-ready {
+  background-image: none;
 }
-@keyframes boot-sprite-play {
-  to { transform: translate3d(calc(-100% * 72 / 73), 0, 0); }
+.boot-sprite.is-ready .boot-strip {
+  opacity: 1;
 }
 .boot-track {
   width: 72%;
