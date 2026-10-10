@@ -333,6 +333,42 @@
   document.addEventListener("DOMContentLoaded", fillContact);
   watchServerProducts();
 
+  (function runBoot() {
+    const root = document.getElementById("boot");
+    const bar = document.getElementById("bootBar");
+    if (!root || !bar || document.documentElement.classList.contains("boot-skip")) {
+      if (root) root.remove();
+      document.documentElement.classList.remove("is-booting");
+      return;
+    }
+    const started = performance.now();
+    const MIN_MS = 1600;
+    let progress = 0.02;
+    bar.style.transform = "scaleX(0.02)";
+
+    function finish() {
+      try { sessionStorage.setItem("ly-boot", "1"); } catch (_) {}
+      root.classList.add("is-out");
+      document.documentElement.classList.remove("is-booting");
+      setTimeout(() => root.remove(), 480);
+    }
+
+    function frame() {
+      const loaded = document.readyState === "complete";
+      const elapsed = performance.now() - started;
+      const target = loaded ? 1 : Math.min(0.9, 0.08 + elapsed / 2800);
+      progress += (target - progress) * (loaded ? 0.18 : 0.06);
+      bar.style.transform = "scaleX(" + Math.max(0.02, Math.min(1, progress)).toFixed(4) + ")";
+      if (loaded && progress > 0.995 && elapsed >= MIN_MS) {
+        bar.style.transform = "scaleX(1)";
+        finish();
+        return;
+      }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  })();
+
   window.Shop = {
     products: PRODUCTS,
     allProducts: ALL_PRODUCTS,

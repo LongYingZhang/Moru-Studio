@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moru boot preview</title>
+<link rel="stylesheet" href="../../shop.css">
+<style>html, body { background: #0e0e0e; }</style>
+</head>
+<body>
+<div class="boot" id="boot" aria-label="加载中">
+  <div class="boot-stage">
+        <svg class="boot-logo" viewBox="180 170 340 320" fill="none" aria-hidden="true">
+      <image href="moru.png" x="0" y="0" width="700" height="622" preserveAspectRatio="xMidYMid meet"></image>
+      <rect x="292" y="292" width="28" height="64" rx="3" fill="#777777"></rect>
+      <rect x="330" y="292" width="28" height="64" rx="3" fill="#777777"></rect>
+      <g class="moru-eyes">
+        <rect x="297" y="297" width="22" height="52" rx="3" fill="#0E0E0E"></rect>
+        <rect x="335" y="297" width="22" height="52" rx="3" fill="#0E0E0E"></rect>
+      </g>
+    </svg>
+    <div class="boot-track"><div class="boot-bar" id="bootBar" style="transform:scaleX(0.45)"></div></div>
+  </div>
+</div>
+<script>
+const bar = document.getElementById("bootBar");
+let p = 0.05, dir = 1;
+function tick() {
+  p += 0.004 * dir;
+  if (p > 0.95) dir = -1;
+  if (p < 0.05) dir = 1;
+  bar.style.transform = "scaleX(" + p.toFixed(3) + ")";
+  requestAnimationFrame(tick);
+}
+tick();
+</script>
+</body>
+</html>

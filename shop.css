@@ -1112,3 +1112,67 @@ label.field.wide { grid-column: 1 / -1; }
   .receipt-panel { padding: 20px; }
   .doc-card { padding: 20px 20px 36px; }
 }
+
+/* ---- boot / loading ---- */
+html.is-booting,
+html.is-booting body {
+  overflow: hidden;
+}
+.boot {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  background: #0e0e0e;
+  transition: opacity 0.45s ease, visibility 0.45s ease;
+}
+.boot.is-out {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+html.boot-skip .boot { display: none; }
+.boot-stage {
+  width: min(148px, 36vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+}
+.boot-logo {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+.boot-logo .moru-eyes {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: boot-look 2.8s cubic-bezier(0.45, 0.05, 0.2, 1) infinite;
+}
+.boot-track {
+  width: 72%;
+  height: 2px;
+  border-radius: 2px;
+  background: #2a2a2a;
+  overflow: hidden;
+}
+.boot-bar {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: #c7c6c6;
+  transform: scaleX(0.02);
+  transform-origin: left center;
+  will-change: transform;
+}
+@keyframes boot-look {
+  0%, 7% { transform: translate(0, 0); }
+  14%, 22% { transform: translate(-18px, 5px); }
+  29%, 37% { transform: translate(20px, 7px); }
+  44%, 52% { transform: translate(-11px, -17px); }
+  59%, 67% { transform: translate(16px, 18px); }
+  74%, 82% { transform: translate(-20px, 2px); }
+  90%, 100% { transform: translate(0, 0); }
+}
