@@ -46,7 +46,7 @@ DATA_IMAGE = re.compile(r"^data:image/(jpeg|png|webp|gif);base64,([A-Za-z0-9+/=\
 IMAGE_EXT = {"jpeg": "jpg", "png": "png", "webp": "webp", "gif": "gif"}
 UPLOAD_NAME = re.compile(r"^[0-9a-f]{32}\.(?:jpg|png|webp|gif)$")
 GZIP_EXT = {".html", ".css", ".js", ".svg", ".json"}
-LONG_CACHE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".woff2", ".ico"}
+LONG_CACHE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".woff2", ".ico", ".mp4"}
 ASSET_REF = re.compile(rb'\b(href|src)="((?:\./)?[\w][\w./-]*\.(?:css|js))"')
 VERSION_QUERY = re.compile(r"(?:^|&)v=")
 
@@ -162,6 +162,7 @@ class ShopHandler(SimpleHTTPRequestHandler):
         ".js": "text/javascript",
         ".svg": "image/svg+xml",
         ".woff2": "font/woff2",
+        ".mp4": "video/mp4",
     }
     cache_override = None
 

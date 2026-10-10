@@ -333,41 +333,143 @@
   document.addEventListener("DOMContentLoaded", fillContact);
   watchServerProducts();
 
-  (function runBoot() {
-    const root = document.getElementById("boot");
-    const bar = document.getElementById("bootBar");
-    if (!root || !bar || document.documentElement.classList.contains("boot-skip")) {
-      if (root) root.remove();
-      document.documentElement.classList.remove("is-booting");
+  const BOOT_HTML =
+    '<div class="boot" id="boot" aria-live="polite" aria-label="加载中">' +
+      '<div class="boot-stage">' +
+        '<video class="boot-video" id="bootVideo" autoplay muted loop playsinline preload="auto" poster="assets/loader/moru-loop-poster.png">' +
+          '<source src="assets/loader/moru-loop.mp4" type="video/mp4">' +
+        "</video>" +
+        '<div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>' +
+      "</div>" +
+    "</div>";
+
+  let bootHiding = false;
+  let navTimer = 0;
+
+  function bootNodes() {
+    return {
+      root: document.getElementById("boot"),
+      bar: document.getElementById("bootBar"),
+      video: document.getElementById("bootVideo")
+    };
+  }
+
+  function ensureBoot() {
+    let { root } = bootNodes();
+    if (!root) {
+      document.body.insertAdjacentHTML("afterbegin", BOOT_HTML);
+      root = document.getElementById("boot");
+    }
+    root.classList.remove("is-out");
+    document.documentElement.classList.add("is-booting");
+    const { video, bar } = bootNodes();
+    if (bar) bar.style.transform = "scaleX(0.02)";
+    if (video) {
+      try {
+        video.currentTime = 0;
+        const play = video.play();
+        if (play && play.catch) play.catch(() => {});
+      } catch (_) {}
+    }
+    return bootNodes();
+  }
+
+  function hideBoot() {
+    const { root } = bootNodes();
+    if (!root || bootHiding) return;
+    bootHiding = true;
+    root.classList.add("is-out");
+    document.documentElement.classList.remove("is-booting");
+    setTimeout(() => {
+      if (root.parentNode) root.remove();
+      bootHiding = false;
+    }, 380);
+  }
+
+  function runBootProgress(options) {
+    const opts = options || {};
+    const minMs = opts.minMs != null ? opts.minMs : 900;
+    const onDone = opts.onDone;
+    const { root, bar } = ensureBoot();
+    if (!root || !bar) {
+      if (onDone) onDone();
       return;
     }
+    bootHiding = false;
     const started = performance.now();
-    const MIN_MS = 1600;
     let progress = 0.02;
     bar.style.transform = "scaleX(0.02)";
 
-    function finish() {
-      try { sessionStorage.setItem("ly-boot", "1"); } catch (_) {}
-      root.classList.add("is-out");
-      document.documentElement.classList.remove("is-booting");
-      setTimeout(() => root.remove(), 480);
-    }
-
     function frame() {
-      const loaded = document.readyState === "complete";
+      if (!document.getElementById("boot")) return;
+      const waitingNav = typeof onDone === "function";
+      const loaded = waitingNav ? false : document.readyState === "complete";
       const elapsed = performance.now() - started;
-      const target = loaded ? 1 : Math.min(0.9, 0.08 + elapsed / 2800);
-      progress += (target - progress) * (loaded ? 0.18 : 0.06);
+      const target = waitingNav
+        ? Math.min(0.92, 0.12 + elapsed / 700)
+        : loaded
+          ? 1
+          : Math.min(0.9, 0.08 + elapsed / 2200);
+      progress += (target - progress) * (loaded || waitingNav ? 0.2 : 0.07);
       bar.style.transform = "scaleX(" + Math.max(0.02, Math.min(1, progress)).toFixed(4) + ")";
-      if (loaded && progress > 0.995 && elapsed >= MIN_MS) {
+      if (waitingNav && elapsed >= minMs) {
         bar.style.transform = "scaleX(1)";
-        finish();
+        onDone();
+        return;
+      }
+      if (!waitingNav && loaded && progress > 0.995 && elapsed >= minMs) {
+        bar.style.transform = "scaleX(1)";
+        hideBoot();
         return;
       }
       requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
-  })();
+  }
+
+  function navigate(url, replace) {
+    if (!url) return;
+    clearTimeout(navTimer);
+    runBootProgress({
+      minMs: 420,
+      onDone: () => {
+        if (replace) location.replace(url);
+        else location.assign(url);
+      }
+    });
+  }
+
+  function isInternalNav(anchor) {
+    if (!anchor || anchor.target === "_blank" || anchor.hasAttribute("download")) return false;
+    const href = anchor.getAttribute("href");
+    if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:") || href.startsWith("javascript:")) {
+      return false;
+    }
+    try {
+      const url = new URL(anchor.href, location.href);
+      if (url.origin !== location.origin) return false;
+      if (url.pathname === location.pathname && url.search === location.search && url.hash) return false;
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  document.addEventListener(
+    "click",
+    (event) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+      const anchor = event.target.closest("a[href]");
+      if (!isInternalNav(anchor)) return;
+      event.preventDefault();
+      navigate(anchor.href, false);
+    },
+    true
+  );
+
+  runBootProgress({ minMs: 900 });
 
   window.Shop = {
     products: PRODUCTS,
@@ -392,6 +494,9 @@
     escapeHtml,
     contact: CONTACT,
     saveLastOrder,
-    lastOrder
+    lastOrder,
+    navigate,
+    showBoot: ensureBoot,
+    hideBoot
   };
 })();
