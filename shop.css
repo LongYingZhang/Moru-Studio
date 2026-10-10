@@ -1175,13 +1175,14 @@ html.is-booting body {
   top: 0;
   left: 0;
   height: 100%;
-  width: 2400%;
+  width: 7200%; /* 72 frames */
   background-image: url("assets/loader/moru-sprite.webp");
   background-repeat: no-repeat;
   background-position: 0 0;
   background-size: 100% 100%;
   transform: translate3d(0, 0, 0);
-  animation: boot-sprite-play 1.92s steps(24) infinite;
+  /* ~36fps：72 帧 / 2s */
+  animation: boot-sprite-play 2s steps(72) infinite;
   will-change: transform;
 }
 @keyframes boot-sprite-play {
