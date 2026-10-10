@@ -345,6 +345,7 @@
       "</div>" +
     "</div>";
   const NAV_BOOT_KEY = "ly-nav-boot";
+  const VIDEO_SRC = "assets/loader/moru-loop.mp4";
 
   let bootHiding = false;
 
@@ -356,7 +357,36 @@
     };
   }
 
-  function ensureBoot(resetVideo) {
+  function readNavBoot() {
+    try {
+      const raw = sessionStorage.getItem(NAV_BOOT_KEY);
+      sessionStorage.removeItem(NAV_BOOT_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function writeNavBoot(state) {
+    try { sessionStorage.setItem(NAV_BOOT_KEY, JSON.stringify(state)); } catch (_) {}
+  }
+
+  function syncVideoToClock(video, startedAt) {
+    if (!video || !startedAt) return;
+    const apply = () => {
+      const duration = video.duration;
+      if (!duration || !isFinite(duration)) return;
+      const t = ((Date.now() - startedAt) / 1000) % duration;
+      try {
+        video.currentTime = t;
+      } catch (_) {}
+    };
+    if (video.readyState >= 1) apply();
+    else video.addEventListener("loadedmetadata", apply, { once: true });
+  }
+
+  function ensureBoot(options) {
+    const opts = options || {};
     let { root } = bootNodes();
     if (!root) {
       document.body.insertAdjacentHTML("afterbegin", BOOT_HTML);
@@ -365,11 +395,17 @@
     root.classList.remove("is-out");
     document.documentElement.classList.add("is-booting");
     document.documentElement.style.background = "#000";
-    const { video } = bootNodes();
+    const { video, bar } = bootNodes();
+    if (bar && opts.bar != null) {
+      bar.style.transform = "scaleX(" + opts.bar + ")";
+    }
     if (video) {
       try {
-        if (resetVideo) video.currentTime = 0;
         video.loop = true;
+        video.muted = true;
+        video.playsInline = true;
+        if (opts.startedAt) syncVideoToClock(video, opts.startedAt);
+        else if (opts.resetVideo) video.currentTime = 0;
         const play = video.play();
         if (play && play.catch) play.catch(() => {});
       } catch (_) {}
@@ -390,31 +426,37 @@
     }, 280);
   }
 
-  function pageLoadProgress() {
+  function pageLoadProgress(floor) {
     const images = Array.prototype.slice.call(document.images || []);
     const imgRatio = images.length
       ? images.filter((img) => img.complete).length / images.length
       : 1;
-    let base = 0.08;
-    if (document.readyState === "interactive") base = 0.42;
-    if (document.readyState === "complete") base = 0.78;
+    let base = 0.12;
+    if (document.readyState === "interactive") base = 0.45;
+    if (document.readyState === "complete") base = 0.8;
     const mixed = base + (1 - base) * imgRatio * (document.readyState === "complete" ? 1 : 0.55);
+    const min = floor != null ? floor : 0.04;
     if (document.readyState !== "complete" || imgRatio < 1) {
-      return Math.max(0.04, Math.min(0.96, mixed));
+      return Math.max(min, Math.min(0.96, mixed));
     }
     return 1;
   }
 
-  function runBootProgress() {
-    const { root, bar, video } = ensureBoot(true);
+  function runBootProgress(navState) {
+    const continuing = !!(navState && navState.startedAt);
+    const floor = continuing ? Math.max(0.12, Number(navState.bar) || 0.12) : 0.04;
+    const { root, bar, video } = ensureBoot({
+      resetVideo: !continuing,
+      startedAt: continuing ? navState.startedAt : null,
+      bar: floor
+    });
     if (!root || !bar) return;
     bootHiding = false;
-    let shown = 0.04;
-    bar.style.transform = "scaleX(0.04)";
-    if (video) {
+    let shown = floor;
+    bar.style.transform = "scaleX(" + shown.toFixed(4) + ")";
+    if (video && !continuing) {
       try {
         video.currentTime = 0;
-        video.loop = true;
         const play = video.play();
         if (play && play.catch) play.catch(() => {});
       } catch (_) {}
@@ -422,11 +464,11 @@
 
     function frame() {
       if (!document.getElementById("boot")) return;
-      const target = pageLoadProgress();
+      const target = pageLoadProgress(floor);
       const done = target >= 1;
-      shown += (target - shown) * (done ? 0.28 : 0.12);
+      shown += (target - shown) * (done ? 0.3 : 0.14);
       if (done) shown = Math.max(shown, 0.98);
-      bar.style.transform = "scaleX(" + Math.max(0.04, Math.min(1, shown)).toFixed(4) + ")";
+      bar.style.transform = "scaleX(" + Math.max(floor, Math.min(1, shown)).toFixed(4) + ")";
       if (done && shown > 0.995) {
         bar.style.transform = "scaleX(1)";
         hideBoot();
@@ -439,16 +481,13 @@
 
   function navigate(url, replace) {
     if (!url) return;
-    try { sessionStorage.setItem(NAV_BOOT_KEY, "1"); } catch (_) {}
-    ensureBoot(true);
-    const { bar } = bootNodes();
-    if (bar) bar.style.transform = "scaleX(0.08)";
-    // 等一帧画出加载层，再跳转；进度条只在目标页按真实加载走一遍
+    const startedAt = Date.now();
+    writeNavBoot({ startedAt: startedAt, bar: 0.12, href: url });
+    ensureBoot({ resetVideo: true, startedAt: startedAt, bar: 0.12 });
+    // 先画出并开始播放，下一帧再跳转，目标页按同一时间轴接着播
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (replace) location.replace(url);
-        else location.assign(url);
-      });
+      if (replace) location.replace(url);
+      else location.assign(url);
     });
   }
 
@@ -469,6 +508,36 @@
   }
 
   document.addEventListener(
+    "pointerdown",
+    (event) => {
+      if (event.button != null && event.button !== 0) return;
+      const anchor = event.target.closest("a[href]");
+      if (!isInternalNav(anchor)) return;
+      // 按下瞬间就铺黑并开播，跳转后按同一时间轴接着播
+      const startedAt = Date.now();
+      writeNavBoot({ startedAt: startedAt, bar: 0.1, href: anchor.href });
+      ensureBoot({ resetVideo: true, startedAt: startedAt, bar: 0.1 });
+    },
+    true
+  );
+
+  document.addEventListener(
+    "pointerup",
+    (event) => {
+      try {
+        const raw = sessionStorage.getItem(NAV_BOOT_KEY);
+        const parsed = raw ? JSON.parse(raw) : null;
+        if (!parsed || !parsed.href) return;
+        const anchor = event.target.closest("a[href]");
+        if (anchor && anchor.href === parsed.href) return;
+        sessionStorage.removeItem(NAV_BOOT_KEY);
+        hideBoot();
+      } catch (_) {}
+    },
+    true
+  );
+
+  document.addEventListener(
     "click",
     (event) => {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
@@ -477,13 +546,32 @@
       const anchor = event.target.closest("a[href]");
       if (!isInternalNav(anchor)) return;
       event.preventDefault();
-      navigate(anchor.href, false);
+      let startedAt = Date.now();
+      try {
+        const raw = sessionStorage.getItem(NAV_BOOT_KEY);
+        const parsed = raw ? JSON.parse(raw) : null;
+        if (parsed && parsed.href === anchor.href && parsed.startedAt) startedAt = parsed.startedAt;
+      } catch (_) {}
+      writeNavBoot({ startedAt: startedAt, bar: 0.14, href: anchor.href });
+      ensureBoot({ resetVideo: false, startedAt: startedAt, bar: 0.14 });
+      requestAnimationFrame(() => {
+        location.assign(anchor.href);
+      });
     },
     true
   );
 
-  try { sessionStorage.removeItem(NAV_BOOT_KEY); } catch (_) {}
-  runBootProgress();
+  // 提前把循环视频暖进缓存，点击时能立刻出画
+  try {
+    const warm = document.createElement("video");
+    warm.preload = "auto";
+    warm.muted = true;
+    warm.playsInline = true;
+    warm.src = VIDEO_SRC;
+    warm.load();
+  } catch (_) {}
+
+  runBootProgress(readNavBoot());
 
   window.Shop = {
     products: PRODUCTS,
