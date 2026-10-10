@@ -375,7 +375,10 @@
   function markSpriteReady(root) {
     spriteReady = true;
     const sprite = (root && root.querySelector(".boot-sprite")) || document.getElementById("bootSprite");
-    if (sprite) sprite.classList.add("is-ready");
+    if (sprite) {
+      sprite.classList.add("is-ready");
+      sprite.classList.add("is-running");
+    }
   }
 
   function warmBootAnim() {
@@ -409,12 +412,16 @@
       bar.style.transform = "scaleX(" + opts.bar + ")";
     }
     warmBootAnim();
-    if (spriteReady && sprite) sprite.classList.add("is-ready");
-    // 重新触发展示时，强制动画从头播
-    if (sprite && sprite.classList.contains("is-ready") && (opts.nav || opts.resetVideo)) {
-      sprite.classList.remove("is-ready");
-      void sprite.offsetWidth;
+    if (spriteReady && sprite) {
       sprite.classList.add("is-ready");
+      // 只重启动画，不卸 is-ready（卸开会闪海报）
+      if (opts.nav || opts.resetVideo) {
+        sprite.classList.remove("is-running");
+        void sprite.offsetWidth;
+        sprite.classList.add("is-running");
+      } else {
+        sprite.classList.add("is-running");
+      }
     }
     return bootNodes();
   }
