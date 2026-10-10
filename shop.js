@@ -349,6 +349,7 @@
 
   let bootHiding = false;
   let pendingNav = null;
+  let warmReady = false;
 
   function warmBootVideo() {
     let warm = document.getElementById("bootWarm");
@@ -357,6 +358,7 @@
       warm.id = "bootWarm";
       warm.muted = true;
       warm.defaultMuted = true;
+      warm.volume = 0;
       warm.playsInline = true;
       warm.setAttribute("playsinline", "");
       warm.setAttribute("webkit-playsinline", "");
@@ -365,10 +367,11 @@
       warm.src = VIDEO_SRC;
       warm.setAttribute("aria-hidden", "true");
       warm.style.cssText = "position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-999px;top:-999px";
+      warm.addEventListener("canplaythrough", () => { warmReady = true; }, { once: true });
       (document.body || document.documentElement).appendChild(warm);
+      try { warm.load(); } catch (_) {}
     }
     try {
-      warm.load();
       const play = warm.play();
       if (play && play.catch) play.catch(() => {});
     } catch (_) {}
@@ -397,18 +400,29 @@
     try { sessionStorage.setItem(NAV_BOOT_KEY, JSON.stringify(state)); } catch (_) {}
   }
 
-  function syncVideoToClock(video, startedAt) {
-    if (!video || !startedAt) return;
-    const apply = () => {
-      const duration = video.duration;
-      if (!duration || !isFinite(duration)) return;
-      const t = ((Date.now() - startedAt) / 1000) % duration;
-      try {
-        video.currentTime = t;
-      } catch (_) {}
+  function kickPlay(video) {
+    if (!video) return;
+    video.muted = true;
+    video.defaultMuted = true;
+    video.volume = 0;
+    video.loop = true;
+    video.playsInline = true;
+    video.setAttribute("playsinline", "");
+    video.setAttribute("webkit-playsinline", "");
+    const tryPlay = () => {
+      const play = video.play();
+      if (play && play.catch) {
+        play.catch(() => {
+          video.addEventListener("canplay", () => {
+            video.play().catch(() => {});
+          }, { once: true });
+        });
+      }
     };
-    if (video.readyState >= 1) apply();
-    else video.addEventListener("loadedmetadata", apply, { once: true });
+    tryPlay();
+    // 缓冲到了再补一次，避免卡在海报
+    video.addEventListener("loadeddata", tryPlay, { once: true });
+    video.addEventListener("canplay", tryPlay, { once: true });
   }
 
   function ensureBoot(options) {
@@ -428,21 +442,15 @@
     }
     if (video) {
       try {
-        const warm = warmBootVideo();
-        video.loop = true;
-        video.muted = true;
-        video.defaultMuted = true;
-        video.playsInline = true;
-        if (!video.getAttribute("src") && !video.querySelector("source")) {
+        warmBootVideo();
+        if (!video.currentSrc && !video.src) {
           video.src = VIDEO_SRC;
         }
-        if (opts.startedAt) syncVideoToClock(video, opts.startedAt);
-        else if (opts.resetVideo) video.currentTime = 0;
-        else if (warm && warm.readyState >= 2 && isFinite(warm.currentTime)) {
-          try { video.currentTime = warm.currentTime; } catch (_) {}
+        // 慢网络下不要先 seek：没缓冲到的时间点会一直停在海报/首帧
+        if (opts.resetVideo || opts.nav || opts.startedAt) {
+          try { video.currentTime = 0; } catch (_) {}
         }
-        const play = video.play();
-        if (play && play.catch) play.catch(() => {});
+        kickPlay(video);
       } catch (_) {}
     }
     return bootNodes();
@@ -492,13 +500,7 @@
     bootHiding = false;
     let shown = floor;
     bar.style.transform = "scaleX(" + shown.toFixed(4) + ")";
-    if (video && !continuing) {
-      try {
-        video.currentTime = 0;
-        const play = video.play();
-        if (play && play.catch) play.catch(() => {});
-      } catch (_) {}
-    }
+    if (video) kickPlay(video);
 
     function frame() {
       if (!document.getElementById("boot")) return;
