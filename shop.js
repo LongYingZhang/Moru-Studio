@@ -337,32 +337,27 @@
     '<div class="boot" id="boot" aria-live="polite" aria-label="加载中">' +
       '<div class="boot-stage">' +
         '<div class="boot-sprite" id="bootSprite" aria-hidden="true">' +
-          '<div class="boot-strip" id="bootStrip"></div>' +
+          '<img class="boot-anim" id="bootAnim" src="assets/loader/moru-loop-poster.png" alt="" width="220" height="220" decoding="async" fetchpriority="high">' +
         "</div>" +
         '<div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>' +
       "</div>" +
     "</div>";
   const NAV_BOOT_KEY = "ly-nav-boot";
-  const SPRITE_SRC = "assets/loader/moru-sprite.webp";
+  const ANIM_SRC = "assets/loader/moru-loop.webp";
   const POSTER_SRC = "assets/loader/moru-loop-poster.png";
   const BOOT_MIN_MS = 900;
-  const BOOT_FRAMES = 48;
-  const BOOT_FRAME_MS = 1000 / 30; // 30fps，每次只进 1 帧，不插值
 
   let bootHiding = false;
   let pendingNav = null;
   let spriteReady = false;
-  let spriteImg = null;
-  let bootAnimRaf = 0;
-  let bootFrame = 0;
-  let bootLastTs = 0;
+  let animWarm = null;
 
   function bootNodes() {
     return {
       root: document.getElementById("boot"),
       bar: document.getElementById("bootBar"),
       sprite: document.getElementById("bootSprite"),
-      strip: document.getElementById("bootStrip")
+      anim: document.getElementById("bootAnim")
     };
   }
 
@@ -380,75 +375,40 @@
     try { sessionStorage.setItem(NAV_BOOT_KEY, JSON.stringify(state)); } catch (_) {}
   }
 
-  function setBootFrame(index) {
-    const strip = document.getElementById("bootStrip");
-    if (!strip) return;
-    bootFrame = ((index % BOOT_FRAMES) + BOOT_FRAMES) % BOOT_FRAMES;
-    // % 相对条带自身宽度：每帧刚好移 1/48
-    strip.style.transform = "translate3d(" + (-(bootFrame * 100) / BOOT_FRAMES) + "%,0,0)";
-  }
-
-  function stopBootAnim() {
-    if (bootAnimRaf) {
-      cancelAnimationFrame(bootAnimRaf);
-      bootAnimRaf = 0;
+  function showBootAnim(restart) {
+    const { anim } = bootNodes();
+    if (!anim || !spriteReady) return;
+    // 浏览器原生循环动图，不用 JS/CSS 切帧，避免循环归零闪屏
+    if (anim.getAttribute("src") !== ANIM_SRC) {
+      anim.setAttribute("src", ANIM_SRC);
+    } else if (restart) {
+      const src = ANIM_SRC;
+      anim.setAttribute("src", POSTER_SRC);
+      void anim.offsetWidth;
+      anim.setAttribute("src", src);
     }
-    bootLastTs = 0;
-  }
-
-  function startBootAnim(fromStart) {
-    const { sprite, strip } = bootNodes();
-    if (!sprite || !strip || !spriteReady) return;
-    if (fromStart) setBootFrame(0);
-    sprite.classList.add("is-ready");
-    if (bootAnimRaf) return;
-    const step = (ts) => {
-      if (!document.getElementById("bootStrip")) {
-        bootAnimRaf = 0;
-        return;
-      }
-      if (!bootLastTs) bootLastTs = ts;
-      // 掉帧时也只 +1，避免一下子跳多帧看起来抽风
-      if (ts - bootLastTs >= BOOT_FRAME_MS) {
-        bootLastTs = ts;
-        setBootFrame(bootFrame + 1);
-      }
-      bootAnimRaf = requestAnimationFrame(step);
-    };
-    bootAnimRaf = requestAnimationFrame(step);
   }
 
   function markSpriteReady() {
-    if (spriteReady) {
-      startBootAnim(false);
-      return;
-    }
     spriteReady = true;
-    startBootAnim(true);
+    showBootAnim(false);
   }
 
   function warmBootAnim() {
-    try {
-      const poster = new Image();
-      poster.src = POSTER_SRC;
-    } catch (_) {}
-    if (spriteImg) {
-      if (spriteReady || (spriteImg.complete && spriteImg.naturalWidth)) markSpriteReady();
-      return spriteImg;
+    if (animWarm) {
+      if (animWarm.complete && animWarm.naturalWidth) markSpriteReady();
+      return animWarm;
     }
-    spriteImg = new Image();
+    animWarm = new Image();
     const finish = () => {
       const go = () => markSpriteReady();
-      if (spriteImg.decode) {
-        spriteImg.decode().then(go).catch(go);
-      } else {
-        go();
-      }
+      if (animWarm.decode) animWarm.decode().then(go).catch(go);
+      else go();
     };
-    spriteImg.addEventListener("load", finish);
-    spriteImg.src = SPRITE_SRC;
-    if (spriteImg.complete && spriteImg.naturalWidth) finish();
-    return spriteImg;
+    animWarm.addEventListener("load", finish);
+    animWarm.src = ANIM_SRC;
+    if (animWarm.complete && animWarm.naturalWidth) finish();
+    return animWarm;
   }
 
   function ensureBoot(options) {
@@ -458,11 +418,13 @@
       document.body.insertAdjacentHTML("afterbegin", BOOT_HTML);
       root = document.getElementById("boot");
     }
-    // 若页面自带 boot 但没有 strip，补上
-    let { sprite, strip } = bootNodes();
-    if (sprite && !strip) {
-      sprite.innerHTML = '<div class="boot-strip" id="bootStrip"></div>';
-      strip = document.getElementById("bootStrip");
+    let { sprite, anim } = bootNodes();
+    if (sprite && !anim) {
+      sprite.innerHTML =
+        '<img class="boot-anim" id="bootAnim" src="' +
+        POSTER_SRC +
+        '" alt="" width="220" height="220" decoding="async" fetchpriority="high">';
+      anim = document.getElementById("bootAnim");
     }
     root.classList.remove("is-out");
     root.classList.toggle("is-nav", !!opts.nav);
@@ -473,7 +435,8 @@
       bar.style.transform = "scaleX(" + opts.bar + ")";
     }
     warmBootAnim();
-    if (spriteReady) startBootAnim(!!(opts.nav || opts.resetVideo));
+    // 仅站内跳转时重开动图；首屏不要 poster↔webp 来回切
+    if (spriteReady) showBootAnim(!!opts.nav);
     return bootNodes();
   }
 
@@ -482,7 +445,6 @@
     if (!root || bootHiding) return;
     bootHiding = true;
     pendingNav = null;
-    stopBootAnim();
     root.classList.add("is-out");
     root.classList.remove("is-nav");
     document.documentElement.classList.remove("is-booting");

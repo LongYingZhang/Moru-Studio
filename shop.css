@@ -1158,33 +1158,16 @@ html.is-booting body {
   width: 100%;
   aspect-ratio: 1;
   overflow: hidden;
-  background-color: #000;
-  background-image: url("assets/loader/moru-loop-poster.png");
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: cover;
+  background: #000;
   pointer-events: none;
 }
-.boot-strip {
-  position: absolute;
-  top: 0;
-  left: 0;
+.boot-anim {
+  display: block;
+  width: 100%;
   height: 100%;
-  width: 4800%; /* 48 frames */
-  background-image: url("assets/loader/moru-sprite.webp");
-  background-repeat: no-repeat;
-  background-position: 0 0;
-  background-size: 100% 100%;
-  transform: translate3d(0, 0, 0);
-  opacity: 0;
+  object-fit: cover;
+  background: #000;
   pointer-events: none;
-  backface-visibility: hidden;
-}
-.boot-sprite.is-ready {
-  background-image: none;
-}
-.boot-sprite.is-ready .boot-strip {
-  opacity: 1;
 }
 .boot-track {
   width: 72%;

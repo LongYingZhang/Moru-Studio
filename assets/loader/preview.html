@@ -5,42 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Moru boot preview</title>
 <link rel="stylesheet" href="../../shop.css">
-<link rel="preload" href="moru-loop-poster.png" as="image">
-<link rel="preload" href="moru-sprite.webp" as="image" type="image/webp">
-<style>
-html, body { margin: 0; }
-html.is-booting, html.is-booting body { background: #000 !important; }
-.boot-sprite { background-image: url("moru-loop-poster.png"); }
-.boot-strip { background-image: url("moru-sprite.webp"); }
-</style>
+<link rel="preload" href="moru-loop.webp" as="image" type="image/webp">
+<style>html,body{margin:0}html.is-booting,html.is-booting body{background:#000!important}</style>
 <script>document.documentElement.classList.add("is-booting");</script>
 </head>
 <body>
-<div class="boot" id="boot" aria-label="加载中">
+<div class="boot" id="boot">
   <div class="boot-stage">
-    <div class="boot-sprite is-ready" id="bootSprite" aria-hidden="true">
-      <div class="boot-strip" id="bootStrip"></div>
+    <div class="boot-sprite">
+      <img class="boot-anim" src="moru-loop.webp" alt="" width="220" height="220">
     </div>
-    <div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>
+    <div class="boot-track"><div class="boot-bar" id="bootBar" style="transform:scaleX(.4)"></div></div>
   </div>
 </div>
-<script>
-const FRAMES=48, MS=1000/30;
-let frame=0, last=0;
-const strip=document.getElementById("bootStrip");
-const bar=document.getElementById("bootBar");
-let p=0.05, dir=1;
-function setFrame(i){
-  frame=((i%FRAMES)+FRAMES)%FRAMES;
-  strip.style.transform="translate3d("+(-frame*(100/FRAMES))+"%,0,0)";
-}
-(function tick(ts){
-  if(!last) last=ts;
-  if(ts-last>=MS){ last+=MS; setFrame(frame+1); }
-  p+=0.003*dir; if(p>0.95)dir=-1; if(p<0.05)dir=1;
-  bar.style.transform="scaleX("+p.toFixed(3)+")";
-  requestAnimationFrame(tick);
-})(performance.now());
-</script>
 </body>
 </html>
