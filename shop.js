@@ -333,31 +333,37 @@
   document.addEventListener("DOMContentLoaded", fillContact);
   watchServerProducts();
 
+  const BOOT_LOGO_SVG =
+    '<svg class="boot-logo" id="bootLogo" xmlns="http://www.w3.org/2000/svg" viewBox="180 170 340 320" fill="none" aria-hidden="true">' +
+      '<image href="assets/loader/moru.png" x="0" y="0" width="700" height="622" preserveAspectRatio="xMidYMid meet"></image>' +
+      '<rect x="288" y="288" width="80" height="100" rx="8" fill="#777777"></rect>' +
+      '<g class="moru-face">' +
+        '<rect x="297" y="297" width="22" height="52" rx="3" fill="#0E0E0E"></rect>' +
+        '<rect x="335" y="297" width="22" height="52" rx="3" fill="#0E0E0E"></rect>' +
+        '<path d="M304 368 C314 382, 340 382, 350 368" stroke="#0E0E0E" stroke-width="8" stroke-linecap="round" fill="none"></path>' +
+      "</g>" +
+    "</svg>";
   const BOOT_HTML =
     '<div class="boot" id="boot" aria-live="polite" aria-label="加载中">' +
       '<div class="boot-stage">' +
-        '<div class="boot-sprite" id="bootSprite" aria-hidden="true">' +
-          '<img class="boot-anim" id="bootAnim" src="assets/loader/moru-loop-poster.png" alt="" width="220" height="220" decoding="async" fetchpriority="high">' +
-        "</div>" +
+        BOOT_LOGO_SVG +
         '<div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>' +
       "</div>" +
     "</div>";
   const NAV_BOOT_KEY = "ly-nav-boot";
-  const ANIM_SRC = "assets/loader/moru-loop.webp";
-  const POSTER_SRC = "assets/loader/moru-loop-poster.png";
-  const BOOT_MIN_MS = 900;
+  const LOGO_SRC = "assets/loader/moru.png";
+  const BOOT_MIN_MS = 700;
 
   let bootHiding = false;
   let pendingNav = null;
   let spriteReady = false;
-  let animWarm = null;
+  let logoWarm = null;
 
   function bootNodes() {
     return {
       root: document.getElementById("boot"),
       bar: document.getElementById("bootBar"),
-      sprite: document.getElementById("bootSprite"),
-      anim: document.getElementById("bootAnim")
+      logo: document.getElementById("bootLogo")
     };
   }
 
@@ -375,40 +381,37 @@
     try { sessionStorage.setItem(NAV_BOOT_KEY, JSON.stringify(state)); } catch (_) {}
   }
 
-  function showBootAnim(restart) {
-    const { anim } = bootNodes();
-    if (!anim || !spriteReady) return;
-    // 浏览器原生循环动图，不用 JS/CSS 切帧，避免循环归零闪屏
-    if (anim.getAttribute("src") !== ANIM_SRC) {
-      anim.setAttribute("src", ANIM_SRC);
-    } else if (restart) {
-      const src = ANIM_SRC;
-      anim.setAttribute("src", POSTER_SRC);
-      void anim.offsetWidth;
-      anim.setAttribute("src", src);
-    }
+  function restartBootLook() {
+    const face = document.querySelector("#bootLogo .moru-face");
+    if (!face) return;
+    face.style.animation = "none";
+    void face.getBoundingClientRect();
+    face.style.animation = "";
   }
 
   function markSpriteReady() {
     spriteReady = true;
-    showBootAnim(false);
   }
 
   function warmBootAnim() {
-    if (animWarm) {
-      if (animWarm.complete && animWarm.naturalWidth) markSpriteReady();
-      return animWarm;
+    if (logoWarm) {
+      if (logoWarm.complete && logoWarm.naturalWidth) markSpriteReady();
+      return logoWarm;
     }
-    animWarm = new Image();
-    const finish = () => {
-      const go = () => markSpriteReady();
-      if (animWarm.decode) animWarm.decode().then(go).catch(go);
-      else go();
-    };
-    animWarm.addEventListener("load", finish);
-    animWarm.src = ANIM_SRC;
-    if (animWarm.complete && animWarm.naturalWidth) finish();
-    return animWarm;
+    logoWarm = new Image();
+    const done = () => markSpriteReady();
+    logoWarm.addEventListener("load", () => {
+      if (logoWarm.decode) logoWarm.decode().then(done).catch(done);
+      else done();
+    });
+    logoWarm.src = LOGO_SRC;
+    if (logoWarm.complete && logoWarm.naturalWidth) {
+      if (logoWarm.decode) logoWarm.decode().then(done).catch(done);
+      else done();
+    }
+    // 兜底：避免图片事件异常时进度条卡死
+    setTimeout(done, 400);
+    return logoWarm;
   }
 
   function ensureBoot(options) {
@@ -418,13 +421,13 @@
       document.body.insertAdjacentHTML("afterbegin", BOOT_HTML);
       root = document.getElementById("boot");
     }
-    let { sprite, anim } = bootNodes();
-    if (sprite && !anim) {
-      sprite.innerHTML =
-        '<img class="boot-anim" id="bootAnim" src="' +
-        POSTER_SRC +
-        '" alt="" width="220" height="220" decoding="async" fetchpriority="high">';
-      anim = document.getElementById("bootAnim");
+    if (!document.getElementById("bootLogo")) {
+      const stage = root.querySelector(".boot-stage");
+      if (stage) {
+        const track = stage.querySelector(".boot-track");
+        if (track) track.insertAdjacentHTML("beforebegin", BOOT_LOGO_SVG);
+        else stage.insertAdjacentHTML("afterbegin", BOOT_LOGO_SVG);
+      }
     }
     root.classList.remove("is-out");
     root.classList.toggle("is-nav", !!opts.nav);
@@ -435,8 +438,7 @@
       bar.style.transform = "scaleX(" + opts.bar + ")";
     }
     warmBootAnim();
-    // 仅站内跳转时重开动图；首屏不要 poster↔webp 来回切
-    if (spriteReady) showBootAnim(!!opts.nav);
+    if (opts.nav) restartBootLook();
     return bootNodes();
   }
 
