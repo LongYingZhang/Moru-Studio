@@ -7,7 +7,6 @@
 <link rel="stylesheet" href="../../shop.css">
 <style>
 html, body { margin: 0; }
-html { background: #131313; }
 html.is-booting, html.is-booting body { background: #000 !important; }
 </style>
 <script>document.documentElement.classList.add("is-booting");</script>
@@ -16,9 +15,10 @@ html.is-booting, html.is-booting body { background: #000 !important; }
 <div class="boot" id="boot" aria-label="加载中">
   <div class="boot-stage">
     <div class="boot-video-wrap">
-      <video class="boot-video" autoplay muted loop playsinline preload="auto" poster="moru-loop-poster.png">
-        <source src="moru-loop.mp4" type="video/mp4">
-      </video>
+      <picture>
+        <source srcset="moru-loop.webp" type="image/webp">
+        <img class="boot-anim" src="moru-loop.gif" alt="" width="220" height="220">
+      </picture>
     </div>
     <div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>
   </div>

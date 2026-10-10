@@ -47,6 +47,7 @@ IMAGE_EXT = {"jpeg": "jpg", "png": "png", "webp": "webp", "gif": "gif"}
 UPLOAD_NAME = re.compile(r"^[0-9a-f]{32}\.(?:jpg|png|webp|gif)$")
 GZIP_EXT = {".html", ".css", ".js", ".svg", ".json"}
 LONG_CACHE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".woff2", ".ico", ".mp4"}
+RANGE_EXT = {".mp4", ".webm", ".woff2", ".jpg", ".jpeg", ".png", ".webp", ".gif"}
 ASSET_REF = re.compile(rb'\b(href|src)="((?:\./)?[\w][\w./-]*\.(?:css|js))"')
 VERSION_QUERY = re.compile(r"(?:^|&)v=")
 
@@ -216,13 +217,73 @@ class ShopHandler(SimpleHTTPRequestHandler):
     def accepts_gzip(self):
         return "gzip" in (self.headers.get("Accept-Encoding") or "")
 
+    def send_partial(self, path, file_size):
+        unit, _, ranges = (self.headers.get("Range") or "").partition("=")
+        if unit.strip() != "bytes" or not ranges or "," in ranges:
+            return False
+        start_s, _, end_s = ranges.strip().partition("-")
+        try:
+            if start_s == "":
+                length = int(end_s)
+                start = max(0, file_size - length)
+                end = file_size - 1
+            else:
+                start = int(start_s)
+                end = int(end_s) if end_s else file_size - 1
+        except ValueError:
+            return False
+        if start < 0 or start >= file_size or end < start:
+            self.send_response(416)
+            self.send_header("Content-Range", f"bytes */{file_size}")
+            self.end_headers()
+            return io.BytesIO(b"")
+        end = min(end, file_size - 1)
+        length = end - start + 1
+        with open(path, "rb") as file:
+            file.seek(start)
+            body = file.read(length)
+        self.send_response(206)
+        self.send_header("Content-Type", self.guess_type(path))
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Content-Range", f"bytes {start}-{end}/{file_size}")
+        self.send_header("Content-Length", str(length))
+        self.send_header("Last-Modified", self.date_time_string(os.stat(path).st_mtime))
+        self.end_headers()
+        return io.BytesIO(body)
+
     def send_head(self):
         path = self.translate_path(self.path)
         if os.path.isdir(path) and self.route().endswith("/"):
             path = os.path.join(path, "index.html")
-        ext = os.path.splitext(path)[1].lower()
-        if ext not in GZIP_EXT or not os.path.isfile(path):
+        if not os.path.isfile(path):
             return super().send_head()
+        ext = os.path.splitext(path)[1].lower()
+        file_size = os.path.getsize(path)
+
+        if ext in RANGE_EXT and self.headers.get("Range"):
+            partial = self.send_partial(path, file_size)
+            if partial is not False:
+                return partial
+
+        if ext in RANGE_EXT and ext not in GZIP_EXT:
+            file = open(path, "rb")
+            try:
+                stat = os.fstat(file.fileno())
+            except OSError:
+                file.close()
+                self.send_error(404, "File not found")
+                return None
+            self.send_response(200)
+            self.send_header("Content-Type", self.guess_type(path))
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Content-Length", str(stat.st_size))
+            self.send_header("Last-Modified", self.date_time_string(stat.st_mtime))
+            self.end_headers()
+            return file
+
+        if ext not in GZIP_EXT:
+            return super().send_head()
+
         with open(path, "rb") as file:
             body = file.read()
         mtime = int(os.stat(path).st_mtime)

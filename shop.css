@@ -1157,24 +1157,22 @@ html.is-booting body {
   width: 100%;
   aspect-ratio: 1;
   overflow: hidden;
-  background: #000 url("assets/loader/moru-loop-poster.png") center / cover no-repeat;
+  background: #000;
   line-height: 0;
 }
-.boot-video {
+.boot-video-wrap picture,
+.boot-anim {
+  display: block;
   width: 100%;
   height: 100%;
-  display: block;
+}
+.boot-anim {
   object-fit: cover;
   object-position: center;
-  background: transparent;
-  border: 0;
-  outline: none;
-  box-shadow: none;
-  transform: scale(1.04);
-  transform-origin: center;
+  background: #000;
   pointer-events: none;
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
+  transform: scale(1.02);
+  transform-origin: center;
 }
 .boot-track {
   width: 72%;

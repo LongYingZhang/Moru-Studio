@@ -337,52 +337,24 @@
     '<div class="boot" id="boot" aria-live="polite" aria-label="加载中">' +
       '<div class="boot-stage">' +
         '<div class="boot-video-wrap">' +
-          '<video class="boot-video" id="bootVideo" autoplay muted loop playsinline preload="auto" poster="assets/loader/moru-loop-poster.png">' +
-            '<source src="assets/loader/moru-loop.mp4" type="video/mp4">' +
-          "</video>" +
+          "<picture>" +
+            '<source srcset="assets/loader/moru-loop.webp" type="image/webp">' +
+            '<img class="boot-anim" src="assets/loader/moru-loop.gif" alt="" width="220" height="220" decoding="async" fetchpriority="high">' +
+          "</picture>" +
         "</div>" +
         '<div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>' +
       "</div>" +
     "</div>";
   const NAV_BOOT_KEY = "ly-nav-boot";
-  const VIDEO_SRC = "assets/loader/moru-loop.mp4";
+  const ANIM_SRC = "assets/loader/moru-loop.webp";
 
   let bootHiding = false;
   let pendingNav = null;
-  let warmReady = false;
-
-  function warmBootVideo() {
-    let warm = document.getElementById("bootWarm");
-    if (!warm) {
-      warm = document.createElement("video");
-      warm.id = "bootWarm";
-      warm.muted = true;
-      warm.defaultMuted = true;
-      warm.volume = 0;
-      warm.playsInline = true;
-      warm.setAttribute("playsinline", "");
-      warm.setAttribute("webkit-playsinline", "");
-      warm.loop = true;
-      warm.preload = "auto";
-      warm.src = VIDEO_SRC;
-      warm.setAttribute("aria-hidden", "true");
-      warm.style.cssText = "position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-999px;top:-999px";
-      warm.addEventListener("canplaythrough", () => { warmReady = true; }, { once: true });
-      (document.body || document.documentElement).appendChild(warm);
-      try { warm.load(); } catch (_) {}
-    }
-    try {
-      const play = warm.play();
-      if (play && play.catch) play.catch(() => {});
-    } catch (_) {}
-    return warm;
-  }
 
   function bootNodes() {
     return {
       root: document.getElementById("boot"),
-      bar: document.getElementById("bootBar"),
-      video: document.getElementById("bootVideo")
+      bar: document.getElementById("bootBar")
     };
   }
 
@@ -400,29 +372,12 @@
     try { sessionStorage.setItem(NAV_BOOT_KEY, JSON.stringify(state)); } catch (_) {}
   }
 
-  function kickPlay(video) {
-    if (!video) return;
-    video.muted = true;
-    video.defaultMuted = true;
-    video.volume = 0;
-    video.loop = true;
-    video.playsInline = true;
-    video.setAttribute("playsinline", "");
-    video.setAttribute("webkit-playsinline", "");
-    const tryPlay = () => {
-      const play = video.play();
-      if (play && play.catch) {
-        play.catch(() => {
-          video.addEventListener("canplay", () => {
-            video.play().catch(() => {});
-          }, { once: true });
-        });
-      }
-    };
-    tryPlay();
-    // 缓冲到了再补一次，避免卡在海报
-    video.addEventListener("loadeddata", tryPlay, { once: true });
-    video.addEventListener("canplay", tryPlay, { once: true });
+  function warmBootAnim() {
+    try {
+      const img = new Image();
+      img.decoding = "async";
+      img.src = ANIM_SRC;
+    } catch (_) {}
   }
 
   function ensureBoot(options) {
@@ -436,22 +391,15 @@
     root.classList.toggle("is-nav", !!opts.nav);
     document.documentElement.classList.add("is-booting");
     document.documentElement.style.background = "#000";
-    const { video, bar } = bootNodes();
+    const { bar } = bootNodes();
     if (bar && opts.bar != null) {
       bar.style.transform = "scaleX(" + opts.bar + ")";
     }
-    if (video) {
-      try {
-        warmBootVideo();
-        if (!video.currentSrc && !video.src) {
-          video.src = VIDEO_SRC;
-        }
-        // 慢网络下不要先 seek：没缓冲到的时间点会一直停在海报/首帧
-        if (opts.resetVideo || opts.nav || opts.startedAt) {
-          try { video.currentTime = 0; } catch (_) {}
-        }
-        kickPlay(video);
-      } catch (_) {}
+    // 动图重新挂载可保证从第一帧开始播
+    const anim = root.querySelector(".boot-anim");
+    if (anim && (opts.resetVideo || opts.nav)) {
+      const src = anim.getAttribute("src");
+      anim.setAttribute("src", src);
     }
     return bootNodes();
   }
@@ -490,9 +438,8 @@
   function runBootProgress(navState) {
     const continuing = !!(navState && navState.startedAt);
     const floor = continuing ? Math.max(0.12, Number(navState.bar) || 0.12) : 0.04;
-    const { root, bar, video } = ensureBoot({
+    const { root, bar } = ensureBoot({
       resetVideo: !continuing,
-      startedAt: continuing ? navState.startedAt : null,
       bar: floor,
       nav: false
     });
@@ -500,7 +447,6 @@
     bootHiding = false;
     let shown = floor;
     bar.style.transform = "scaleX(" + shown.toFixed(4) + ")";
-    if (video) kickPlay(video);
 
     function frame() {
       if (!document.getElementById("boot")) return;
@@ -524,7 +470,7 @@
     const startedAt = Date.now();
     pendingNav = { startedAt: startedAt, bar: 0.12, href: url };
     writeNavBoot(pendingNav);
-    ensureBoot({ resetVideo: true, startedAt: startedAt, bar: 0.12, nav: true });
+    ensureBoot({ resetVideo: true, bar: 0.12, nav: true });
     requestAnimationFrame(() => {
       if (replace) location.replace(url);
       else location.assign(url);
@@ -598,7 +544,7 @@
     true
   );
 
-  warmBootVideo();
+  warmBootAnim();
   runBootProgress(readNavBoot());
 
   window.Shop = {
