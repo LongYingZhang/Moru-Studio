@@ -1,19 +1,33 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="is-booting">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#131313" />
+    <meta name="theme-color" content="#000000" />
     <meta
       name="description"
       content="LONGYING SHOP 商品管理后台"
     />
     <title>商品管理 · LONGYING SHOP</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%230e0e0e%22/><circle cx=%2250%22 cy=%2250%22 r=%2224%22 fill=%22white%22/></svg>" />
+    <link rel="preload" href="../assets/loader/moru-loop-poster.png" as="image" />
+    <link rel="preload" href="../assets/loader/moru-sprite.webp" as="image" type="image/webp" />
     <link rel="stylesheet" href="./styles.css" />
+    <style>
+      html, body { margin: 0; }
+      html.is-booting, html.is-booting body { background: #000 !important; }
+    </style>
     <script src="./app.js" defer></script>
   </head>
   <body>
+    <div class="boot" id="boot" aria-live="polite" aria-label="加载中">
+      <div class="boot-stage">
+        <div class="boot-sprite" id="bootSprite" aria-hidden="true">
+          <canvas class="boot-anim" id="bootCanvas" width="220" height="220"></canvas>
+        </div>
+        <div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>
+      </div>
+    </div>
     <header class="site-header">
       <div class="header-inner">
         <div class="header-left">

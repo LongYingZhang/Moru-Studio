@@ -1551,6 +1551,78 @@ body.is-locked .app-shell {
   }
 }
 
+/* ---- boot / loading（与前台同一套） ---- */
+html.is-booting,
+html.is-booting body {
+  overflow: hidden;
+  background: #000 !important;
+}
+.boot {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  width: 100vw;
+  width: 100dvw;
+  height: 100vh;
+  height: 100dvh;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: #000;
+  transition: opacity 0.28s ease, visibility 0.28s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.boot.is-out {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.boot-stage {
+  width: min(168px, 42vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  background: #000;
+}
+.boot-sprite {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: #000 url("../assets/loader/moru-loop-poster.png") center / cover no-repeat;
+  pointer-events: none;
+}
+.boot-anim {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+}
+.boot-sprite.is-ready .boot-anim {
+  opacity: 1;
+}
+.boot-track {
+  width: 72%;
+  height: 2px;
+  border-radius: 2px;
+  background: #2a2a2a;
+  overflow: hidden;
+}
+.boot-bar {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: #c7c6c6;
+  transform: scaleX(0.02);
+  transform-origin: left center;
+  will-change: transform;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
