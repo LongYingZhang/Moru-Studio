@@ -105,9 +105,9 @@ document.documentElement.classList.add("is-booting");
       <span class="qr-title" id="qrTitle">微信扫码支付</span>
       <b id="qrAmount"></b>
     </div>
-    <div class="qr-code">
-      <img id="qrImg" src="assets/pay/wechat.jpg" alt="收款码">
-      <span class="qr-missing">收款码未上传<br><small id="qrMissingPath">assets/pay/wechat.jpg</small></span>
+    <div class="qr-code is-loading">
+      <img id="qrImg" src="" alt="收款码">
+      <span class="qr-missing">收款码未上传<br><small id="qrMissingPath"></small></span>
     </div>
     <div class="status" id="qrStatus"></div>
     <div class="qr-actions">
@@ -168,13 +168,17 @@ document.documentElement.classList.add("is-booting");
   const qrStatus = document.getElementById("qrStatus");
   const qrMissingPath = document.getElementById("qrMissingPath");
   const PAY_QR = {
-    wechat: { title: "微信扫码支付", src: "assets/pay/wechat.jpg", alt: "微信收款码" },
-    alipay: { title: "支付宝扫码支付", src: "assets/pay/alipay.jpg", alt: "支付宝收款码" },
-    card: { title: "银联扫码支付", src: "assets/pay/wechat.jpg", alt: "银联收款码" },
+    wechat: { title: "微信扫码支付", src: "assets/pay/wechat-qr.jpg", alt: "微信收款码" },
+    alipay: { title: "支付宝扫码支付", src: "assets/pay/alipay-qr.jpg", alt: "支付宝收款码" },
+    card: { title: "银联扫码支付", src: "assets/pay/wechat-qr.jpg", alt: "银联收款码" },
   };
-  const markMissing = () => qrCode.classList.add("is-missing");
-  qrImg.addEventListener("error", markMissing);
-  qrImg.addEventListener("load", () => qrCode.classList.remove("is-missing"));
+  const payCache = {};
+  Object.keys(PAY_QR).forEach((key) => {
+    const img = new Image();
+    img.decoding = "async";
+    img.src = PAY_QR[key].src;
+    payCache[key] = img;
+  });
 
   function orderNo() {
     const d = new Date();
@@ -184,20 +188,65 @@ document.documentElement.classList.add("is-booting");
   }
 
   let currentNo = "";
+  let qrRequest = 0;
 
   function openQr() {
-    const pay = PAY_QR[method] || PAY_QR.wechat;
+    const payKey = method in PAY_QR ? method : "wechat";
+    const pay = PAY_QR[payKey];
+    const requestId = ++qrRequest;
     currentNo = orderNo();
     document.getElementById("qrTitle").textContent = pay.title;
     document.getElementById("qrAmount").textContent = Shop.formatPrice(total, true);
     qrMissingPath.textContent = pay.src;
-    qrCode.classList.remove("is-missing");
-    qrImg.alt = pay.alt;
-    qrImg.src = pay.src + (pay.src.includes("?") ? "&" : "?") + "t=" + Date.now();
     qrStatus.className = "status";
     qrStatus.textContent = "";
-    qrBackdrop.classList.add("open");
-    qrBackdrop.setAttribute("aria-hidden", "false");
+    qrCode.classList.add("is-loading");
+    qrCode.classList.remove("is-missing");
+    qrImg.removeAttribute("src");
+    qrImg.alt = pay.alt;
+
+    const reveal = (ok) => {
+      if (requestId !== qrRequest) return;
+      qrCode.classList.toggle("is-missing", !ok);
+      qrCode.classList.remove("is-loading");
+      qrBackdrop.classList.add("open");
+      qrBackdrop.setAttribute("aria-hidden", "false");
+    };
+
+    const show = () => {
+      if (requestId !== qrRequest) return;
+      qrImg.src = pay.src;
+      if (qrImg.complete && qrImg.naturalWidth) {
+        reveal(true);
+        return;
+      }
+      const onLoad = () => {
+        qrImg.removeEventListener("load", onLoad);
+        qrImg.removeEventListener("error", onError);
+        reveal(true);
+      };
+      const onError = () => {
+        qrImg.removeEventListener("load", onLoad);
+        qrImg.removeEventListener("error", onError);
+        reveal(false);
+      };
+      qrImg.addEventListener("load", onLoad);
+      qrImg.addEventListener("error", onError);
+    };
+
+    const warm = payCache[payKey];
+    if (warm && warm.complete && warm.naturalWidth) {
+      show();
+    } else if (warm) {
+      warm.addEventListener("load", show, { once: true });
+      warm.addEventListener("error", () => reveal(false), { once: true });
+      // 已在加载中；超时仍打开，避免卡住
+      setTimeout(() => {
+        if (requestId === qrRequest && !qrBackdrop.classList.contains("open")) show();
+      }, 800);
+    } else {
+      show();
+    }
   }
 
   async function placeOrder(no) {

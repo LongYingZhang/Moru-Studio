@@ -898,6 +898,7 @@ label.field.wide { grid-column: 1 / -1; }
   background: #fff;
 }
 .qr-code img { display: block; width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.qr-code.is-loading img { opacity: 0; }
 .qr-missing {
   position: absolute;
   inset: 0;
