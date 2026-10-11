@@ -347,7 +347,7 @@
   const NAV_BOOT_KEY = "ly-nav-boot";
   const ANIM_SRC = "assets/loader/moru-loop.webp";
   const POSTER_SRC = "assets/loader/moru-loop-poster.png";
-  const BOOT_MIN_MS = 900;
+  const BOOT_MIN_MS = 1200;
 
   let bootHiding = false;
   let pendingNav = null;
