@@ -106,8 +106,8 @@ document.documentElement.classList.add("is-booting");
       <b id="qrAmount"></b>
     </div>
     <div class="qr-code">
-      <img id="qrImg" src="assets/pay/demo-qr.png" alt="收款码">
-      <span class="qr-missing">收款码未上传<br><small id="qrMissingPath">assets/pay/demo-qr.png</small></span>
+      <img id="qrImg" src="assets/pay/wechat.jpg" alt="收款码">
+      <span class="qr-missing">收款码未上传<br><small id="qrMissingPath">assets/pay/wechat.jpg</small></span>
     </div>
     <div class="status" id="qrStatus"></div>
     <div class="qr-actions">
@@ -167,11 +167,10 @@ document.documentElement.classList.add("is-booting");
   const qrCode = qrImg.closest(".qr-code");
   const qrStatus = document.getElementById("qrStatus");
   const qrMissingPath = document.getElementById("qrMissingPath");
-  const DEMO_QR = "assets/pay/demo-qr.png";
   const PAY_QR = {
-    wechat: { title: "微信扫码支付", src: DEMO_QR, alt: "微信收款码" },
-    alipay: { title: "支付宝扫码支付", src: DEMO_QR, alt: "支付宝收款码" },
-    card: { title: "银联扫码支付", src: DEMO_QR, alt: "银联收款码" },
+    wechat: { title: "微信扫码支付", src: "assets/pay/wechat.jpg", alt: "微信收款码" },
+    alipay: { title: "支付宝扫码支付", src: "assets/pay/alipay.jpg", alt: "支付宝收款码" },
+    card: { title: "银联扫码支付", src: "assets/pay/wechat.jpg", alt: "银联收款码" },
   };
   const markMissing = () => qrCode.classList.add("is-missing");
   qrImg.addEventListener("error", markMissing);
