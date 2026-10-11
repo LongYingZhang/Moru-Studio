@@ -14,3 +14,9 @@ __pycache__/
 /*.pdf
 /IMG_*.jpg
 admin/*.svg
+
+# 旧收款演示 / 本机杂项
+assets/pay/demo-qr.png
+assets/pay/.DS_Store
+admin/stitch/
+*.before-uploads
