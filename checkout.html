@@ -6,7 +6,7 @@
 <title>结算</title>
 <link rel="stylesheet" href="shop.css">
 <link rel="preload" href="assets/loader/moru-loop-poster.png" as="image">
-<link rel="preload" href="assets/loader/moru-loop.webp" as="image" type="image/webp">
+<link rel="preload" href="assets/loader/moru-sprite.webp" as="image" type="image/webp">
 <style>
 html, body { margin: 0; }
 html { background: #131313; }
@@ -20,7 +20,7 @@ document.documentElement.classList.add("is-booting");
 <div class="boot" id="boot" aria-live="polite" aria-label="加载中">
   <div class="boot-stage">
     <div class="boot-sprite" id="bootSprite" aria-hidden="true">
-      <img class="boot-anim" id="bootAnim" src="assets/loader/moru-loop-poster.png" alt="" width="220" height="220" decoding="async" fetchpriority="high">
+      <canvas class="boot-anim" id="bootCanvas" width="220" height="220"></canvas>
     </div>
     <div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>
   </div>

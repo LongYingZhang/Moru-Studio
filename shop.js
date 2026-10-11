@@ -339,27 +339,32 @@
     '<div class="boot" id="boot" aria-live="polite" aria-label="加载中">' +
       '<div class="boot-stage">' +
         '<div class="boot-sprite" id="bootSprite" aria-hidden="true">' +
-          '<img class="boot-anim" id="bootAnim" src="assets/loader/moru-loop-poster.png" alt="" width="220" height="220" decoding="async" fetchpriority="high">' +
+          '<canvas class="boot-anim" id="bootCanvas" width="220" height="220"></canvas>' +
         "</div>" +
         '<div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>' +
       "</div>" +
     "</div>";
   const NAV_BOOT_KEY = "ly-nav-boot";
-  const ANIM_SRC = "assets/loader/moru-loop.webp";
+  const SPRITE_SRC = "assets/loader/moru-sprite.webp";
   const POSTER_SRC = "assets/loader/moru-loop-poster.png";
   const BOOT_MIN_MS = 1200;
+  const BOOT_FRAMES = 24;
+  const BOOT_FRAME_MS = 150; // ~3.6s 一圈，偏慢且末帧已收束到首帧
 
   let bootHiding = false;
   let pendingNav = null;
   let spriteReady = false;
-  let animWarm = null;
+  let spriteImg = null;
+  let bootAnimRaf = 0;
+  let bootFrame = 0;
+  let bootLastTs = 0;
 
   function bootNodes() {
     return {
       root: document.getElementById("boot"),
       bar: document.getElementById("bootBar"),
       sprite: document.getElementById("bootSprite"),
-      anim: document.getElementById("bootAnim")
+      canvas: document.getElementById("bootCanvas")
     };
   }
 
@@ -377,40 +382,81 @@
     try { sessionStorage.setItem(NAV_BOOT_KEY, JSON.stringify(state)); } catch (_) {}
   }
 
-  function showBootAnim(restart) {
-    const { anim } = bootNodes();
-    if (!anim || !spriteReady) return;
-    // 浏览器原生循环动图，不用 JS/CSS 切帧，避免循环归零闪屏
-    if (anim.getAttribute("src") !== ANIM_SRC) {
-      anim.setAttribute("src", ANIM_SRC);
-    } else if (restart) {
-      const src = ANIM_SRC;
-      anim.setAttribute("src", POSTER_SRC);
-      void anim.offsetWidth;
-      anim.setAttribute("src", src);
+  function drawBootFrame(index) {
+    const { canvas, sprite } = bootNodes();
+    if (!canvas || !spriteImg || !spriteImg.naturalWidth) return;
+    bootFrame = ((index % BOOT_FRAMES) + BOOT_FRAMES) % BOOT_FRAMES;
+    const fw = spriteImg.naturalWidth / BOOT_FRAMES;
+    const fh = spriteImg.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    // 不 clear：整帧不透明覆盖，避免闪黑
+    ctx.drawImage(spriteImg, bootFrame * fw, 0, fw, fh, 0, 0, canvas.width, canvas.height);
+    sprite.classList.add("is-ready");
+  }
+
+  function stopBootAnim() {
+    if (bootAnimRaf) {
+      cancelAnimationFrame(bootAnimRaf);
+      bootAnimRaf = 0;
     }
+    bootLastTs = 0;
+  }
+
+  function startBootAnim(fromStart) {
+    const { canvas } = bootNodes();
+    if (!canvas || !spriteReady) return;
+    if (fromStart) drawBootFrame(0);
+    else drawBootFrame(bootFrame);
+    if (bootAnimRaf) return;
+    const step = (ts) => {
+      if (!document.getElementById("bootCanvas")) {
+        bootAnimRaf = 0;
+        return;
+      }
+      if (!bootLastTs) bootLastTs = ts;
+      if (ts - bootLastTs >= BOOT_FRAME_MS) {
+        bootLastTs = ts;
+        drawBootFrame(bootFrame + 1);
+      }
+      bootAnimRaf = requestAnimationFrame(step);
+    };
+    bootAnimRaf = requestAnimationFrame(step);
   }
 
   function markSpriteReady() {
+    if (spriteReady) {
+      startBootAnim(false);
+      return;
+    }
     spriteReady = true;
-    showBootAnim(false);
+    startBootAnim(true);
   }
 
   function warmBootAnim() {
-    if (animWarm) {
-      if (animWarm.complete && animWarm.naturalWidth) markSpriteReady();
-      return animWarm;
+    try {
+      const poster = new Image();
+      poster.src = POSTER_SRC;
+      poster.onload = () => {
+        const { canvas } = bootNodes();
+        if (!canvas || spriteReady) return;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(poster, 0, 0, canvas.width, canvas.height);
+      };
+    } catch (_) {}
+    if (spriteImg) {
+      if (spriteImg.complete && spriteImg.naturalWidth) markSpriteReady();
+      return spriteImg;
     }
-    animWarm = new Image();
+    spriteImg = new Image();
     const finish = () => {
       const go = () => markSpriteReady();
-      if (animWarm.decode) animWarm.decode().then(go).catch(go);
+      if (spriteImg.decode) spriteImg.decode().then(go).catch(go);
       else go();
     };
-    animWarm.addEventListener("load", finish);
-    animWarm.src = ANIM_SRC;
-    if (animWarm.complete && animWarm.naturalWidth) finish();
-    return animWarm;
+    spriteImg.addEventListener("load", finish);
+    spriteImg.src = SPRITE_SRC;
+    if (spriteImg.complete && spriteImg.naturalWidth) finish();
+    return spriteImg;
   }
 
   function ensureBoot(options) {
@@ -420,13 +466,10 @@
       document.body.insertAdjacentHTML("afterbegin", BOOT_HTML);
       root = document.getElementById("boot");
     }
-    let { sprite, anim } = bootNodes();
-    if (sprite && !anim) {
-      sprite.innerHTML =
-        '<img class="boot-anim" id="bootAnim" src="' +
-        POSTER_SRC +
-        '" alt="" width="220" height="220" decoding="async" fetchpriority="high">';
-      anim = document.getElementById("bootAnim");
+    let { sprite, canvas } = bootNodes();
+    if (sprite && !canvas) {
+      sprite.innerHTML = '<canvas class="boot-anim" id="bootCanvas" width="220" height="220"></canvas>';
+      canvas = document.getElementById("bootCanvas");
     }
     root.classList.remove("is-out");
     root.classList.toggle("is-nav", !!opts.nav);
@@ -437,8 +480,7 @@
       bar.style.transform = "scaleX(" + opts.bar + ")";
     }
     warmBootAnim();
-    // 仅站内跳转时重开动图；首屏不要 poster↔webp 来回切
-    if (spriteReady) showBootAnim(!!opts.nav);
+    if (spriteReady) startBootAnim(!!opts.nav);
     return bootNodes();
   }
 
@@ -447,6 +489,7 @@
     if (!root || bootHiding) return;
     bootHiding = true;
     pendingNav = null;
+    stopBootAnim();
     root.classList.add("is-out");
     root.classList.remove("is-nav");
     document.documentElement.classList.remove("is-booting");
