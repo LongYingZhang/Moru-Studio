@@ -151,7 +151,14 @@ document.documentElement.classList.add("is-booting");
   cards.innerHTML = portfolioCard + products.map((p) => `
     <button class="card" type="button" data-id="${p.id}" style="--card:${p.cardBg}" aria-label="${esc(p.no)} ${esc(p.name)} ${esc(p.nameEn)}">
       <span class="photo" style="background-image:url('${p.cardImage}');${p.cardPhoto}"></span>
-      ${p.cardFace ? `<img class="face" src="${p.cardFace}" alt="">` : ""}
+      <span class="face face-live" aria-hidden="true">
+        <span class="face-no">${esc(p.no)}</span>
+        <span class="face-copy">
+          <span class="face-name">${esc(p.name)}</span>
+          <span class="face-en">${esc(p.nameEn)}</span>
+        </span>
+        <span class="face-go">→</span>
+      </span>
     </button>`).join("");
 
   thumbs.innerHTML = products.map((p) => `

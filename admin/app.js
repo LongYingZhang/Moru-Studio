@@ -56,7 +56,7 @@
     {
       id: 2,
       no: "NO. 03",
-      name: "Moru帆布袋",
+      name: "Moru马克杯",
       nameEn: "MORU MUG",
       detailEn: "Moru mug",
       price: 38,

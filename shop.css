@@ -164,6 +164,51 @@ img { display: block; max-width: 100%; }
   z-index: 2;
   pointer-events: none;
 }
+/* 卡片文案跟后台商品名走，不再用写死在 SVG 里的标题 */
+.card .face-live {
+  display: flex;
+  flex-direction: column;
+  padding: 4.6% 4.2% 4.8%;
+  box-sizing: border-box;
+  color: #141414;
+}
+.card .face-no {
+  font-family: "Space Mono", monospace;
+  font-size: clamp(10px, 1.35vw, 12px);
+  letter-spacing: 0.06em;
+  color: #c7c6c6;
+  line-height: 1;
+}
+.card .face-copy {
+  margin-top: auto;
+  max-width: 58%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+}
+.card .face-name {
+  font-family: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: clamp(22px, 2.9vw, 30px);
+  font-weight: 500;
+  line-height: 1.15;
+  color: #111;
+}
+.card .face-en {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(11px, 1.45vw, 13px);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #c7c6c6;
+  line-height: 1.2;
+}
+.card .face-go {
+  position: absolute;
+  right: 4.2%;
+  bottom: 7.5%;
+  font-size: clamp(16px, 2vw, 20px);
+  line-height: 1;
+  color: #111;
+}
 .card-tag {
   position: absolute;
   top: 12px;
