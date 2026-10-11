@@ -892,11 +892,12 @@ label.field.wide { grid-column: 1 / -1; }
 .qr-code {
   position: relative;
   width: 100%;
-  aspect-ratio: 1;
+  aspect-ratio: 3 / 4;
+  max-height: min(58vh, 420px);
   overflow: hidden;
-  background: #fff;
+  background: #0e0e0e;
 }
-.qr-code img { display: block; width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.qr-code img { display: block; width: 100%; height: 100%; object-fit: contain; background: #0e0e0e; }
 .qr-missing {
   position: absolute;
   inset: 0;
