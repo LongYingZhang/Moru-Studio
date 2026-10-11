@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LONGYING STUDIO</title>
-<link rel="stylesheet" href="shop.css">
+<link rel="stylesheet" href="shop.css?v=swipe1">
 <link rel="preload" href="assets/loader/moru-loop-poster.png" as="image">
 <link rel="preload" href="assets/loader/moru-sprite.webp" as="image" type="image/webp">
 <style>
@@ -255,12 +255,98 @@ document.documentElement.classList.add("is-booting");
     lightbox.classList.remove("open");
     document.body.style.overflow = "";
   }
+  const drawer = document.getElementById("drawer");
+
+  function clearDrawerSwipe() {
+    backdrop.classList.remove("is-swiping");
+    drawer.style.transform = "";
+    backdrop.style.opacity = "";
+  }
+
   function openDrawer() {
+    clearDrawerSwipe();
     backdrop.classList.add("open");
   }
   function closeDrawer() {
+    clearDrawerSwipe();
     backdrop.classList.remove("open");
   }
+
+  // 竖屏：从左侧右滑关闭检视档案
+  (function bindDrawerEdgeSwipe() {
+    let tracking = false;
+    let dragging = false;
+    let startX = 0;
+    let startY = 0;
+    let dx = 0;
+    let startAt = 0;
+
+    function canSwipe() {
+      return backdrop.classList.contains("open")
+        && window.matchMedia("(orientation: portrait)").matches
+        && window.innerWidth <= 980;
+    }
+
+    function setDrag(x) {
+      const width = drawer.offsetWidth || window.innerWidth;
+      const offset = Math.max(0, Math.min(width, x));
+      drawer.style.transform = "translateX(" + offset + "px)";
+      backdrop.style.opacity = String(Math.max(0.12, 1 - (offset / width) * 0.9));
+    }
+
+    backdrop.addEventListener("touchstart", (e) => {
+      if (!canSwipe() || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      if (t.clientX > 56) return;
+      tracking = true;
+      dragging = false;
+      startX = t.clientX;
+      startY = t.clientY;
+      dx = 0;
+      startAt = performance.now();
+    }, { passive: true });
+
+    backdrop.addEventListener("touchmove", (e) => {
+      if (!tracking || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      const adx = t.clientX - startX;
+      const ady = t.clientY - startY;
+      if (!dragging) {
+        if (Math.abs(ady) > 12 && Math.abs(ady) > Math.abs(adx)) {
+          tracking = false;
+          return;
+        }
+        if (adx < 10) return;
+        dragging = true;
+        backdrop.classList.add("is-swiping");
+      }
+      dx = adx;
+      setDrag(dx);
+      if (e.cancelable) e.preventDefault();
+    }, { passive: false });
+
+    function finishSwipe() {
+      if (!tracking && !dragging) return;
+      const width = drawer.offsetWidth || window.innerWidth;
+      const elapsed = Math.max(1, performance.now() - startAt);
+      const velocity = dx / elapsed;
+      const shouldClose = dragging && (dx > Math.min(110, width * 0.26) || velocity > 0.55);
+      tracking = false;
+      dragging = false;
+      if (shouldClose) {
+        backdrop.classList.remove("is-swiping");
+        drawer.style.transform = "translateX(100%)";
+        backdrop.style.opacity = "0";
+        window.setTimeout(() => closeDrawer(), 280);
+      } else {
+        clearDrawerSwipe();
+      }
+      dx = 0;
+    }
+
+    backdrop.addEventListener("touchend", finishSwipe);
+    backdrop.addEventListener("touchcancel", finishSwipe);
+  })();
 
   document.getElementById("lbPrev").addEventListener("click", (e) => {
     e.stopPropagation();

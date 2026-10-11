@@ -444,8 +444,13 @@ img { display: block; max-width: 100%; }
   display: flex;
   flex-direction: column;
   gap: 18px;
+  touch-action: pan-y;
 }
 .backdrop.open .drawer { transform: translateX(0); }
+.backdrop.is-swiping,
+.backdrop.is-swiping .drawer {
+  transition: none;
+}
 .kicker {
   font-size: 13px;
   color: var(--muted);
