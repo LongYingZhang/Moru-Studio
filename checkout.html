@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>结算</title>
-<link rel="stylesheet" href="shop.css?v=checkout2">
+<link rel="stylesheet" href="shop.css?v=checkout3">
 <link rel="preload" href="assets/loader/moru-loop-poster.png" as="image">
 <link rel="preload" href="assets/loader/moru-sprite.webp" as="image" type="image/webp">
 <style>
@@ -79,6 +79,7 @@ document.documentElement.classList.add("is-booting");
       <div><span>标准配送</span><span>¥0.00</span></div>
       <div class="due"><span>应付总额</span><b id="total"></b></div>
     </section>
+    <div class="status" id="status"></div>
     <div class="checkout-actions">
       <button class="btn light pay-btn" id="submit" type="submit">
         <span class="label" id="submit-text">确认支付</span>
@@ -91,7 +92,6 @@ document.documentElement.classList.add("is-booting");
       <a class="btn dark" id="checkoutCancel" href="cart.html">取消</a>
     </div>
     <p class="agree">支付即表示你已阅读并同意 <a href="terms.html" target="_blank">购物须知与隐私政策</a></p>
-    <div class="status" id="status"></div>
   </form>
 </div>
 

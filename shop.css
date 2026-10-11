@@ -851,6 +851,15 @@ label.field.wide { grid-column: 1 / -1; }
   letter-spacing: 0.04em;
 }
 .status.bad { color: #ffb4ab; }
+.checkout > .status {
+  min-height: 0;
+  margin: 0;
+}
+.checkout > .status:empty { display: none; }
+.checkout > .status:not(:empty) {
+  margin-top: 4px;
+  margin-bottom: -8px;
+}
 
 .qr-backdrop {
   z-index: 50;
