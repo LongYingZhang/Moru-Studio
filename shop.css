@@ -164,20 +164,19 @@ img { display: block; max-width: 100%; }
   z-index: 2;
   pointer-events: none;
 }
-/* 卡片文案跟后台商品名走，不再用写死在 SVG 里的标题 */
+/* 卡片文案跟后台商品名走；深底浅字 / 浅底深字 */
 .card .face-live {
   display: flex;
   flex-direction: column;
   padding: 4.6% 4.2% 4.8%;
   box-sizing: border-box;
-  color: #141414;
 }
 .card .face-no {
   font-family: "Space Mono", monospace;
   font-size: clamp(10px, 1.35vw, 12px);
   letter-spacing: 0.06em;
-  color: #c7c6c6;
   line-height: 1;
+  color: var(--face-muted);
 }
 .card .face-copy {
   margin-top: auto;
@@ -191,14 +190,14 @@ img { display: block; max-width: 100%; }
   font-size: clamp(22px, 2.9vw, 30px);
   font-weight: 500;
   line-height: 1.15;
-  color: #111;
+  color: var(--face-ink);
 }
 .card .face-en {
   font-family: "Space Grotesk", sans-serif;
   font-size: clamp(11px, 1.45vw, 13px);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #c7c6c6;
+  color: var(--face-muted);
   line-height: 1.2;
 }
 .card .face-go {
@@ -207,7 +206,15 @@ img { display: block; max-width: 100%; }
   bottom: 7.5%;
   font-size: clamp(16px, 2vw, 20px);
   line-height: 1;
-  color: #111;
+  color: var(--face-ink);
+}
+.card[data-ink="dark"] {
+  --face-ink: #111111;
+  --face-muted: #c7c6c6;
+}
+.card[data-ink="light"] {
+  --face-ink: #ffffff;
+  --face-muted: rgba(255, 255, 255, 0.72);
 }
 .card-tag {
   position: absolute;

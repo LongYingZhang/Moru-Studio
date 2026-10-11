@@ -148,8 +148,23 @@ document.documentElement.classList.add("is-booting");
     return rows.map(([k, v]) => `<div class="spec-row"><em>${esc(k)}</em><span>${esc(v)}</span></div>`).join("");
   }
 
+  function cardInk(product) {
+    if (product.cardInk === "light" || product.cardInk === "dark") return product.cardInk;
+    const raw = String(product.cardBg || "#f3f3f1").trim();
+    const hex = raw.startsWith("#") ? raw.slice(1) : raw;
+    const full = hex.length === 3 ? hex.split("").map((c) => c + c).join("") : hex;
+    if (!/^[0-9a-fA-F]{6}$/.test(full)) return "dark";
+    const r = parseInt(full.slice(0, 2), 16) / 255;
+    const g = parseInt(full.slice(2, 4), 16) / 255;
+    const b = parseInt(full.slice(4, 6), 16) / 255;
+    const lin = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+    const lum = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    // 深色背景用浅色字，浅色背景用深色字
+    return lum < 0.45 ? "light" : "dark";
+  }
+
   cards.innerHTML = portfolioCard + products.map((p) => `
-    <button class="card" type="button" data-id="${p.id}" style="--card:${p.cardBg}" aria-label="${esc(p.no)} ${esc(p.name)} ${esc(p.nameEn)}">
+    <button class="card" type="button" data-id="${p.id}" data-ink="${cardInk(p)}" style="--card:${p.cardBg}" aria-label="${esc(p.no)} ${esc(p.name)} ${esc(p.nameEn)}">
       <span class="photo" style="background-image:url('${p.cardImage}');${p.cardPhoto}"></span>
       <span class="face face-live" aria-hidden="true">
         <span class="face-no">${esc(p.no)}</span>

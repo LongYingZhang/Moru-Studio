@@ -67,7 +67,8 @@
       nameEn: "MORU TISSUE PAPER",
       price: 38,
       image: "assets/tissue.jpg",
-      cardBg: "#F3F3F1",
+      cardBg: "#141414",
+      cardInk: "light",
       cardImage: "assets/cards/05.jpg",
       cardFace: "assets/cards/05-ui.svg",
       cardPhoto: "left:0%;top:-126.9500%;width:100%;height:247.8723%",
@@ -128,6 +129,7 @@
         .filter((src) => typeof src === "string" && src)
         .slice(0, 4),
       cardBg: product.cardBg || "#F3F3F1",
+      cardInk: product.cardInk === "light" || product.cardInk === "dark" ? product.cardInk : "",
       cardImage: product.cardImage || image,
       cardFace: product.cardFace || "",
       cardPhoto:
