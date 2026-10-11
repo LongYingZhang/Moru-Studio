@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LONGYING STUDIO</title>
-<link rel="stylesheet" href="shop.css?v=swipe1">
+<link rel="stylesheet" href="shop.css">
 <link rel="preload" href="assets/loader/moru-loop-poster.png" as="image">
 <link rel="preload" href="assets/loader/moru-sprite.webp" as="image" type="image/webp">
 <style>
@@ -260,7 +260,6 @@ document.documentElement.classList.add("is-booting");
   function clearDrawerSwipe() {
     backdrop.classList.remove("is-swiping");
     drawer.style.transform = "";
-    backdrop.style.opacity = "";
   }
 
   function openDrawer() {
@@ -291,7 +290,6 @@ document.documentElement.classList.add("is-booting");
       const width = drawer.offsetWidth || window.innerWidth;
       const offset = Math.max(0, Math.min(width, x));
       drawer.style.transform = "translateX(" + offset + "px)";
-      backdrop.style.opacity = String(Math.max(0.12, 1 - (offset / width) * 0.9));
     }
 
     backdrop.addEventListener("touchstart", (e) => {
@@ -336,7 +334,6 @@ document.documentElement.classList.add("is-booting");
       if (shouldClose) {
         backdrop.classList.remove("is-swiping");
         drawer.style.transform = "translateX(100%)";
-        backdrop.style.opacity = "0";
         window.setTimeout(() => closeDrawer(), 280);
       } else {
         clearDrawerSwipe();
