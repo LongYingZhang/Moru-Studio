@@ -119,6 +119,7 @@ document.documentElement.classList.add("is-booting");
     render();
   });
   window.addEventListener("storage", render);
+  Shop.bindSwipeBack(document.querySelector(".page"), () => Shop.goBackOr("index.html"));
   render();
 })();
 </script>

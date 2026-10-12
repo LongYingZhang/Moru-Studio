@@ -215,63 +215,9 @@ html.is-booting, html.is-booting body { background: #000 !important; }
     goBack();
   });
 
-  // 竖屏：从右向左滑退出详情（画册全屏除外的统一手势）
-  (function bindDetailSwipe() {
-    let tracking = false;
-    let dragging = false;
-    let startX = 0;
-    let startY = 0;
-    let dx = 0;
-    let startAt = 0;
-    if (!page) return;
-    page.addEventListener("touchstart", (e) => {
-      if (!(window.matchMedia("(orientation: portrait)").matches && window.innerWidth <= 980)) return;
-      if (e.touches.length !== 1) return;
-      if (e.target.closest("button, a, input, textarea")) return;
-      const t = e.touches[0];
-      tracking = true;
-      dragging = false;
-      startX = t.clientX;
-      startY = t.clientY;
-      dx = 0;
-      startAt = performance.now();
-    }, { passive: true });
-    page.addEventListener("touchmove", (e) => {
-      if (!tracking || e.touches.length !== 1) return;
-      const t = e.touches[0];
-      const adx = t.clientX - startX;
-      const ady = t.clientY - startY;
-      if (!dragging) {
-        if (Math.abs(ady) > 12 && Math.abs(ady) > Math.abs(adx)) {
-          tracking = false;
-          return;
-        }
-        if (adx > -10) return;
-        dragging = true;
-      }
-      dx = adx;
-      page.style.transform = "translateX(" + Math.max(-window.innerWidth, Math.min(0, dx)) + "px)";
-      page.style.transition = "none";
-      if (e.cancelable) e.preventDefault();
-    }, { passive: false });
-    function finish() {
-      if (!tracking && !dragging) return;
-      const elapsed = Math.max(1, performance.now() - startAt);
-      const velocity = dx / elapsed;
-      const shouldExit = dragging && (dx < -72 || velocity < -0.45);
-      tracking = false;
-      dragging = false;
-      page.style.transition = "";
-      if (shouldExit) {
-        goBack();
-      } else {
-        page.style.transform = "";
-      }
-      dx = 0;
-    }
-    page.addEventListener("touchend", finish);
-    page.addEventListener("touchcancel", finish);
-  })();
+  Shop.bindSwipeBack(page, () => {
+    location.href = document.getElementById("back").getAttribute("href") || "index.html";
+  });
 
   paint(false);
 })();

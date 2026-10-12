@@ -652,7 +652,92 @@
     runBootProgress(readNavBoot());
   }
 
+  function goBackOr(fallback) {
+    let fromHere = false;
+    try {
+      fromHere = !!document.referrer && new URL(document.referrer).origin === location.origin;
+    } catch (_) {}
+    if (fromHere && history.length > 1) history.back();
+    else navigate(fallback, true);
+  }
+
+  // 竖屏统一返回手势：手指从左往右滑，页面跟手右移，松手过阈值滑出并返回上一页
+  function bindSwipeBack(target, onExit, isActive) {
+    if (!target) return;
+    const portrait = () => window.matchMedia("(orientation: portrait)").matches && window.innerWidth <= 980;
+    let tracking = false;
+    let dragging = false;
+    let startX = 0;
+    let startY = 0;
+    let dx = 0;
+    let startAt = 0;
+
+    target.addEventListener("touchstart", (e) => {
+      if (!portrait() || e.touches.length !== 1) return;
+      if (isActive && !isActive()) return;
+      if (e.target.closest("button, a, input, textarea, select, label")) return;
+      const t = e.touches[0];
+      tracking = true;
+      dragging = false;
+      startX = t.clientX;
+      startY = t.clientY;
+      dx = 0;
+      startAt = performance.now();
+    }, { passive: true });
+
+    target.addEventListener("touchmove", (e) => {
+      if (!tracking || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      const adx = t.clientX - startX;
+      const ady = t.clientY - startY;
+      if (!dragging) {
+        if (Math.abs(ady) > 12 && Math.abs(ady) > Math.abs(adx)) {
+          tracking = false;
+          return;
+        }
+        if (adx < 10) return;
+        dragging = true;
+        target.style.transition = "none";
+      }
+      dx = adx;
+      target.style.transform = "translateX(" + Math.max(0, dx) + "px)";
+      if (e.cancelable) e.preventDefault();
+    }, { passive: false });
+
+    function finish() {
+      if (!tracking && !dragging) return;
+      const width = target.offsetWidth || window.innerWidth;
+      const velocity = dx / Math.max(1, performance.now() - startAt);
+      const shouldExit = dragging && (dx > Math.min(72, width * 0.18) || velocity > 0.45);
+      const wasDragging = dragging;
+      tracking = false;
+      dragging = false;
+      dx = 0;
+      if (!wasDragging) return;
+      if (shouldExit) {
+        target.style.transition = "transform .28s ease";
+        target.style.transform = "translateX(100%)";
+        window.setTimeout(onExit, 260);
+      } else {
+        target.style.transition = "transform .25s ease";
+        target.style.transform = "";
+        window.setTimeout(() => { target.style.transition = ""; }, 260);
+      }
+    }
+    target.addEventListener("touchend", finish);
+    target.addEventListener("touchcancel", finish);
+
+    // 返回后再前进（bfcache 恢复）时，页面不能停在滑出的位置
+    window.addEventListener("pageshow", (e) => {
+      if (!e.persisted) return;
+      target.style.transition = "";
+      target.style.transform = "";
+    });
+  }
+
   window.Shop = {
+    goBackOr,
+    bindSwipeBack,
     products: PRODUCTS,
     allProducts: ALL_PRODUCTS,
     productsKey: PRODUCTS_KEY,

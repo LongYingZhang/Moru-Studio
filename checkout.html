@@ -340,6 +340,11 @@ document.documentElement.classList.add("is-booting");
     status.textContent = "";
     openQr();
   });
+  Shop.bindSwipeBack(
+    document.querySelector(".page"),
+    () => Shop.goBackOr("cart.html"),
+    () => !qrBackdrop.classList.contains("open")
+  );
 })();
 </script>
 </body>
