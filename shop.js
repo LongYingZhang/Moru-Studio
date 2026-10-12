@@ -545,8 +545,23 @@
     requestAnimationFrame(frame);
   }
 
+  function isSoftNav(url) {
+    try {
+      const u = new URL(url, location.href);
+      return u.searchParams.get("enter") === "left" || u.searchParams.get("soft") === "1";
+    } catch (_) {
+      return /[?&]enter=left(?:&|$)/.test(String(url || "")) || /[?&]soft=1(?:&|$)/.test(String(url || ""));
+    }
+  }
+
   function navigate(url, replace) {
     if (!url) return;
+    // 层间滑动进场（如 3→4）不走 boot，避免盖住过渡动画
+    if (isSoftNav(url)) {
+      if (replace) location.replace(url);
+      else location.assign(url);
+      return;
+    }
     const startedAt = Date.now();
     pendingNav = { startedAt: startedAt, bar: 0.12, href: url };
     writeNavBoot(pendingNav);
@@ -582,6 +597,7 @@
       if (event.button != null && event.button !== 0) return;
       const anchor = event.target.closest("a[href]");
       if (!isInternalNav(anchor)) return;
+      if (isSoftNav(anchor.href)) return;
       const startedAt = Date.now();
       pendingNav = { startedAt: startedAt, bar: 0.1, href: anchor.href };
       writeNavBoot(pendingNav);
@@ -613,6 +629,7 @@
       const anchor = event.target.closest("a[href]");
       const href = (anchor && isInternalNav(anchor) && anchor.href) || (pendingNav && pendingNav.href);
       if (!href || !isInternalHref(href)) return;
+      if (isSoftNav(href)) return;
       event.preventDefault();
       event.stopPropagation();
       const startedAt = pendingNav && pendingNav.href === href ? pendingNav.startedAt : Date.now();
@@ -624,9 +641,16 @@
     true
   );
 
-  warmBootAnim();
-  // 首屏海报立刻可见；雪碧图就绪后开始流畅帧动画
-  runBootProgress(readNavBoot());
+  // 软进场（enter=left）不显示 boot，避免盖住层间滑动
+  if (document.documentElement.classList.contains("is-soft-enter")) {
+    const bootEl = document.getElementById("boot");
+    if (bootEl) bootEl.remove();
+    document.documentElement.classList.remove("is-booting");
+  } else {
+    warmBootAnim();
+    // 首屏海报立刻可见；雪碧图就绪后开始流畅帧动画
+    runBootProgress(readNavBoot());
+  }
 
   window.Shop = {
     products: PRODUCTS,

@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <title>商品详情</title>
 <link rel="icon" href="assets/favicon.svg?v=2" type="image/svg+xml">
-<link rel="stylesheet" href="shop.css?v=flow1">
+<link rel="stylesheet" href="shop.css">
 <link rel="preload" href="assets/loader/moru-loop-poster.png" as="image">
 <link rel="preload" href="assets/loader/moru-sprite.webp" as="image" type="image/webp">
 <style>
@@ -20,7 +20,11 @@ html { background: #131313; }
 html.is-booting, html.is-booting body { background: #000 !important; }
 </style>
 <script>
-document.documentElement.classList.add("is-booting");
+(function () {
+  var soft = /[?&]enter=left(?:&|$)/.test(location.search);
+  if (!soft) document.documentElement.classList.add("is-booting");
+  else document.documentElement.classList.add("is-soft-enter");
+})();
 </script>
 </head>
 <body>
@@ -32,6 +36,18 @@ document.documentElement.classList.add("is-booting");
     <div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>
   </div>
 </div>
+
+<header class="app-bar" id="appBar">
+  <a class="logo" href="index.html"><img src="ZHANGLONGYING__STUDIO_7.svg?v=2" alt="LONGYING STUDIO"></a>
+  <a class="bag-link" href="cart.html">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M6.5 8.5h11l-.8 10.2a1.5 1.5 0 0 1-1.5 1.3H8.8a1.5 1.5 0 0 1-1.5-1.3L6.5 8.5Z" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M9 8.5V7a3 3 0 0 1 6 0v1.5" stroke="currentColor" stroke-width="1.6"/>
+    </svg>
+    <span>购物袋</span>
+    <span class="count" data-cart-count>00</span>
+  </a>
+</header>
 
 <div class="page">
   <header class="page-head">
@@ -147,7 +163,7 @@ document.documentElement.classList.add("is-booting");
       const specs = document.getElementById("specs");
       specs.innerHTML = rows.map(([k, v]) => `<div class="spec-row"><em>${esc(k)}</em><span>${esc(v)}</span></div>`).join("");
       specs.hidden = rows.length === 0;
-      document.getElementById("back").href = `index.html?id=${product.id}&view=hero`;
+      document.getElementById("back").href = `index.html?id=${product.id}&view=hero&soft=1`;
       const keep = enterLeft ? "&enter=left" : "";
       history.replaceState(null, "", `product.html?id=${product.id}${keep}`);
     };

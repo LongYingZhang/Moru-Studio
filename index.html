@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <title>LONGYING STUDIO</title>
 <link rel="icon" href="assets/favicon.svg?v=2" type="image/svg+xml">
-<link rel="stylesheet" href="shop.css?v=flow2">
+<link rel="stylesheet" href="shop.css">
 <link rel="preload" href="assets/loader/moru-loop-poster.png" as="image">
 <link rel="preload" href="assets/loader/moru-sprite.webp" as="image" type="image/webp">
 <style>
@@ -20,7 +20,11 @@ html { background: #131313; }
 html.is-booting, html.is-booting body { background: #000 !important; }
 </style>
 <script>
-document.documentElement.classList.add("is-booting");
+(function () {
+  var soft = /[?&](?:enter=left|soft=1)(?:&|$)/.test(location.search);
+  if (soft) document.documentElement.classList.add("is-soft-enter");
+  else document.documentElement.classList.add("is-booting");
+})();
 </script>
 </head>
 <body>
@@ -66,7 +70,7 @@ document.documentElement.classList.add("is-booting");
     <div class="hero-photo" id="heroPhoto"></div>
     <div class="hero-shade"></div>
     <div class="hero-center">
-      <p class="hint">点击展开全屏画册</p>
+      <p class="hint"><span class="hint-bars" aria-hidden="true"></span>点击展开全屏画册</p>
     </div>
     <div class="hero-foot">
       <div class="hero-info">
@@ -91,6 +95,7 @@ document.documentElement.classList.add("is-booting");
   <footer class="lb-foot">
     <div class="specs" id="lbSpecs"></div>
     <div class="thumbs" id="thumbs"></div>
+    <button class="btn light lb-inspect" id="lbInspect" type="button">检视档案 →</button>
   </footer>
 </div>
 
@@ -227,7 +232,7 @@ document.documentElement.classList.add("is-booting");
       document.getElementById("drawerSpecs").innerHTML = drawerSpecHtml(product);
       document.getElementById("drawerSpecs").hidden = !drawerSpecHtml(product);
       document.getElementById("drawerPrice").textContent = Shop.formatPrice(product.price);
-      document.getElementById("detailLink").href = `product.html?id=${product.id}`;
+      document.getElementById("detailLink").href = `product.html?id=${product.id}&enter=left`;
       lbSpecs.innerHTML = specHtml(product);
     };
     if (fade) {
@@ -297,6 +302,11 @@ document.documentElement.classList.add("is-booting");
   });
   document.getElementById("inspectBtn").addEventListener("click", (e) => {
     e.stopPropagation();
+    openDrawer();
+  });
+  document.getElementById("lbInspect").addEventListener("click", (e) => {
+    e.stopPropagation();
+    closeLightbox();
     openDrawer();
   });
 
@@ -435,6 +445,14 @@ document.documentElement.classList.add("is-booting");
     show(index - 1, true);
   });
   document.getElementById("lbNext").addEventListener("click", (e) => {
+    e.stopPropagation();
+    show(index + 1, true);
+  });
+  document.getElementById("drawerPrev").addEventListener("click", (e) => {
+    e.stopPropagation();
+    show(index - 1, true);
+  });
+  document.getElementById("drawerNext").addEventListener("click", (e) => {
     e.stopPropagation();
     show(index + 1, true);
   });
