@@ -270,11 +270,15 @@ img { display: block; max-width: 100%; }
   --face-ink: #ffffff;
   --face-muted: rgba(255, 255, 255, 0.72);
 }
-/* 白字 + difference：逐像素反色，浅底变黑、深底变白，同一个字跨黑白也都清楚 */
-.card .face-live {
-  --face-ink: #ffffff;
-  --face-muted: rgba(255, 255, 255, 0.72);
-  mix-blend-mode: difference;
+/* 墨色由 index.html 按背景模糊灰度算成渐变，填进文字 */
+.card .ink-live {
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.card .face-no.ink-live,
+.card .face-en.ink-live {
+  opacity: 0.72;
 }
 .card-tag {
   position: absolute;
