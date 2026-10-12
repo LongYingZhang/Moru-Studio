@@ -124,10 +124,7 @@
             <b>卡片底色</b>
             <button class="ce-swatch" type="button" data-color="#FFFFFF" style="background:#FFFFFF" aria-label="白色"></button>
             <button class="ce-swatch" type="button" data-color="#141414" style="background:#141414" aria-label="黑色"></button>
-            <span class="ce-picker">
-              <button class="ce-picker-ring" type="button" title="自动取色（取自图片边缘）" aria-label="自动取色"></button>
-              <label class="ce-picker-color" title="自定义颜色"><input type="color" value="#f3f3f1" aria-label="自定义颜色"></label>
-            </span>
+            <button class="ce-swatch ce-auto" type="button" title="自动取色（取自图片边缘）" aria-label="自动取色"></button>
           </div>
           <div class="ce-row">
             <b>文字颜色</b>
@@ -149,8 +146,6 @@
     const zoom = root.querySelector(".ce-zoom input");
     const presets = root.querySelector('[data-role="presets"]');
     const inkSeg = root.querySelector('[data-role="ink"]');
-    const picker = root.querySelector(".ce-picker");
-
     const hOf = (w) => w * R / state.aspect;
     const fitW = () => 100 * state.aspect / R;
     const autoPreset = () => (state.aspect > R ? "cover" : "right");
@@ -229,7 +224,9 @@
       card.querySelector(".ce-en").textContent = state.en || "保存后自动翻译";
 
       if (state.ready) zoom.value = String(Math.round(state.w / fitW() * 100));
-      root.querySelectorAll(".ce-swatch").forEach((s) => s.classList.toggle("is-on", s.dataset.color === state.bg));
+      root.querySelectorAll(".ce-swatch").forEach((s) =>
+        s.classList.toggle("is-on", s.dataset.color ? s.dataset.color === state.bg : !state.bg),
+      );
       inkSeg.querySelectorAll("button").forEach((b) => b.classList.toggle("is-on", b.dataset.ink === state.ink));
     }
 
@@ -361,18 +358,10 @@
     root.querySelector('[data-zoom="out"]').addEventListener("click", () => zoomAt(state.w / 1.1, 50, 50));
     root.querySelectorAll(".ce-swatch").forEach((s) =>
       s.addEventListener("click", () => {
-        state.bg = s.dataset.color;
+        state.bg = s.dataset.color || null;
         render();
       }),
     );
-    picker.querySelector(".ce-picker-ring").addEventListener("click", () => {
-      state.bg = null;
-      render();
-    });
-    picker.querySelector('input[type="color"]').addEventListener("input", (e) => {
-      state.bg = e.target.value.toUpperCase();
-      render();
-    });
     inkSeg.addEventListener("click", (e) => {
       const b = e.target.closest("[data-ink]");
       if (!b) return;

@@ -1989,39 +1989,10 @@ html.is-booting body {
   box-shadow: 0 0 0 2px var(--surface-low), 0 0 0 4px #ffffff;
 }
 
-.ce-picker {
-  position: relative;
-  flex: none;
-  display: block;
-  width: 30px;
-  height: 30px;
-}
-
-.ce-picker-ring {
-  position: absolute;
-  inset: 0;
-  padding: 0;
-  border-radius: 50%;
-  background: #ffffff;
-  cursor: pointer;
-}
-
-.ce-picker-color {
-  position: absolute;
-  inset: 5px;
-  overflow: hidden;
-  border-radius: 50%;
-  background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);
-  cursor: pointer;
-}
-
-.card-editor .ce-picker-color input {
-  position: absolute;
-  inset: -8px;
-  width: auto;
-  height: auto;
-  opacity: 0;
-  cursor: pointer;
+.ce-auto {
+  border: 5px solid #ffffff;
+  background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red) padding-box;
+  box-shadow: none;
 }
 
 @media (max-width: 640px) {
