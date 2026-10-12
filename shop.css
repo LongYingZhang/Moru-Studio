@@ -44,7 +44,7 @@ body {
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --app-bar-h: 44px;
   --chrome-top: var(--safe-top);
-  --foot-pad: 16px; /* 无 Home 条时底部最小空隙（iPhone 8） */
+  --foot-pad: 8px; /* 无 Home 条时底部最小空隙（iPhone 8） */
   padding-top: var(--chrome-top);
   padding-right: env(safe-area-inset-right, 0px);
   padding-bottom: var(--safe-bottom);
@@ -1266,39 +1266,32 @@ label.field.wide { grid-column: 1 / -1; }
 @media (max-width: 980px) {
   /* 竖屏 App 栈：顶栏常驻；0 目录 / 1 预览 / 2 画册 / 3 档案 / 4 详情 */
   /*
-    body 固定视口高 + .home flex:1 吃剩余高度：
-    卡片区内部滚，购物须知常驻底；避免 height:auto 整页拉高导致脚注滚走，
-    也避免 100dvh - chrome 算矮留下大块黑空。
+    .home / .page 直接 fixed 贴视口：不吃 100dvh / fill-available 的误差。
+    iPhone 8 无 Home 条时底边只留 --foot-pad；14 Pro 用 safe-bottom。
+    卡片区内滚，购物须知常驻底。
   */
-  html {
+  html, body {
     height: 100%;
-    height: 100dvh;
-    height: -webkit-fill-available;
+    overflow: hidden;
   }
   body {
     --chrome-top: calc(var(--safe-top) + var(--app-bar-h));
-    padding-top: var(--chrome-top);
+    padding-top: 0;
     padding-bottom: 0;
-    height: 100%;
-    height: 100dvh;
-    height: -webkit-fill-available;
-    max-height: 100%;
-    max-height: 100dvh;
-    max-height: -webkit-fill-available;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
   }
   .app-bar { display: flex; }
   .topbar-desktop { display: none; }
 
   .home {
     grid-template-columns: 1fr;
-    position: relative;
-    flex: 1 1 0%;
+    position: fixed;
+    top: var(--chrome-top);
+    right: 0;
+    bottom: 0;
+    left: 0;
     width: 100%;
-    height: auto;
-    max-height: none;
+    height: auto !important;
+    max-height: none !important;
     min-height: 0;
     overflow: hidden;
     padding-bottom: 0;
@@ -1309,10 +1302,9 @@ label.field.wide { grid-column: 1 / -1; }
     flex-direction: column;
     overflow: hidden;
     padding-top: 2px;
-    /* 只留一次底部安全区：14 Pro≈34px，iPhone 8 用 foot-pad */
+    /* 8：~8px；14 Pro：home 指示条 inset，只加一次 */
     padding-bottom: max(var(--foot-pad), var(--safe-bottom));
   }
-  /* 卡片区单独滚；购物须知钉在视口底（安全区上方） */
   .cards {
     flex: 1 1 auto;
     min-height: 0;
@@ -1325,8 +1317,12 @@ label.field.wide { grid-column: 1 / -1; }
     margin: 2px 0 0 6px;
   }
   .page {
-    flex: 1 1 0%;
-    min-height: 0;
+    position: fixed;
+    top: var(--chrome-top);
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
     overflow: auto;
     -webkit-overflow-scrolling: touch;
     padding-bottom: max(var(--foot-pad), var(--safe-bottom));
