@@ -3,8 +3,6 @@
   const R = 466 / 188;
   const ARROW =
     '<svg class="ce-go" viewBox="436.969 160.297 12 12" aria-hidden="true"><path d="M446.1 167.047H436.969V165.547H446.1L441.9 161.347L442.969 160.297L448.969 166.297L442.969 172.297L441.9 171.247L446.1 167.047Z" fill="currentColor"/></svg>';
-  const SWATCHES = ["#F3F3F1", "#F7F7F7", "#E9E4DC", "#141414"];
-
   function absSrc(src) {
     if (!src) return "";
     if (/^(data:|\/|https?:)/.test(src)) return src;
@@ -120,17 +118,14 @@
               <button class="ce-icon" type="button" data-zoom="out" aria-label="缩小">−</button>
               <input type="range" min="50" max="300" step="1" value="100" aria-label="缩放">
               <button class="ce-icon" type="button" data-zoom="in" aria-label="放大">＋</button>
-              <output>100%</output>
             </div>
           </div>
           <div class="ce-row">
             <b>卡片底色</b>
-            <div class="ce-swatches">
-              <button class="ce-swatch" type="button" data-auto title="取自图片边缘"></button>
-              ${SWATCHES.map((c) => `<button class="ce-swatch" type="button" data-color="${c}" style="background:${c}" title="${c}"></button>`).join("")}
-              <label class="ce-swatch is-pick" title="自定义"><input type="color" value="#f3f3f1"></label>
-              <small></small>
-            </div>
+            <span class="ce-picker">
+              <button class="ce-picker-ring" type="button" title="自动取色（取自图片边缘）" aria-label="自动取色"></button>
+              <label class="ce-picker-color" title="自定义颜色"><input type="color" value="#f3f3f1" aria-label="自定义颜色"></label>
+            </span>
           </div>
           <div class="ce-row">
             <b>文字颜色</b>
@@ -150,11 +145,9 @@
     const gv = root.querySelector(".ce-guide.is-v");
     const gh = root.querySelector(".ce-guide.is-h");
     const zoom = root.querySelector(".ce-zoom input");
-    const zoomLabel = root.querySelector(".ce-zoom output");
     const presets = root.querySelector('[data-role="presets"]');
     const inkSeg = root.querySelector('[data-role="ink"]');
-    const swatches = root.querySelector(".ce-swatches");
-    const bgLabel = swatches.querySelector("small");
+    const picker = root.querySelector(".ce-picker");
 
     const hOf = (w) => w * R / state.aspect;
     const fitW = () => 100 * state.aspect / R;
@@ -233,19 +226,7 @@
       card.querySelector(".ce-name").textContent = state.name || "商品名字";
       card.querySelector(".ce-en").textContent = state.en || "保存后自动翻译";
 
-      if (state.ready) {
-        zoom.value = String(Math.round(state.w / fitW() * 100));
-        zoomLabel.textContent = zoom.value + "%";
-      }
-      bgLabel.textContent = (state.bg ? "" : "自动 ") + bg.toUpperCase();
-      swatches.querySelector("[data-auto]").style.background = state.edge;
-      swatches.querySelectorAll(".ce-swatch").forEach((s) => {
-        if (s.classList.contains("is-pick")) {
-          s.classList.toggle("is-on", Boolean(state.bg) && !SWATCHES.includes(state.bg));
-          return;
-        }
-        s.classList.toggle("is-on", s.hasAttribute("data-auto") ? !state.bg : s.dataset.color === state.bg);
-      });
+      if (state.ready) zoom.value = String(Math.round(state.w / fitW() * 100));
       inkSeg.querySelectorAll("button").forEach((b) => b.classList.toggle("is-on", b.dataset.ink === state.ink));
     }
 
@@ -369,13 +350,11 @@
     zoom.addEventListener("input", () => zoomAt(fitW() * Number(zoom.value) / 100, 50, 50));
     root.querySelector('[data-zoom="in"]').addEventListener("click", () => zoomAt(state.w * 1.1, 50, 50));
     root.querySelector('[data-zoom="out"]').addEventListener("click", () => zoomAt(state.w / 1.1, 50, 50));
-    swatches.addEventListener("click", (e) => {
-      const s = e.target.closest(".ce-swatch");
-      if (!s || s.classList.contains("is-pick")) return;
-      state.bg = s.hasAttribute("data-auto") ? null : s.dataset.color;
+    picker.querySelector(".ce-picker-ring").addEventListener("click", () => {
+      state.bg = null;
       render();
     });
-    swatches.querySelector('input[type="color"]').addEventListener("input", (e) => {
+    picker.querySelector('input[type="color"]').addEventListener("input", (e) => {
       state.bg = e.target.value.toUpperCase();
       render();
     });
