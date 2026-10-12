@@ -342,7 +342,6 @@
   const NAV_BOOT_KEY = "ly-nav-boot";
   const SPRITE_SRC = "assets/loader/moru-sprite.webp";
   const POSTER_SRC = "assets/loader/moru-loop-poster.png";
-  const BOOT_MIN_MS = 1200;
   const BOOT_FRAMES = 24;
   const BOOT_FRAME_MS = 150; // ~3.6s 一圈，偏慢且末帧已收束到首帧
 
@@ -527,13 +526,11 @@
     });
     if (!root || !bar) return;
     bootHiding = false;
-    const started = performance.now();
     let shown = floor;
     bar.style.transform = "scaleX(" + shown.toFixed(4) + ")";
 
     function frame() {
       if (!document.getElementById("boot")) return;
-      const elapsed = performance.now() - started;
       const target = pageLoadProgress(floor);
       const pageDone = target >= 1;
       // 开屏图已内嵌可直接用，否则等动画图；没就绪前进度条最多到 92%
@@ -542,7 +539,7 @@
       shown += (capped - shown) * (pageDone && visualReady ? 0.3 : 0.14);
       if (pageDone && visualReady) shown = Math.max(shown, 0.98);
       bar.style.transform = "scaleX(" + Math.max(floor, Math.min(1, shown)).toFixed(4) + ")";
-      if (pageDone && visualReady && (shown > 0.995 || isSplash()) && elapsed >= BOOT_MIN_MS) {
+      if (pageDone && visualReady && (shown > 0.995 || isSplash())) {
         bar.style.transform = "scaleX(1)";
         hideBoot();
         return;

@@ -127,7 +127,6 @@
 
   const SPRITE_SRC = "../assets/loader/moru-sprite.webp";
   const POSTER_SRC = "../assets/loader/moru-loop-poster.png";
-  const BOOT_MIN_MS = 900;
   const BOOT_FRAMES = 24;
   const BOOT_FRAME_MS = 150;
   let bootHiding = false;
@@ -303,7 +302,6 @@
       .catch(() => {})
       .then(() => {
         if (gen !== bootGen) return;
-        const wait = Math.max(0, BOOT_MIN_MS - (performance.now() - bootStartedAt));
         const close = () => {
           if (gen !== bootGen) return;
           const finish = () => {
@@ -324,7 +322,7 @@
             poll();
           }
         };
-        setTimeout(close, wait);
+        close();
       });
   }
 
