@@ -139,18 +139,9 @@
   let bootStartedAt = performance.now();
   let bootProgressRaf = 0;
   let bootGen = 0;
-  let splashReady = false;
 
   function isSplash() {
     return document.documentElement.classList.contains("is-splash");
-  }
-
-  function warmSplash() {
-    const img = new Image();
-    const done = () => { splashReady = true; };
-    img.onload = () => (img.decode ? img.decode().then(done, done) : done());
-    img.onerror = done;
-    img.src = window.matchMedia("(orientation: portrait)").matches ? "../assets/splash/phone.webp" : "../assets/splash/desktop.webp";
   }
 
   function bootNodes() {
@@ -321,7 +312,7 @@
             setBootBar(1);
             hideBoot();
           };
-          const visualReady = () => (isSplash() ? splashReady : spriteReady);
+          const visualReady = () => (isSplash() || spriteReady);
           if (visualReady()) finish();
           else {
             const started = performance.now();
@@ -1398,7 +1389,6 @@
   });
 
   async function start() {
-    if (isSplash()) warmSplash();
     warmBootAnim();
     const work = (async () => {
       if (!window.location.hash) {

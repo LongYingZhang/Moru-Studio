@@ -1631,18 +1631,6 @@ html.is-booting body {
   will-change: transform;
 }
 
-/* 首次进入：整屏开屏图，替代加载动画 */
-html.is-splash .boot {
-  background: #000 url("../assets/splash/desktop.webp") center / contain no-repeat;
-}
-@media (orientation: portrait) {
-  html.is-splash .boot {
-    background-image: url("../assets/splash/phone.webp");
-  }
-}
-html.is-splash .boot-stage {
-  visibility: hidden;
-}
 
 @media (prefers-reduced-motion: reduce) {
   *,

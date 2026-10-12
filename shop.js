@@ -345,8 +345,6 @@
   const BOOT_MIN_MS = 1200;
   const BOOT_FRAMES = 24;
   const BOOT_FRAME_MS = 150; // ~3.6s 一圈，偏慢且末帧已收束到首帧
-  // 开屏图迟迟加载不出来时不再等它，避免卡住页面
-  const SPLASH_WAIT_MS = 4000;
 
   let bootHiding = false;
   let pendingNav = null;
@@ -355,18 +353,9 @@
   let bootAnimRaf = 0;
   let bootFrame = 0;
   let bootLastTs = 0;
-  let splashReady = false;
 
   function isSplash() {
     return document.documentElement.classList.contains("is-splash");
-  }
-
-  function warmSplash() {
-    const img = new Image();
-    const done = () => { splashReady = true; };
-    img.onload = () => (img.decode ? img.decode().then(done, done) : done());
-    img.onerror = done;
-    img.src = window.matchMedia("(orientation: portrait)").matches ? "assets/splash/phone.webp" : "assets/splash/desktop.webp";
   }
 
   function bootNodes() {
@@ -547,8 +536,8 @@
       const elapsed = performance.now() - started;
       const target = pageLoadProgress(floor);
       const pageDone = target >= 1;
-      // 开屏模式等开屏图，否则等动画图；没就绪前进度条最多到 92%
-      const visualReady = isSplash() ? splashReady || elapsed >= SPLASH_WAIT_MS : spriteReady;
+      // 开屏图已内嵌可直接用，否则等动画图；没就绪前进度条最多到 92%
+      const visualReady = isSplash() || spriteReady;
       const capped = visualReady ? target : Math.min(target, 0.92);
       shown += (capped - shown) * (pageDone && visualReady ? 0.3 : 0.14);
       if (pageDone && visualReady) shown = Math.max(shown, 0.98);
@@ -665,7 +654,6 @@
     if (bootEl) bootEl.remove();
     document.documentElement.classList.remove("is-booting");
   } else {
-    if (isSplash()) warmSplash();
     warmBootAnim();
     // 首屏海报立刻可见；雪碧图就绪后开始流畅帧动画
     runBootProgress(readNavBoot());

@@ -25,11 +25,13 @@
         sessionStorage.setItem("ly-admin-splash", "1");
       } catch (_) {}
       document.documentElement.classList.add("is-splash");
-      var img = new Image();
-      img.fetchPriority = "high";
-      img.src = matchMedia("(orientation: portrait)").matches ? "../assets/splash/phone.webp" : "../assets/splash/desktop.webp";
     })();
     </script>
+    <style>
+    html.is-splash .boot { position: fixed; inset: 0; z-index: 9999; background: #000 url("../assets/splash/desktop.webp") center / contain no-repeat; }
+    @media (orientation: portrait) { html.is-splash .boot { background-image: url("../assets/splash/phone.webp"); } }
+    html.is-splash .boot-stage { visibility: hidden; }
+    </style>
     <link rel="stylesheet" href="./styles.css" />
     <style>
       html, body { margin: 0; }

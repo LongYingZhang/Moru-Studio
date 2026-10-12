@@ -52,6 +52,8 @@ LONG_CACHE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".woff2", ".
 RANGE_EXT = {".mp4", ".webm", ".woff2", ".jpg", ".jpeg", ".png", ".webp", ".gif"}
 ASSET_REF = re.compile(rb'\b(href|src)="((?:\./)?[\w][\w./-]*\.(?:css|js))"')
 VERSION_QUERY = re.compile(r"(?:^|&)v=")
+# 开屏图直接嵌进 HTML，页面一到就能画出来，不用再等一次图片请求
+INLINE_SPLASH = re.compile(rb'url\("((?:\.\./)?assets/splash/[\w-]+\.webp)"\)')
 
 
 def version_assets(html, base_dir, mtime):
@@ -67,6 +69,17 @@ def version_assets(html, base_dir, mtime):
         latest = max(latest, stamp_time)
         return b'%s="%s?v=%x"' % (match.group(1), match.group(2), stamp_time)
 
+    def inline(match):
+        nonlocal latest
+        target = os.path.normpath(os.path.join(base_dir, match.group(1).decode()))
+        if not target.startswith(SHOP_DIR + os.sep) or not os.path.isfile(target):
+            return match.group(0)
+        latest = max(latest, int(os.stat(target).st_mtime))
+        with open(target, "rb") as file:
+            data = base64.b64encode(file.read())
+        return b'url("data:image/webp;base64,%s")' % data
+
+    html = INLINE_SPLASH.sub(inline, html)
     return ASSET_REF.sub(stamp, html), latest
 
 data_lock = threading.Lock()
