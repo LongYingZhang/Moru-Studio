@@ -92,7 +92,7 @@ textarea:focus-visible,
   right: 0;
   left: 0;
   /* 灵动岛下方再留一点空隙，避免贴边被挡 */
-  --safe-top: calc(env(safe-area-inset-top, 0px) + 10px);
+  --safe-top: calc(env(safe-area-inset-top, 0px) + 30px);
   height: calc(var(--header-height) + var(--safe-top));
   padding-top: var(--safe-top);
   border-bottom: 1px solid var(--divider);
@@ -234,7 +234,7 @@ textarea:focus-visible,
 .app-shell {
   width: 100%;
   flex: 1;
-  padding-top: calc(var(--header-height) + env(safe-area-inset-top, 0px) + 10px);
+  padding-top: calc(var(--header-height) + env(safe-area-inset-top, 0px) + 30px);
 }
 
 .page {
@@ -1499,7 +1499,7 @@ body.is-locked .app-shell {
 
   .header-right {
     position: absolute;
-    top: calc(14px + env(safe-area-inset-top, 0px) + 10px);
+    top: calc(14px + env(safe-area-inset-top, 0px) + 30px);
     right: 14px;
   }
 

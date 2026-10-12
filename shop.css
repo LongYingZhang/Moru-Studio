@@ -36,7 +36,7 @@ body {
   overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
   /* 灵动岛安全区 + 额外空隙，避免贴边遮盖 */
-  --safe-top: calc(env(safe-area-inset-top, 0px) + 10px);
+  --safe-top: calc(env(safe-area-inset-top, 0px) + 30px);
   padding-top: var(--safe-top);
   padding-right: env(safe-area-inset-right, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
