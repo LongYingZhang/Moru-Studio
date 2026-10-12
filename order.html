@@ -12,8 +12,8 @@
 <title>订单已提交</title>
 <link rel="icon" href="assets/favicon.svg?v=2" type="image/svg+xml">
 <link rel="stylesheet" href="shop.css?v=flow1">
-<link rel="preload" href="assets/splash/phone.jpg" as="image" media="(orientation: portrait)">
-<link rel="preload" href="assets/splash/desktop.jpg" as="image" media="(orientation: landscape)">
+<link rel="preload" href="assets/loader/moru-loop-poster.png" as="image">
+<link rel="preload" href="assets/loader/moru-sprite.webp" as="image" type="image/webp">
 <style>
 html, body { margin: 0; }
 html { background: #131313; }
@@ -22,9 +22,28 @@ html.is-booting, html.is-booting body { background: #000 !important; }
 <script>
 document.documentElement.classList.add("is-booting");
 </script>
+<script>
+(function () {
+  var html = document.documentElement;
+  if (!html.classList.contains("is-booting")) return;
+  try {
+    if (sessionStorage.getItem("ly-splash")) return;
+    sessionStorage.setItem("ly-splash", "1");
+  } catch (_) {}
+  html.classList.add("is-splash");
+  new Image().src = matchMedia("(orientation: portrait)").matches ? "assets/splash/phone.jpg" : "assets/splash/desktop.jpg";
+})();
+</script>
 </head>
 <body>
-<div class="boot" id="boot" role="img" aria-label="LONGYING STUDIO 加载中"></div>
+<div class="boot" id="boot" aria-live="polite" aria-label="加载中">
+  <div class="boot-stage">
+    <div class="boot-sprite" id="bootSprite" aria-hidden="true">
+      <canvas class="boot-anim" id="bootCanvas" width="220" height="220"></canvas>
+    </div>
+    <div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>
+  </div>
+</div>
 
 <div class="page">
   <header class="page-head">

@@ -54,6 +54,10 @@ body {
   .page-head {
     padding-top: 0;
   }
+  .boot {
+    padding-top: var(--safe-top);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
 }
 
 /* 全局顶栏：竖屏 App 栈常驻 LONGYING STUDIO + 购物袋 */
@@ -1624,6 +1628,8 @@ html.is-booting body {
   position: fixed;
   inset: 0;
   z-index: 9999;
+  display: grid;
+  place-items: center;
   width: 100vw;
   width: 100dvw;
   height: 100vh;
@@ -1631,14 +1637,9 @@ html.is-booting body {
   margin: 0;
   padding: 0;
   border: 0;
-  background: #000 url("assets/splash/desktop.jpg") center / contain no-repeat;
+  background: #000;
   transition: opacity 0.28s ease, visibility 0.28s ease;
   -webkit-tap-highlight-color: transparent;
-}
-@media (orientation: portrait) {
-  .boot {
-    background-image: url("assets/splash/phone.jpg");
-  }
 }
 /* 跳转前按下时不拦截点击，否则购物袋的 click 会被挡住 */
 .boot.is-nav {
@@ -1648,4 +1649,59 @@ html.is-booting body {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
+}
+.boot-stage {
+  width: min(168px, 42vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  background: #000;
+}
+.boot-sprite {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: #000 url("assets/loader/moru-loop-poster.png") center / cover no-repeat;
+  pointer-events: none;
+}
+.boot-anim {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+}
+.boot-sprite.is-ready .boot-anim {
+  opacity: 1;
+}
+.boot-track {
+  width: 72%;
+  height: 2px;
+  border-radius: 2px;
+  background: #2a2a2a;
+  overflow: hidden;
+}
+.boot-bar {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: #c7c6c6;
+  transform: scaleX(0.02);
+  transform-origin: left center;
+  will-change: transform;
+}
+/* 首次进入：整屏开屏图，替代加载动画 */
+html.is-splash .boot {
+  background: #000 url("assets/splash/desktop.jpg") center / contain no-repeat;
+}
+@media (orientation: portrait) {
+  html.is-splash .boot {
+    background-image: url("assets/splash/phone.jpg");
+  }
+}
+html.is-splash .boot-stage {
+  visibility: hidden;
 }
