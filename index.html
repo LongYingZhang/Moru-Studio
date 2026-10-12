@@ -93,7 +93,10 @@ html.is-booting, html.is-booting body { background: #000 !important; }
     </button>
   </div>
   <footer class="lb-foot">
-    <div class="specs" id="lbSpecs"></div>
+    <div class="lb-info">
+      <h2 class="lb-title" id="lbTitle"></h2>
+      <div class="specs" id="lbSpecs"></div>
+    </div>
     <div class="thumbs" id="thumbs"></div>
     <button class="btn light lb-inspect" id="lbInspect" type="button">检视档案 →</button>
   </footer>
@@ -141,6 +144,7 @@ html.is-booting, html.is-booting body { background: #000 !important; }
   const heroSpecs = document.getElementById("heroSpecs");
   const lightbox = document.getElementById("lightbox");
   const lbImg = document.getElementById("lbImg");
+  const lbTitle = document.getElementById("lbTitle");
   const lbSpecs = document.getElementById("lbSpecs");
   const thumbs = document.getElementById("thumbs");
   const backdrop = document.getElementById("backdrop");
@@ -233,6 +237,7 @@ html.is-booting, html.is-booting body { background: #000 !important; }
       document.getElementById("drawerSpecs").hidden = !drawerSpecHtml(product);
       document.getElementById("drawerPrice").textContent = Shop.formatPrice(product.price);
       document.getElementById("detailLink").href = `product.html?id=${product.id}&enter=left`;
+      lbTitle.textContent = product.name;
       lbSpecs.innerHTML = specHtml(product);
     };
     if (fade) {
@@ -501,7 +506,7 @@ html.is-booting, html.is-booting body { background: #000 !important; }
   });
   // 点空白（黑底、舞台空隙、页脚空隙）关闭；点图/箭头/规格/缩略图不关
   lightbox.addEventListener("click", (e) => {
-    if (e.target.closest(".lb-frame, .nav-arrow, .thumb, .specs, .lb-inspect, button, a")) return;
+    if (e.target.closest(".lb-frame, .nav-arrow, .thumb, .lb-info, .lb-inspect, button, a")) return;
     closeLightbox();
   });
   thumbs.addEventListener("click", (e) => {

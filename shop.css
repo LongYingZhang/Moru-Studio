@@ -1379,26 +1379,44 @@ label.field.wide { grid-column: 1 / -1; }
     flex-direction: column;
     align-items: stretch;
     justify-content: flex-start;
+    gap: 28px;
+    padding: 10px 22px max(18px, env(safe-area-inset-bottom, 0px));
+  }
+  .lb-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
     gap: 22px;
-    padding: 8px 22px max(18px, env(safe-area-inset-bottom, 0px));
+  }
+  .lb-title {
+    margin: 0;
+    font-size: 34px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: #f4f4f4;
+    line-height: 1.15;
   }
   .lb-foot .specs {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 16px;
+    gap: 18px;
   }
   .lb-foot .spec {
+    display: flex;
+    flex-direction: column;
     gap: 6px;
   }
   .lb-foot .spec b {
     color: #8e9192;
     font-size: 12px;
-    letter-spacing: 0.06em;
+    font-weight: 400;
+    letter-spacing: 0.04em;
   }
   .lb-foot .spec span {
     font-size: 15px;
     color: #f4f4f4;
+    letter-spacing: 0.01em;
   }
   .lb-foot .thumbs {
     display: flex;
