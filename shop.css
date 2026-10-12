@@ -1285,7 +1285,7 @@ label.field.wide { grid-column: 1 / -1; }
   .home {
     grid-template-columns: 1fr;
     position: relative;
-    height: calc(100dvh - var(--chrome-top) - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - var(--chrome-top) - var(--safe-bottom));
     min-height: 0;
     overflow: hidden;
     padding-bottom: 0;
@@ -1296,7 +1296,7 @@ label.field.wide { grid-column: 1 / -1; }
     flex-direction: column;
     overflow: hidden;
     padding-top: 4px;
-    padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+    padding-bottom: max(10px, var(--safe-bottom));
   }
   /* 卡片区单独滚；购物须知常驻底部 */
   .cards {
