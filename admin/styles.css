@@ -91,8 +91,10 @@ textarea:focus-visible,
   top: 0;
   right: 0;
   left: 0;
-  height: calc(var(--header-height) + env(safe-area-inset-top, 0px));
-  padding-top: env(safe-area-inset-top, 0px);
+  /* 灵动岛下方再留一点空隙，避免贴边被挡 */
+  --safe-top: calc(env(safe-area-inset-top, 0px) + 10px);
+  height: calc(var(--header-height) + var(--safe-top));
+  padding-top: var(--safe-top);
   border-bottom: 1px solid var(--divider);
   background: rgba(19, 19, 19, 0.92);
   backdrop-filter: blur(20px);
@@ -232,7 +234,7 @@ textarea:focus-visible,
 .app-shell {
   width: 100%;
   flex: 1;
-  padding-top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+  padding-top: calc(var(--header-height) + env(safe-area-inset-top, 0px) + 10px);
 }
 
 .page {
@@ -1497,7 +1499,7 @@ body.is-locked .app-shell {
 
   .header-right {
     position: absolute;
-    top: calc(14px + env(safe-area-inset-top, 0px));
+    top: calc(14px + env(safe-area-inset-top, 0px) + 10px);
     right: 14px;
   }
 
