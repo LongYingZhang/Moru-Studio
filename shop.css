@@ -1277,12 +1277,12 @@ label.field.wide { grid-column: 1 / -1; }
     transition: none;
   }
 
-  /* 1：商品预览 — 对齐 1.svg：顶栏下全幅图 + 底栏提示 */
+  /* 1：点卡片后的预览 — 顶栏 + 全幅图 + 中提示 + 标题/规格/检视档案 */
   .hero {
     background: #d8d8d5;
   }
   .hero-shade {
-    background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, .18) 78%, rgba(0, 0, 0, .45) 100%);
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 35%, rgba(0, 0, 0, .35) 62%, rgba(0, 0, 0, .88) 100%);
   }
   .hero-photo {
     opacity: 1;
@@ -1290,15 +1290,35 @@ label.field.wide { grid-column: 1 / -1; }
     background-position: center center;
   }
   .hero-foot {
-    display: none;
+    display: flex;
+    padding: 24px 20px max(22px, env(safe-area-inset-bottom, 0px));
+    gap: 16px;
+    align-items: flex-end;
+  }
+  .hero-info { gap: 14px; }
+  .hero-info h1 {
+    font-size: 34px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+  .hero .specs {
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .hero .spec b {
+    color: #9a9a9a;
+    font-size: 12px;
+  }
+  .hero .spec span {
+    font-size: 14px;
   }
   .hero-center {
-    top: auto;
-    bottom: max(28px, env(safe-area-inset-bottom, 0px));
+    top: 42%;
     left: 50%;
-    transform: translateX(-50%);
+    bottom: auto;
+    transform: translate(-50%, -50%);
     width: auto;
-    max-width: calc(100% - 32px);
+    max-width: calc(100% - 40px);
   }
   .hint {
     opacity: 1;
@@ -1313,6 +1333,12 @@ label.field.wide { grid-column: 1 / -1; }
     letter-spacing: 0.02em;
   }
   .hint-bars { display: block; }
+  .inspect {
+    height: 44px;
+    padding: 0 16px 0 18px;
+    border-radius: 10px;
+    gap: 14px;
+  }
   .hero:hover .hero-photo { transform: none; }
 
   /* 2：全屏画册 — 顶栏下方铺满，居中大图 + 左右箭头 */

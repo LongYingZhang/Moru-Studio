@@ -281,8 +281,8 @@ html.is-booting, html.is-booting body { background: #000 !important; }
       hero.style.transform = "";
       return;
     }
-    // 从右向左滑出退出
-    hero.style.transform = "translateX(-100%)";
+    // 右进左出的逆过程：滑回右侧离开
+    hero.style.transform = "translateX(100%)";
     window.setTimeout(() => {
       home.classList.remove("is-hero");
       hero.style.transform = "";
@@ -334,9 +334,10 @@ html.is-booting, html.is-booting body { background: #000 !important; }
     backdrop.classList.remove("open");
   }
 
-  // 竖屏通用：从右向左滑一点退出当前层（全屏画册 2 除外）
+  // 竖屏滑动退出：direction "right"=左→右滑离开，"left"=右→左滑离开（全屏画册 2 除外）
   function bindSwipeExit(target, options) {
     const opts = options || {};
+    const toRight = opts.direction !== "left";
     let tracking = false;
     let dragging = false;
     let startX = 0;
@@ -350,7 +351,7 @@ html.is-booting, html.is-booting body { background: #000 !important; }
 
     target.addEventListener("touchstart", (e) => {
       if (!canSwipe() || e.touches.length !== 1) return;
-      if (e.target.closest("button, a, input, textarea, .nav-arrow, .thumb")) return;
+      if (e.target.closest("button, a, input, textarea, .nav-arrow, .thumb, .drawer-nav")) return;
       const t = e.touches[0];
       tracking = true;
       dragging = false;
@@ -370,8 +371,7 @@ html.is-booting, html.is-booting body { background: #000 !important; }
           tracking = false;
           return;
         }
-        // 从右向左
-        if (adx > -10) return;
+        if (toRight ? adx < 10 : adx > -10) return;
         dragging = true;
         if (opts.onDragStart) opts.onDragStart();
       }
@@ -385,7 +385,12 @@ html.is-booting, html.is-booting body { background: #000 !important; }
       const width = target.offsetWidth || window.innerWidth;
       const elapsed = Math.max(1, performance.now() - startAt);
       const velocity = dx / elapsed;
-      const shouldExit = dragging && (dx < -Math.min(72, width * 0.18) || velocity < -0.45);
+      const threshold = Math.min(72, width * 0.18);
+      const shouldExit = dragging && (
+        toRight
+          ? (dx > threshold || velocity > 0.45)
+          : (dx < -threshold || velocity < -0.45)
+      );
       tracking = false;
       dragging = false;
       if (shouldExit) {
@@ -400,12 +405,14 @@ html.is-booting, html.is-booting body { background: #000 !important; }
     target.addEventListener("touchcancel", finish);
   }
 
+  // 预览页：从右进入，手指左→右滑离开
   bindSwipeExit(hero, {
+    direction: "right",
     isActive: () => home.classList.contains("is-hero") && !lightbox.classList.contains("open") && !backdrop.classList.contains("open"),
     onDragStart: () => home.classList.add("is-hero-drag"),
     onDrag: (x) => {
       const width = hero.offsetWidth || window.innerWidth;
-      hero.style.transform = "translateX(" + Math.max(-width, Math.min(0, x)) + "px)";
+      hero.style.transform = "translateX(" + Math.max(0, Math.min(width, x)) + "px)";
     },
     onExit: () => {
       home.classList.remove("is-hero-drag");
@@ -417,7 +424,9 @@ html.is-booting, html.is-booting body { background: #000 !important; }
     }
   });
 
+  // 检视档案：右→左滑退出
   bindSwipeExit(drawer, {
+    direction: "left",
     isActive: () => backdrop.classList.contains("open"),
     onDragStart: () => backdrop.classList.add("is-swiping"),
     onDrag: (x) => {
@@ -432,8 +441,9 @@ html.is-booting, html.is-booting body { background: #000 !important; }
     onCancel: () => clearDrawerSwipe()
   });
 
-  // 目录页也可右滑退出（PWA 下尝试返回）
+  // 目录页：左→右滑尝试返回
   bindSwipeExit(home.querySelector(".rail"), {
+    direction: "right",
     isActive: () => isPortraitFlow() && !home.classList.contains("is-hero") && !lightbox.classList.contains("open") && !backdrop.classList.contains("open"),
     onExit: () => {
       if (window.history.length > 1) history.back();
