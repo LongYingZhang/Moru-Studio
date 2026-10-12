@@ -1277,11 +1277,24 @@ label.field.wide { grid-column: 1 / -1; }
   }
   .rail {
     height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-top: 4px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  }
+  /* 卡片区单独滚；购物须知常驻底部 */
+  .cards {
+    flex: 1 1 auto;
+    min-height: 0;
     overflow: auto;
     -webkit-overflow-scrolling: touch;
-    padding-top: 4px;
+    padding-bottom: 12px;
   }
-  .cards { overflow: visible; padding-bottom: 20px; }
+  .rail-foot {
+    flex: none;
+    margin: 4px 0 0 6px;
+  }
   .hero {
     position: absolute;
     inset: 0;
