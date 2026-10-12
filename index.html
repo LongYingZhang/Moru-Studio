@@ -466,12 +466,15 @@ html.is-booting, html.is-booting body { background: #000 !important; }
     e.stopPropagation();
     show(index + 1, true);
   });
-  document.getElementById("lbStage").addEventListener("click", (e) => {
-    if (e.target.id === "lbStage") closeLightbox();
+  // 点空白（黑底、舞台空隙、页脚空隙）关闭；点图/箭头/规格/缩略图不关
+  lightbox.addEventListener("click", (e) => {
+    if (e.target.closest(".lb-frame, .nav-arrow, .thumb, .specs, .lb-inspect, button, a")) return;
+    closeLightbox();
   });
   thumbs.addEventListener("click", (e) => {
     const thumb = e.target.closest(".thumb");
     if (!thumb) return;
+    e.stopPropagation();
     show(products.findIndex((p) => p.id === Number(thumb.dataset.id)), true);
   });
   backdrop.addEventListener("click", (e) => {

@@ -1331,7 +1331,7 @@ label.field.wide { grid-column: 1 / -1; }
   }
   .hero:hover .hero-photo { transform: none; }
 
-  /* 2：全屏画册 — 顶栏下方铺满，居中大图 + 左右箭头 */
+  /* 2：全屏画册 — 大图 + 尺寸/材质竖排 + 底栏缩略图；点空白关闭 */
   .lightbox,
   .backdrop {
     top: var(--chrome-top);
@@ -1340,13 +1340,19 @@ label.field.wide { grid-column: 1 / -1; }
     left: 0;
     padding: 0;
   }
-  .lightbox { background: #131313; }
-  .lb-stage { padding: 12px 8px 20px; }
+  .lightbox {
+    background: #0e0e0e;
+  }
+  .lb-stage {
+    flex: 1;
+    min-height: 0;
+    padding: 10px 0 8px;
+  }
   .lb-frame {
     width: 100%;
-    height: 100%;
+    height: min(48vh, 360px);
     max-height: none;
-    background: transparent;
+    background: #efeeeb;
   }
   .lb-frame img { object-fit: contain; }
   .lightbox .nav-arrow {
@@ -1361,21 +1367,51 @@ label.field.wide { grid-column: 1 / -1; }
     width: 22px;
     height: 22px;
   }
-  .lightbox .nav-arrow.prev { left: 4px; }
-  .lightbox .nav-arrow.next { right: 4px; }
+  .lightbox .nav-arrow.prev { left: 6px; }
+  .lightbox .nav-arrow.next { right: 6px; }
   .lb-foot {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
-    padding: 12px 20px max(20px, env(safe-area-inset-bottom, 0px));
+    justify-content: flex-start;
+    gap: 22px;
+    padding: 8px 22px max(18px, env(safe-area-inset-bottom, 0px));
   }
-  .lb-foot .specs,
-  .lb-foot .thumbs { display: none; }
-  .lb-inspect {
-    display: inline-flex;
-    width: 100%;
+  .lb-foot .specs {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
   }
+  .lb-foot .spec {
+    gap: 6px;
+  }
+  .lb-foot .spec b {
+    color: #8e9192;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+  }
+  .lb-foot .spec span {
+    font-size: 15px;
+    color: #f4f4f4;
+  }
+  .lb-foot .thumbs {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+  }
+  .lb-foot .thumb {
+    width: 72px;
+    height: 48px;
+    flex: none;
+    border-radius: 6px;
+    opacity: .45;
+  }
+  .lb-foot .thumb.is-on,
+  .lb-foot .thumb:hover { opacity: 1; }
+  .lb-inspect { display: none; }
 
   /* 3：检视档案 — 全屏层，标题 + 大圆角图 + 左右切换 */
   .backdrop {
