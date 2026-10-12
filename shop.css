@@ -49,7 +49,7 @@ body {
   html, body { background: #000; }
   body {
     /* iPad 横屏时 inset-top 有时为 0，至少留出状态栏高度 */
-    --safe-top: calc(max(env(safe-area-inset-top, 0px), 24px) + 16px);
+    --safe-top: calc(max(env(safe-area-inset-top, 0px), 24px) + 11px);
     --chrome-top: var(--safe-top);
     padding-top: var(--chrome-top);
   }
