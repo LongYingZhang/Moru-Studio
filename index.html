@@ -262,6 +262,12 @@ html.is-booting, html.is-booting body { background: #000 !important; }
       const shift = rect.top < box.top ? rect.top - box.top : rect.bottom > box.bottom ? rect.bottom - box.bottom : 0;
       if (shift) cards.scrollBy({ top: shift, behavior: fade ? "smooth" : "auto" });
     }
+    const onThumb = thumbs.querySelector(".thumb.is-on");
+    if (onThumb && thumbs.scrollWidth > thumbs.clientWidth) {
+      const offset = onThumb.getBoundingClientRect().left - thumbs.getBoundingClientRect().left + thumbs.scrollLeft;
+      const left = offset - (thumbs.clientWidth - onThumb.offsetWidth) / 2;
+      thumbs.scrollTo({ left: Math.max(0, left), behavior: fade ? "smooth" : "auto" });
+    }
     if (lightbox.classList.contains("open")) requestAnimationFrame(updateThumbsFade);
   }
 
