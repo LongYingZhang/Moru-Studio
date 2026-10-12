@@ -88,7 +88,6 @@ document.documentElement.classList.add("is-booting");
       <h1>购物须知与隐私政策</h1>
       <small>TERMS &amp; PRIVACY</small>
     </div>
-    <a class="head-btn" href="index.html">返回画册</a>
   </header>
 
   <div class="doc">
@@ -167,6 +166,8 @@ document.documentElement.classList.add("is-booting");
     entries.forEach((entry) => { if (entry.isIntersecting) setActive(entry.target.id); });
   }, { rootMargin: "-30% 0px -60% 0px" });
   document.querySelectorAll(".doc-group").forEach((group) => observer.observe(group));
+  /* 竖屏：左滑返回上一页（无「返回画册」按钮） */
+  Shop.bindSwipeBack(document.querySelector(".page"), () => Shop.goBackOr("index.html"));
 })();
 </script>
 </body>
