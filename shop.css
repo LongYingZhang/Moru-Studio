@@ -44,9 +44,15 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0px);
   padding-left: env(safe-area-inset-left, 0px);
 }
-/* 从主屏幕打开：顶栏避开灵动岛，底栏避开手势条 */
+/* 从主屏幕打开：顶栏避开状态栏，底栏避开手势条 */
 @media (display-mode: standalone), (display-mode: fullscreen) {
   html, body { background: #000; }
+  body {
+    /* iPad 横屏时 inset-top 有时为 0，至少留出状态栏高度 */
+    --safe-top: calc(max(env(safe-area-inset-top, 0px), 24px) + 16px);
+    --chrome-top: var(--safe-top);
+    padding-top: var(--chrome-top);
+  }
   .home {
     height: calc(100dvh - var(--chrome-top) - env(safe-area-inset-bottom, 0px));
     max-height: calc(100dvh - var(--chrome-top) - env(safe-area-inset-bottom, 0px));
