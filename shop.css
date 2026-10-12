@@ -1266,8 +1266,9 @@ label.field.wide { grid-column: 1 / -1; }
 @media (max-width: 980px) {
   /* 竖屏 App 栈：顶栏常驻；0 目录 / 1 预览 / 2 画册 / 3 档案 / 4 详情 */
   /*
-    不用 100dvh 减顶部：iOS Safari 里 dvh 常和可见高度错位，
-    购物须知下面会空出一大块黑。改为 body 列 flex，.home 吃剩余高度。
+    body 固定视口高 + .home flex:1 吃剩余高度：
+    卡片区内部滚，购物须知常驻底；避免 height:auto 整页拉高导致脚注滚走，
+    也避免 100dvh - chrome 算矮留下大块黑空。
   */
   html {
     height: 100%;
@@ -1278,11 +1279,15 @@ label.field.wide { grid-column: 1 / -1; }
     --chrome-top: calc(var(--safe-top) + var(--app-bar-h));
     padding-top: var(--chrome-top);
     padding-bottom: 0;
-    min-height: 100%;
-    min-height: 100dvh;
-    min-height: -webkit-fill-available;
+    height: 100%;
+    height: 100dvh;
+    height: -webkit-fill-available;
+    max-height: 100%;
+    max-height: 100dvh;
+    max-height: -webkit-fill-available;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
   }
   .app-bar { display: flex; }
   .topbar-desktop { display: none; }
@@ -1290,9 +1295,10 @@ label.field.wide { grid-column: 1 / -1; }
   .home {
     grid-template-columns: 1fr;
     position: relative;
-    flex: 1 1 auto;
-    height: auto !important;
-    max-height: none !important;
+    flex: 1 1 0%;
+    width: 100%;
+    height: auto;
+    max-height: none;
     min-height: 0;
     overflow: hidden;
     padding-bottom: 0;
@@ -1306,7 +1312,7 @@ label.field.wide { grid-column: 1 / -1; }
     /* 只留一次底部安全区：14 Pro≈34px，iPhone 8 用 foot-pad */
     padding-bottom: max(var(--foot-pad), var(--safe-bottom));
   }
-  /* 卡片区单独滚；购物须知贴在安全区上方 */
+  /* 卡片区单独滚；购物须知钉在视口底（安全区上方） */
   .cards {
     flex: 1 1 auto;
     min-height: 0;
@@ -1319,7 +1325,10 @@ label.field.wide { grid-column: 1 / -1; }
     margin: 2px 0 0 6px;
   }
   .page {
-    flex: 1 1 auto;
+    flex: 1 1 0%;
+    min-height: 0;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
     padding-bottom: max(var(--foot-pad), var(--safe-bottom));
   }
   .hero {
