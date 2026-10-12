@@ -328,7 +328,8 @@ html.is-booting, html.is-booting body { background: #000 !important; }
     requestAnimationFrame(updateThumbsFade);
   }
   function closeLightbox() {
-    lightbox.classList.remove("open");
+    lightbox.classList.remove("open", "is-swiping");
+    lightbox.style.transform = "";
     document.body.style.overflow = "";
   }
 
@@ -433,6 +434,26 @@ html.is-booting, html.is-booting body { background: #000 !important; }
     onCancel: () => {
       home.classList.remove("is-hero-drag");
       hero.style.transform = "";
+    }
+  });
+
+  // 全屏画册：左→右滑退出
+  bindSwipeExit(lightbox, {
+    direction: "right",
+    isActive: () => lightbox.classList.contains("open") && !backdrop.classList.contains("open"),
+    onDragStart: () => lightbox.classList.add("is-swiping"),
+    onDrag: (x) => {
+      const width = lightbox.offsetWidth || window.innerWidth;
+      lightbox.style.transform = "translateX(" + Math.max(0, Math.min(width, x)) + "px)";
+    },
+    onExit: () => {
+      lightbox.classList.remove("is-swiping");
+      lightbox.style.transform = "translateX(100%)";
+      window.setTimeout(() => closeLightbox(), 280);
+    },
+    onCancel: () => {
+      lightbox.classList.remove("is-swiping");
+      lightbox.style.transform = "";
     }
   });
 
