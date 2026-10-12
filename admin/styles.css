@@ -1985,10 +1985,6 @@ html.is-booting body {
   cursor: pointer;
 }
 
-.ce-swatch.is-on {
-  box-shadow: 0 0 0 2px var(--surface-low), 0 0 0 4px #ffffff;
-}
-
 .ce-auto {
   border: 5px solid #ffffff;
   background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red) padding-box;

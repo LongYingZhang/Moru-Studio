@@ -224,9 +224,6 @@
       card.querySelector(".ce-en").textContent = state.en || "保存后自动翻译";
 
       if (state.ready) zoom.value = String(Math.round(state.w / fitW() * 100));
-      root.querySelectorAll(".ce-swatch").forEach((s) =>
-        s.classList.toggle("is-on", s.dataset.color ? s.dataset.color === state.bg : !state.bg),
-      );
       inkSeg.querySelectorAll("button").forEach((b) => b.classList.toggle("is-on", b.dataset.ink === state.ink));
     }
 
