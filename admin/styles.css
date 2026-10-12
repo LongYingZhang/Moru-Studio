@@ -48,11 +48,9 @@ body {
   color: var(--primary);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  padding:
-    env(safe-area-inset-top, 0px)
-    env(safe-area-inset-right, 0px)
-    env(safe-area-inset-bottom, 0px)
-    env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
 }
 
 button,
@@ -93,10 +91,12 @@ textarea:focus-visible,
   top: 0;
   right: 0;
   left: 0;
-  height: var(--header-height);
+  height: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
   border-bottom: 1px solid var(--divider);
   background: rgba(19, 19, 19, 0.92);
   backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 .header-inner {
@@ -232,7 +232,7 @@ textarea:focus-visible,
 .app-shell {
   width: 100%;
   flex: 1;
-  padding-top: var(--header-height);
+  padding-top: calc(var(--header-height) + env(safe-area-inset-top, 0px));
 }
 
 .page {
@@ -1497,7 +1497,7 @@ body.is-locked .app-shell {
 
   .header-right {
     position: absolute;
-    top: 14px;
+    top: calc(14px + env(safe-area-inset-top, 0px));
     right: 14px;
   }
 
