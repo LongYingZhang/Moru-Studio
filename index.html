@@ -457,18 +457,18 @@ html.is-booting, html.is-booting body { background: #000 !important; }
     }
   });
 
-  // 检视档案：右→左滑退出
+  // 检视档案：左→右滑退出
   bindSwipeExit(drawer, {
-    direction: "left",
+    direction: "right",
     isActive: () => backdrop.classList.contains("open"),
     onDragStart: () => backdrop.classList.add("is-swiping"),
     onDrag: (x) => {
       const width = drawer.offsetWidth || window.innerWidth;
-      drawer.style.transform = "translateX(" + Math.max(-width, Math.min(0, x)) + "px)";
+      drawer.style.transform = "translateX(" + Math.max(0, Math.min(width, x)) + "px)";
     },
     onExit: () => {
       backdrop.classList.remove("is-swiping");
-      drawer.style.transform = "translateX(-100%)";
+      drawer.style.transform = "translateX(100%)";
       window.setTimeout(() => closeDrawer(), 280);
     },
     onCancel: () => clearDrawerSwipe()
