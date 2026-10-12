@@ -353,15 +353,6 @@ img { display: block; max-width: 100%; }
   font-size: 13px;
   letter-spacing: 0.04em;
 }
-.hint-bars {
-  display: none;
-  width: 10px;
-  height: 14px;
-  flex: none;
-  border-left: 2px solid rgba(255, 255, 255, .92);
-  border-right: 2px solid rgba(255, 255, 255, .92);
-  box-sizing: border-box;
-}
 .hero:hover .hint,
 .hero.is-empty .hint { opacity: 1; transform: translateY(0); }
 .lb-inspect { display: none; }
@@ -1332,7 +1323,6 @@ label.field.wide { grid-column: 1 / -1; }
     font-size: 13px;
     letter-spacing: 0.02em;
   }
-  .hint-bars { display: block; }
   .inspect {
     height: 44px;
     padding: 0 16px 0 18px;
