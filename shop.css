@@ -32,6 +32,19 @@ body {
   font-family: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
+  padding:
+    env(safe-area-inset-top, 0px)
+    env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
+}
+/* 从主屏幕打开时更像 App，避开系统手势条区域 */
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  html, body { background: #000; }
+  .home {
+    height: 100vh;
+    height: 100dvh;
+  }
 }
 button, input, textarea {
   font: inherit;
@@ -1150,9 +1163,20 @@ label.field.wide { grid-column: 1 / -1; }
 .doc-card b { color: var(--ink); font-weight: 500; }
 
 @media (max-width: 980px) {
-  .home { grid-template-columns: 1fr; height: auto; overflow: visible; }
-  .hero { height: 72vh; margin: 0 14px 12px 10px; }
+  .home {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  }
+  .hero { height: 72vh; height: 72dvh; margin: 0 14px 12px 10px; }
   .cards { overflow: visible; }
+  .page,
+  .checkout,
+  .receipt {
+    padding-bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  }
   .detail { grid-template-columns: 1fr; }
   .line { grid-template-columns: 72px minmax(0, 1fr) auto; gap: 12px 14px; align-items: start; }
   .line-photo { width: 72px; height: 72px; grid-row: 1 / 3; }

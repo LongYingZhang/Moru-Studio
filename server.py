@@ -164,6 +164,7 @@ class ShopHandler(SimpleHTTPRequestHandler):
         ".svg": "image/svg+xml",
         ".woff2": "font/woff2",
         ".mp4": "video/mp4",
+        ".webmanifest": "application/manifest+json",
     }
     cache_override = None
 
