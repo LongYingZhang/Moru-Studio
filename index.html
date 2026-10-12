@@ -257,6 +257,7 @@ html.is-booting, html.is-booting body { background: #000 !important; }
       const shift = rect.top < box.top ? rect.top - box.top : rect.bottom > box.bottom ? rect.bottom - box.bottom : 0;
       if (shift) cards.scrollBy({ top: shift, behavior: fade ? "smooth" : "auto" });
     }
+    if (lightbox.classList.contains("open")) requestAnimationFrame(updateThumbsFade);
   }
 
   const home = document.getElementById("home");
@@ -310,10 +311,21 @@ html.is-booting, html.is-booting body { background: #000 !important; }
     openDrawer();
   });
 
+  function updateThumbsFade() {
+    if (!thumbs) return;
+    const max = thumbs.scrollWidth - thumbs.clientWidth;
+    const overflow = max > 4;
+    const atStart = thumbs.scrollLeft <= 2;
+    const atEnd = thumbs.scrollLeft >= max - 2;
+    thumbs.classList.toggle("is-fade-start", overflow && !atStart);
+    thumbs.classList.toggle("is-fade-end", overflow && !atEnd);
+  }
+
   function openLightbox() {
     lbImg.src = products[index].image;
     lightbox.classList.add("open");
     document.body.style.overflow = "hidden";
+    requestAnimationFrame(updateThumbsFade);
   }
   function closeLightbox() {
     lightbox.classList.remove("open");
@@ -477,6 +489,8 @@ html.is-booting, html.is-booting body { background: #000 !important; }
     e.stopPropagation();
     show(products.findIndex((p) => p.id === Number(thumb.dataset.id)), true);
   });
+  thumbs.addEventListener("scroll", updateThumbsFade, { passive: true });
+  window.addEventListener("resize", updateThumbsFade);
   backdrop.addEventListener("click", (e) => {
     if (e.target === backdrop) closeDrawer();
   });
