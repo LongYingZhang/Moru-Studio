@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <title>LONGYING STUDIO</title>
 <link rel="icon" href="assets/favicon.svg?v=2" type="image/svg+xml">
-<link rel="stylesheet" href="shop.css?v=safe4">
+<link rel="stylesheet" href="shop.css?v=flow1">
 <link rel="preload" href="assets/loader/moru-loop-poster.png" as="image">
 <link rel="preload" href="assets/loader/moru-sprite.webp" as="image" type="image/webp">
 <style>
@@ -33,7 +33,7 @@ document.documentElement.classList.add("is-booting");
   </div>
 </div>
 
-<div class="home">
+<div class="home" id="home">
   <aside class="rail">
     <div class="topbar">
       <a class="logo" href="index.html"><img src="ZHANGLONGYING__STUDIO_7.svg?v=2" alt="LONGYING STUDIO"></a>
@@ -238,10 +238,41 @@ document.documentElement.classList.add("is-booting");
     }
   }
 
+  const home = document.getElementById("home");
+  const hero = document.getElementById("hero");
+  const drawer = document.getElementById("drawer");
+  const detailLink = document.getElementById("detailLink");
+
+  function isPortraitFlow() {
+    return window.matchMedia("(orientation: portrait)").matches && window.innerWidth <= 980;
+  }
+
+  function openHero() {
+    if (!isPortraitFlow()) return;
+    home.classList.add("is-hero");
+    home.classList.remove("is-hero-drag");
+    hero.style.transform = "";
+  }
+
+  function closeHero() {
+    home.classList.remove("is-hero-drag");
+    if (!home.classList.contains("is-hero")) {
+      hero.style.transform = "";
+      return;
+    }
+    // 从右向左滑出退出
+    hero.style.transform = "translateX(-100%)";
+    window.setTimeout(() => {
+      home.classList.remove("is-hero");
+      hero.style.transform = "";
+    }, 320);
+  }
+
   cards.addEventListener("click", (e) => {
     const card = e.target.closest(".card");
     if (!card || !card.dataset.id) return;
     show(products.findIndex((p) => p.id === Number(card.dataset.id)), true);
+    if (isPortraitFlow()) openHero();
   });
 
   document.getElementById("hero").addEventListener("click", (e) => {
@@ -262,7 +293,6 @@ document.documentElement.classList.add("is-booting");
     lightbox.classList.remove("open");
     document.body.style.overflow = "";
   }
-  const drawer = document.getElementById("drawer");
 
   function clearDrawerSwipe() {
     backdrop.classList.remove("is-swiping");
@@ -278,8 +308,9 @@ document.documentElement.classList.add("is-booting");
     backdrop.classList.remove("open");
   }
 
-  // 竖屏：从左侧右滑关闭检视档案
-  (function bindDrawerEdgeSwipe() {
+  // 竖屏通用：从右向左滑一点退出当前层（全屏画册 2 除外）
+  function bindSwipeExit(target, options) {
+    const opts = options || {};
     let tracking = false;
     let dragging = false;
     let startX = 0;
@@ -288,21 +319,13 @@ document.documentElement.classList.add("is-booting");
     let startAt = 0;
 
     function canSwipe() {
-      return backdrop.classList.contains("open")
-        && window.matchMedia("(orientation: portrait)").matches
-        && window.innerWidth <= 980;
+      return isPortraitFlow() && (!opts.isActive || opts.isActive());
     }
 
-    function setDrag(x) {
-      const width = drawer.offsetWidth || window.innerWidth;
-      const offset = Math.max(0, Math.min(width, x));
-      drawer.style.transform = "translateX(" + offset + "px)";
-    }
-
-    backdrop.addEventListener("touchstart", (e) => {
+    target.addEventListener("touchstart", (e) => {
       if (!canSwipe() || e.touches.length !== 1) return;
+      if (e.target.closest("button, a, input, textarea, .nav-arrow, .thumb")) return;
       const t = e.touches[0];
-      if (t.clientX > 56) return;
       tracking = true;
       dragging = false;
       startX = t.clientX;
@@ -311,7 +334,7 @@ document.documentElement.classList.add("is-booting");
       startAt = performance.now();
     }, { passive: true });
 
-    backdrop.addEventListener("touchmove", (e) => {
+    target.addEventListener("touchmove", (e) => {
       if (!tracking || e.touches.length !== 1) return;
       const t = e.touches[0];
       const adx = t.clientX - startX;
@@ -321,36 +344,75 @@ document.documentElement.classList.add("is-booting");
           tracking = false;
           return;
         }
-        if (adx < 10) return;
+        // 从右向左
+        if (adx > -10) return;
         dragging = true;
-        backdrop.classList.add("is-swiping");
+        if (opts.onDragStart) opts.onDragStart();
       }
       dx = adx;
-      setDrag(dx);
+      if (opts.onDrag) opts.onDrag(dx);
       if (e.cancelable) e.preventDefault();
     }, { passive: false });
 
-    function finishSwipe() {
+    function finish() {
       if (!tracking && !dragging) return;
-      const width = drawer.offsetWidth || window.innerWidth;
+      const width = target.offsetWidth || window.innerWidth;
       const elapsed = Math.max(1, performance.now() - startAt);
       const velocity = dx / elapsed;
-      const shouldClose = dragging && (dx > Math.min(110, width * 0.26) || velocity > 0.55);
+      const shouldExit = dragging && (dx < -Math.min(72, width * 0.18) || velocity < -0.45);
       tracking = false;
       dragging = false;
-      if (shouldClose) {
-        backdrop.classList.remove("is-swiping");
-        drawer.style.transform = "translateX(100%)";
-        window.setTimeout(() => closeDrawer(), 280);
-      } else {
-        clearDrawerSwipe();
+      if (shouldExit) {
+        if (opts.onExit) opts.onExit();
+      } else if (opts.onCancel) {
+        opts.onCancel();
       }
       dx = 0;
     }
 
-    backdrop.addEventListener("touchend", finishSwipe);
-    backdrop.addEventListener("touchcancel", finishSwipe);
-  })();
+    target.addEventListener("touchend", finish);
+    target.addEventListener("touchcancel", finish);
+  }
+
+  bindSwipeExit(hero, {
+    isActive: () => home.classList.contains("is-hero") && !lightbox.classList.contains("open") && !backdrop.classList.contains("open"),
+    onDragStart: () => home.classList.add("is-hero-drag"),
+    onDrag: (x) => {
+      const width = hero.offsetWidth || window.innerWidth;
+      hero.style.transform = "translateX(" + Math.max(-width, Math.min(0, x)) + "px)";
+    },
+    onExit: () => {
+      home.classList.remove("is-hero-drag");
+      closeHero();
+    },
+    onCancel: () => {
+      home.classList.remove("is-hero-drag");
+      hero.style.transform = "";
+    }
+  });
+
+  bindSwipeExit(drawer, {
+    isActive: () => backdrop.classList.contains("open"),
+    onDragStart: () => backdrop.classList.add("is-swiping"),
+    onDrag: (x) => {
+      const width = drawer.offsetWidth || window.innerWidth;
+      drawer.style.transform = "translateX(" + Math.max(-width, Math.min(0, x)) + "px)";
+    },
+    onExit: () => {
+      backdrop.classList.remove("is-swiping");
+      drawer.style.transform = "translateX(-100%)";
+      window.setTimeout(() => closeDrawer(), 280);
+    },
+    onCancel: () => clearDrawerSwipe()
+  });
+
+  // 目录页也可右滑退出（PWA 下尝试返回）
+  bindSwipeExit(home.querySelector(".rail"), {
+    isActive: () => isPortraitFlow() && !home.classList.contains("is-hero") && !lightbox.classList.contains("open") && !backdrop.classList.contains("open"),
+    onExit: () => {
+      if (window.history.length > 1) history.back();
+    }
+  });
 
   document.getElementById("lbPrev").addEventListener("click", (e) => {
     e.stopPropagation();
@@ -376,12 +438,18 @@ document.documentElement.classList.add("is-booting");
     closeDrawer();
     Shop.addedNotice();
   });
+  detailLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    const id = products[index].id;
+    Shop.navigate("product.html?id=" + id + "&enter=left");
+  });
 
   window.addEventListener("keydown", (e) => {
     const light = lightbox.classList.contains("open");
     if (e.key === "Escape") {
       if (light) closeLightbox();
-      else closeDrawer();
+      else if (backdrop.classList.contains("open")) closeDrawer();
+      else if (home.classList.contains("is-hero")) closeHero();
       return;
     }
     if (!light && backdrop.classList.contains("open")) return;
@@ -397,6 +465,9 @@ document.documentElement.classList.add("is-booting");
   const requested = parseInt(new URLSearchParams(location.search).get("id"), 10);
   const start = products.findIndex((p) => p.id === requested);
   show(start >= 0 ? start : 0, false);
+  if (start >= 0 && isPortraitFlow() && new URLSearchParams(location.search).get("view") === "hero") {
+    openHero();
+  }
 
   window.addEventListener("load", () => {
     products.forEach((p) => { new Image().src = p.image; });

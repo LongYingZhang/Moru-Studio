@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <title>商品详情</title>
 <link rel="icon" href="assets/favicon.svg?v=2" type="image/svg+xml">
-<link rel="stylesheet" href="shop.css?v=safe4">
+<link rel="stylesheet" href="shop.css?v=flow1">
 <link rel="preload" href="assets/loader/moru-loop-poster.png" as="image">
 <link rel="preload" href="assets/loader/moru-sprite.webp" as="image" type="image/webp">
 <style>
@@ -90,13 +90,33 @@ document.documentElement.classList.add("is-booting");
     Shop.navigate("index.html", true);
     return;
   }
-  const requested = parseInt(new URLSearchParams(location.search).get("id"), 10);
+  const params = new URLSearchParams(location.search);
+  const requested = parseInt(params.get("id"), 10);
+  const enterLeft = params.get("enter") === "left";
   let cursor = Math.max(0, products.findIndex((p) => p.id === requested));
   if (cursor < 0) cursor = 0;
   let qty = 1;
   let shot = 0;
   const photo = document.getElementById("photo");
   const dots = document.getElementById("dots");
+  const page = document.querySelector(".page");
+
+  if (enterLeft && window.matchMedia("(orientation: portrait)").matches && window.innerWidth <= 980) {
+    document.body.classList.add("enter-from-left");
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => document.body.classList.add("is-enter-ready"));
+    });
+  }
+
+  function goBack() {
+    const backHref = document.getElementById("back").getAttribute("href") || "index.html";
+    if (enterLeft && window.matchMedia("(max-width: 980px)").matches) {
+      document.body.classList.add("is-leave-left");
+      window.setTimeout(() => { location.href = backHref; }, 280);
+      return;
+    }
+    location.href = backHref;
+  }
 
   function paintDots() {
     const count = products[cursor].images.length;
@@ -127,8 +147,9 @@ document.documentElement.classList.add("is-booting");
       const specs = document.getElementById("specs");
       specs.innerHTML = rows.map(([k, v]) => `<div class="spec-row"><em>${esc(k)}</em><span>${esc(v)}</span></div>`).join("");
       specs.hidden = rows.length === 0;
-      document.getElementById("back").href = `index.html?id=${product.id}`;
-      history.replaceState(null, "", `product.html?id=${product.id}`);
+      document.getElementById("back").href = `index.html?id=${product.id}&view=hero`;
+      const keep = enterLeft ? "&enter=left" : "";
+      history.replaceState(null, "", `product.html?id=${product.id}${keep}`);
     };
     if (fade) {
       photo.classList.add("is-dim");
@@ -173,6 +194,69 @@ document.documentElement.classList.add("is-booting");
     Shop.addToCart(products[cursor].id, qty);
     Shop.navigate("checkout.html");
   });
+  document.getElementById("back").addEventListener("click", (e) => {
+    e.preventDefault();
+    goBack();
+  });
+
+  // 竖屏：从右向左滑退出详情（画册全屏除外的统一手势）
+  (function bindDetailSwipe() {
+    let tracking = false;
+    let dragging = false;
+    let startX = 0;
+    let startY = 0;
+    let dx = 0;
+    let startAt = 0;
+    if (!page) return;
+    page.addEventListener("touchstart", (e) => {
+      if (!(window.matchMedia("(orientation: portrait)").matches && window.innerWidth <= 980)) return;
+      if (e.touches.length !== 1) return;
+      if (e.target.closest("button, a, input, textarea")) return;
+      const t = e.touches[0];
+      tracking = true;
+      dragging = false;
+      startX = t.clientX;
+      startY = t.clientY;
+      dx = 0;
+      startAt = performance.now();
+    }, { passive: true });
+    page.addEventListener("touchmove", (e) => {
+      if (!tracking || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      const adx = t.clientX - startX;
+      const ady = t.clientY - startY;
+      if (!dragging) {
+        if (Math.abs(ady) > 12 && Math.abs(ady) > Math.abs(adx)) {
+          tracking = false;
+          return;
+        }
+        if (adx > -10) return;
+        dragging = true;
+      }
+      dx = adx;
+      page.style.transform = "translateX(" + Math.max(-window.innerWidth, Math.min(0, dx)) + "px)";
+      page.style.transition = "none";
+      if (e.cancelable) e.preventDefault();
+    }, { passive: false });
+    function finish() {
+      if (!tracking && !dragging) return;
+      const elapsed = Math.max(1, performance.now() - startAt);
+      const velocity = dx / elapsed;
+      const shouldExit = dragging && (dx < -72 || velocity < -0.45);
+      tracking = false;
+      dragging = false;
+      page.style.transition = "";
+      if (shouldExit) {
+        goBack();
+      } else {
+        page.style.transform = "";
+      }
+      dx = 0;
+    }
+    page.addEventListener("touchend", finish);
+    page.addEventListener("touchcancel", finish);
+  })();
+
   paint(false);
 })();
 </script>
