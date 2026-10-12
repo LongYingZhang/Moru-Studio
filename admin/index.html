@@ -51,6 +51,8 @@
     <script>
     (function () {
       if (/[?&](?:enter=left|soft=1)(?:&|$)/.test(location.search)) return;
+      // 主屏幕用系统开屏，不要再叠一层网页开屏
+      if (navigator.standalone || matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: fullscreen)").matches) return;
       try {
         if (sessionStorage.getItem("ly-admin-splash")) return;
         sessionStorage.setItem("ly-admin-splash", "1");
