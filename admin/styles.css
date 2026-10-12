@@ -1839,7 +1839,7 @@ html.is-booting body {
 .ce-panel {
   display: grid;
   width: 100%;
-  gap: 14px;
+  gap: 19px;
   align-content: start;
   padding: 14px;
   border-radius: 12px;
