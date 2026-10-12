@@ -20,6 +20,8 @@ from http.cookies import SimpleCookie
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import unquote, urlsplit
 
+import name_en
+
 SHOP_DIR = os.path.dirname(os.path.abspath(__file__))
 ADMIN_DIR = os.path.join(SHOP_DIR, "admin")
 DATA_DIR = os.path.join(ADMIN_DIR, "data")
@@ -147,6 +149,15 @@ def migrate_inline_images():
             dst.write(src.read())
     write_json(DATA_FILE, stored)
     print("已把商品图片拆分到 admin/data/uploads/")
+
+
+def fill_english_names():
+    products = read_json(DATA_FILE, None)
+    if not isinstance(products, list):
+        return
+    if name_en.apply(products):
+        write_json(DATA_FILE, products)
+        print("已为商品补上英文名")
 
 
 def now_iso():
@@ -401,6 +412,9 @@ class ShopHandler(SimpleHTTPRequestHandler):
         if not isinstance(products, list):
             return self.send_json(400, {"error": "expected list"})
         with data_lock:
+            previous = read_json(DATA_FILE, [])
+        name_en.apply(products, previous if isinstance(previous, list) else [])
+        with data_lock:
             write_json(DATA_FILE, store_images(products))
         self.send_json(200, {"ok": True})
 
@@ -592,6 +606,7 @@ if __name__ == "__main__":
     if not os.path.isdir(ADMIN_DIR):
         sys.exit(f"找不到后台目录：{ADMIN_DIR}")
     migrate_inline_images()
+    fill_english_names()
     server = ThreadingHTTPServer((HOST, PORT), partial(ShopHandler))
     print(f"前台：http://127.0.0.1:{PORT}/index.html")
     print(f"后台：http://127.0.0.1:{PORT}/admin/#/orders")
