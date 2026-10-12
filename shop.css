@@ -270,6 +270,12 @@ img { display: block; max-width: 100%; }
   --face-ink: #ffffff;
   --face-muted: rgba(255, 255, 255, 0.72);
 }
+/* 白字 + difference：逐像素反色，浅底变黑、深底变白，同一个字跨黑白也都清楚 */
+.card .face-live {
+  --face-ink: #ffffff;
+  --face-muted: rgba(255, 255, 255, 0.72);
+  mix-blend-mode: difference;
+}
 .card-tag {
   position: absolute;
   top: 12px;
