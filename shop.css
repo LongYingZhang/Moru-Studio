@@ -35,34 +35,49 @@ body {
   font-family: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
-  /* 灵动岛安全区 + 额外空隙，避免贴边遮盖 */
-  --safe-top: calc(env(safe-area-inset-top, 0px) + 15px);
+  /* 安全区跟设备走：8/SE inset≈0，14 Pro 灵动岛 inset≈59；只加固定视觉间隙 */
+  --safe-gap: 10px;
+  --safe-top: calc(env(safe-area-inset-top, 0px) + var(--safe-gap));
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
   --app-bar-h: 46px;
   --chrome-top: var(--safe-top);
   padding-top: var(--chrome-top);
   padding-right: env(safe-area-inset-right, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: var(--safe-bottom);
   padding-left: env(safe-area-inset-left, 0px);
 }
-/* 从主屏幕打开：顶栏避开状态栏，底栏避开手势条 */
+/* 旧 iOS */
+@supports (padding-top: constant(safe-area-inset-top)) {
+  body {
+    --safe-top: calc(constant(safe-area-inset-top) + var(--safe-gap));
+    --safe-bottom: constant(safe-area-inset-bottom);
+  }
+}
+/* 从主屏幕打开：无刘海机 inset 可能为 0，至少按 20px 状态栏；有刘海/灵动岛用系统值 */
 @media (display-mode: standalone), (display-mode: fullscreen) {
   html, body { background: #000; }
   body {
-    /* iPad 横屏时 inset-top 有时为 0，至少留出状态栏高度 */
-    --safe-top: calc(max(env(safe-area-inset-top, 0px), 24px) + 11px);
+    --safe-top: calc(max(env(safe-area-inset-top, 0px), 20px) + var(--safe-gap));
     --chrome-top: var(--safe-top);
     padding-top: var(--chrome-top);
   }
   .home {
-    height: calc(100dvh - var(--chrome-top) - env(safe-area-inset-bottom, 0px));
-    max-height: calc(100dvh - var(--chrome-top) - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - var(--chrome-top) - var(--safe-bottom));
+    max-height: calc(100dvh - var(--chrome-top) - var(--safe-bottom));
   }
   .page-head {
     padding-top: 0;
   }
   .boot {
     padding-top: var(--safe-top);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-bottom: var(--safe-bottom);
+  }
+}
+@supports (padding-top: constant(safe-area-inset-top)) {
+  @media (display-mode: standalone), (display-mode: fullscreen) {
+    body {
+      --safe-top: calc(max(constant(safe-area-inset-top), 20px) + var(--safe-gap));
+    }
   }
 }
 
