@@ -185,6 +185,7 @@ img { display: block; max-width: 100%; }
 
 .card {
   position: relative;
+  container-type: inline-size;
   width: 100%;
   aspect-ratio: 466 / 188;
   flex: none;
@@ -234,10 +235,12 @@ img { display: block; max-width: 100%; }
   flex-direction: column;
   gap: 0.35em;
 }
+/* 标题与箭头按卡片宽度等比，对齐作品集卡片（06-ui.svg，466 宽基准） */
 .card .face-name {
   font-family: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  font-size: clamp(22px, 2.9vw, 30px);
-  font-weight: 500;
+  font-size: 25px;
+  font-size: 5.4cqw;
+  font-weight: 700;
   line-height: 1.15;
   color: var(--face-ink);
 }
@@ -251,10 +254,12 @@ img { display: block; max-width: 100%; }
 }
 .card .face-go {
   position: absolute;
-  right: 4.2%;
-  bottom: 7.5%;
-  font-size: clamp(16px, 2vw, 20px);
-  line-height: 1;
+  right: 3.65%;
+  bottom: 8.35%;
+  width: 2.58%;
+  height: auto;
+  aspect-ratio: 1;
+  display: block;
   color: var(--face-ink);
 }
 .card[data-ink="dark"] {
