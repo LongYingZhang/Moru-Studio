@@ -15,8 +15,8 @@
     />
     <title>商品管理 · LONGYING SHOP</title>
     <link rel="icon" href="./assets/favicon.svg?v=1" type="image/svg+xml" />
-    <link rel="preload" href="../assets/loader/moru-loop-poster.png" as="image" />
-    <link rel="preload" href="../assets/loader/moru-sprite.webp" as="image" type="image/webp" />
+    <link rel="preload" href="../assets/splash/phone.jpg" as="image" media="(orientation: portrait)" />
+    <link rel="preload" href="../assets/splash/desktop.jpg" as="image" media="(orientation: landscape)" />
     <link rel="stylesheet" href="./styles.css" />
     <style>
       html, body { margin: 0; }
@@ -26,14 +26,7 @@
     <script src="./app.js" defer></script>
   </head>
   <body>
-    <div class="boot" id="boot" aria-live="polite" aria-label="加载中">
-      <div class="boot-stage">
-        <div class="boot-sprite" id="bootSprite" aria-hidden="true">
-          <canvas class="boot-anim" id="bootCanvas" width="220" height="220"></canvas>
-        </div>
-        <div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>
-      </div>
-    </div>
+    <div class="boot" id="boot" role="img" aria-label="LONGYING STUDIO 加载中"></div>
     <header class="site-header">
       <div class="header-inner">
         <div class="header-left">

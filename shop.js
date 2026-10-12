@@ -330,37 +330,21 @@
   document.addEventListener("DOMContentLoaded", fillContact);
   watchServerProducts();
 
-  const BOOT_HTML =
-    '<div class="boot" id="boot" aria-live="polite" aria-label="加载中">' +
-      '<div class="boot-stage">' +
-        '<div class="boot-sprite" id="bootSprite" aria-hidden="true">' +
-          '<canvas class="boot-anim" id="bootCanvas" width="220" height="220"></canvas>' +
-        "</div>" +
-        '<div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>' +
-      "</div>" +
-    "</div>";
+  const BOOT_HTML = '<div class="boot" id="boot" role="img" aria-label="LONGYING STUDIO 加载中"></div>';
   const NAV_BOOT_KEY = "ly-nav-boot";
-  const SPRITE_SRC = "assets/loader/moru-sprite.webp";
-  const POSTER_SRC = "assets/loader/moru-loop-poster.png";
+  const SPLASH_PORTRAIT = "assets/splash/phone.jpg";
+  const SPLASH_LANDSCAPE = "assets/splash/desktop.jpg";
   const BOOT_MIN_MS = 1200;
-  const BOOT_FRAMES = 24;
-  const BOOT_FRAME_MS = 150; // ~3.6s 一圈，偏慢且末帧已收束到首帧
+  // 开屏图迟迟加载不出来时不再等它，避免卡住页面
+  const SPLASH_WAIT_MS = 4000;
 
   let bootHiding = false;
   let pendingNav = null;
-  let spriteReady = false;
-  let spriteImg = null;
-  let bootAnimRaf = 0;
-  let bootFrame = 0;
-  let bootLastTs = 0;
+  let splashReady = false;
+  let splashImg = null;
 
   function bootNodes() {
-    return {
-      root: document.getElementById("boot"),
-      bar: document.getElementById("bootBar"),
-      sprite: document.getElementById("bootSprite"),
-      canvas: document.getElementById("bootCanvas")
-    };
+    return { root: document.getElementById("boot") };
   }
 
   function readNavBoot() {
@@ -377,81 +361,20 @@
     try { sessionStorage.setItem(NAV_BOOT_KEY, JSON.stringify(state)); } catch (_) {}
   }
 
-  function drawBootFrame(index) {
-    const { canvas, sprite } = bootNodes();
-    if (!canvas || !spriteImg || !spriteImg.naturalWidth) return;
-    bootFrame = ((index % BOOT_FRAMES) + BOOT_FRAMES) % BOOT_FRAMES;
-    const fw = spriteImg.naturalWidth / BOOT_FRAMES;
-    const fh = spriteImg.naturalHeight;
-    const ctx = canvas.getContext("2d");
-    // 不 clear：整帧不透明覆盖，避免闪黑
-    ctx.drawImage(spriteImg, bootFrame * fw, 0, fw, fh, 0, 0, canvas.width, canvas.height);
-    sprite.classList.add("is-ready");
-  }
-
-  function stopBootAnim() {
-    if (bootAnimRaf) {
-      cancelAnimationFrame(bootAnimRaf);
-      bootAnimRaf = 0;
-    }
-    bootLastTs = 0;
-  }
-
-  function startBootAnim(fromStart) {
-    const { canvas } = bootNodes();
-    if (!canvas || !spriteReady) return;
-    if (fromStart) drawBootFrame(0);
-    else drawBootFrame(bootFrame);
-    if (bootAnimRaf) return;
-    const step = (ts) => {
-      if (!document.getElementById("bootCanvas")) {
-        bootAnimRaf = 0;
-        return;
-      }
-      if (!bootLastTs) bootLastTs = ts;
-      if (ts - bootLastTs >= BOOT_FRAME_MS) {
-        bootLastTs = ts;
-        drawBootFrame(bootFrame + 1);
-      }
-      bootAnimRaf = requestAnimationFrame(step);
-    };
-    bootAnimRaf = requestAnimationFrame(step);
-  }
-
-  function markSpriteReady() {
-    if (spriteReady) {
-      startBootAnim(false);
-      return;
-    }
-    spriteReady = true;
-    startBootAnim(true);
-  }
-
-  function warmBootAnim() {
-    try {
-      const poster = new Image();
-      poster.src = POSTER_SRC;
-      poster.onload = () => {
-        const { canvas } = bootNodes();
-        if (!canvas || spriteReady) return;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(poster, 0, 0, canvas.width, canvas.height);
-      };
-    } catch (_) {}
-    if (spriteImg) {
-      if (spriteImg.complete && spriteImg.naturalWidth) markSpriteReady();
-      return spriteImg;
-    }
-    spriteImg = new Image();
+  function warmSplash() {
+    if (splashImg) return splashImg;
+    const portrait = window.matchMedia && window.matchMedia("(orientation: portrait)").matches;
+    splashImg = new Image();
     const finish = () => {
-      const go = () => markSpriteReady();
-      if (spriteImg.decode) spriteImg.decode().then(go).catch(go);
+      const go = () => { splashReady = true; };
+      if (splashImg.decode) splashImg.decode().then(go).catch(go);
       else go();
     };
-    spriteImg.addEventListener("load", finish);
-    spriteImg.src = SPRITE_SRC;
-    if (spriteImg.complete && spriteImg.naturalWidth) finish();
-    return spriteImg;
+    splashImg.addEventListener("load", finish);
+    splashImg.addEventListener("error", () => { splashReady = true; });
+    splashImg.src = portrait ? SPLASH_PORTRAIT : SPLASH_LANDSCAPE;
+    if (splashImg.complete && splashImg.naturalWidth) finish();
+    return splashImg;
   }
 
   function ensureBoot(options) {
@@ -461,21 +384,11 @@
       document.body.insertAdjacentHTML("afterbegin", BOOT_HTML);
       root = document.getElementById("boot");
     }
-    let { sprite, canvas } = bootNodes();
-    if (sprite && !canvas) {
-      sprite.innerHTML = '<canvas class="boot-anim" id="bootCanvas" width="220" height="220"></canvas>';
-      canvas = document.getElementById("bootCanvas");
-    }
     root.classList.remove("is-out");
     root.classList.toggle("is-nav", !!opts.nav);
     document.documentElement.classList.add("is-booting");
     document.documentElement.style.background = "#000";
-    const { bar } = bootNodes();
-    if (bar && opts.bar != null) {
-      bar.style.transform = "scaleX(" + opts.bar + ")";
-    }
-    warmBootAnim();
-    if (spriteReady) startBootAnim(!!opts.nav);
+    warmSplash();
     return bootNodes();
   }
 
@@ -484,7 +397,6 @@
     if (!root || bootHiding) return;
     bootHiding = true;
     pendingNav = null;
-    stopBootAnim();
     root.classList.add("is-out");
     root.classList.remove("is-nav");
     document.documentElement.classList.remove("is-booting");
@@ -495,48 +407,22 @@
     }, 280);
   }
 
-  function pageLoadProgress(floor) {
-    const images = Array.prototype.slice.call(document.images || []);
-    const imgRatio = images.length
-      ? images.filter((img) => img.complete).length / images.length
-      : 1;
-    let base = 0.12;
-    if (document.readyState === "interactive") base = 0.45;
-    if (document.readyState === "complete") base = 0.8;
-    const mixed = base + (1 - base) * imgRatio * (document.readyState === "complete" ? 1 : 0.55);
-    const min = floor != null ? floor : 0.04;
-    if (document.readyState !== "complete" || imgRatio < 1) {
-      return Math.max(min, Math.min(0.96, mixed));
-    }
-    return 1;
+  function pageLoaded() {
+    if (document.readyState !== "complete") return false;
+    return Array.prototype.every.call(document.images || [], (img) => img.complete);
   }
 
-  function runBootProgress(navState) {
-    const continuing = !!(navState && navState.startedAt);
-    const floor = continuing ? Math.max(0.12, Number(navState.bar) || 0.12) : 0.04;
-    const { root, bar } = ensureBoot({
-      resetVideo: !continuing,
-      bar: floor,
-      nav: false
-    });
-    if (!root || !bar) return;
+  function runBootProgress() {
+    const { root } = ensureBoot({ nav: false });
+    if (!root) return;
     bootHiding = false;
     const started = performance.now();
-    let shown = floor;
-    bar.style.transform = "scaleX(" + shown.toFixed(4) + ")";
 
     function frame() {
       if (!document.getElementById("boot")) return;
       const elapsed = performance.now() - started;
-      const target = pageLoadProgress(floor);
-      const pageDone = target >= 1;
-      // 动画图没就绪前，进度条最多到 92%，避免条走完画面还没出
-      const capped = spriteReady ? target : Math.min(target, 0.92);
-      shown += (capped - shown) * (pageDone && spriteReady ? 0.3 : 0.14);
-      if (pageDone && spriteReady) shown = Math.max(shown, 0.98);
-      bar.style.transform = "scaleX(" + Math.max(floor, Math.min(1, shown)).toFixed(4) + ")";
-      if (pageDone && spriteReady && shown > 0.995 && elapsed >= BOOT_MIN_MS) {
-        bar.style.transform = "scaleX(1)";
+      const splashDone = splashReady || elapsed >= SPLASH_WAIT_MS;
+      if (pageLoaded() && splashDone && elapsed >= BOOT_MIN_MS) {
         hideBoot();
         return;
       }
@@ -563,9 +449,9 @@
       return;
     }
     const startedAt = Date.now();
-    pendingNav = { startedAt: startedAt, bar: 0.12, href: url };
+    pendingNav = { startedAt: startedAt, href: url };
     writeNavBoot(pendingNav);
-    ensureBoot({ resetVideo: true, bar: 0.12, nav: true });
+    ensureBoot({ nav: true });
     requestAnimationFrame(() => {
       if (replace) location.replace(url);
       else location.assign(url);
@@ -599,9 +485,9 @@
       if (!isInternalNav(anchor)) return;
       if (isSoftNav(anchor.href)) return;
       const startedAt = Date.now();
-      pendingNav = { startedAt: startedAt, bar: 0.1, href: anchor.href };
+      pendingNav = { startedAt: startedAt, href: anchor.href };
       writeNavBoot(pendingNav);
-      ensureBoot({ resetVideo: true, startedAt: startedAt, bar: 0.1, nav: true });
+      ensureBoot({ nav: true });
     },
     true
   );
@@ -633,9 +519,9 @@
       event.preventDefault();
       event.stopPropagation();
       const startedAt = pendingNav && pendingNav.href === href ? pendingNav.startedAt : Date.now();
-      pendingNav = { startedAt: startedAt, bar: 0.14, href: href };
+      pendingNav = { startedAt: startedAt, href: href };
       writeNavBoot(pendingNav);
-      ensureBoot({ resetVideo: false, startedAt: startedAt, bar: 0.14, nav: true });
+      ensureBoot({ nav: true });
       location.assign(href);
     },
     true
@@ -647,9 +533,8 @@
     if (bootEl) bootEl.remove();
     document.documentElement.classList.remove("is-booting");
   } else {
-    warmBootAnim();
-    // 首屏海报立刻可见；雪碧图就绪后开始流畅帧动画
-    runBootProgress(readNavBoot());
+    readNavBoot();
+    runBootProgress();
   }
 
   function goBackOr(fallback) {

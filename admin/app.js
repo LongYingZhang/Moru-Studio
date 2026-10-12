@@ -125,151 +125,51 @@
   let toastTimer = 0;
   let orderPoll = 0;
 
-  const SPRITE_SRC = "../assets/loader/moru-sprite.webp";
-  const POSTER_SRC = "../assets/loader/moru-loop-poster.png";
+  const SPLASH_PORTRAIT = "../assets/splash/phone.jpg";
+  const SPLASH_LANDSCAPE = "../assets/splash/desktop.jpg";
   const BOOT_MIN_MS = 900;
-  const BOOT_FRAMES = 24;
-  const BOOT_FRAME_MS = 150;
   let bootHiding = false;
-  let spriteReady = false;
-  let spriteImg = null;
-  let bootAnimRaf = 0;
-  let bootFrame = 0;
-  let bootLastTs = 0;
+  let splashReady = false;
+  let splashImg = null;
   let bootStartedAt = performance.now();
-  let bootProgressRaf = 0;
   let bootGen = 0;
 
-  function bootNodes() {
-    return {
-      root: document.getElementById("boot"),
-      bar: document.getElementById("bootBar"),
-      sprite: document.getElementById("bootSprite"),
-      canvas: document.getElementById("bootCanvas"),
-    };
-  }
-
-  function drawBootFrame(index) {
-    const { canvas, sprite } = bootNodes();
-    if (!canvas || !spriteImg || !spriteImg.naturalWidth) return;
-    bootFrame = ((index % BOOT_FRAMES) + BOOT_FRAMES) % BOOT_FRAMES;
-    const fw = spriteImg.naturalWidth / BOOT_FRAMES;
-    const fh = spriteImg.naturalHeight;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(spriteImg, bootFrame * fw, 0, fw, fh, 0, 0, canvas.width, canvas.height);
-    if (sprite) sprite.classList.add("is-ready");
-  }
-
-  function stopBootAnim() {
-    if (bootAnimRaf) {
-      cancelAnimationFrame(bootAnimRaf);
-      bootAnimRaf = 0;
-    }
-    bootLastTs = 0;
-  }
-
-  function startBootAnim(fromStart) {
-    const { canvas } = bootNodes();
-    if (!canvas || !spriteReady) return;
-    if (fromStart) drawBootFrame(0);
-    else drawBootFrame(bootFrame);
-    if (bootAnimRaf) return;
-    const step = (ts) => {
-      if (!document.getElementById("bootCanvas")) {
-        bootAnimRaf = 0;
-        return;
-      }
-      if (!bootLastTs) bootLastTs = ts;
-      if (ts - bootLastTs >= BOOT_FRAME_MS) {
-        bootLastTs = ts;
-        drawBootFrame(bootFrame + 1);
-      }
-      bootAnimRaf = requestAnimationFrame(step);
-    };
-    bootAnimRaf = requestAnimationFrame(step);
-  }
-
-  function markSpriteReady() {
-    if (spriteReady) {
-      startBootAnim(false);
-      return;
-    }
-    spriteReady = true;
-    startBootAnim(true);
-  }
-
-  function warmBootAnim() {
-    try {
-      const poster = new Image();
-      poster.src = POSTER_SRC;
-      poster.onload = () => {
-        const { canvas } = bootNodes();
-        if (!canvas || spriteReady) return;
-        canvas.getContext("2d").drawImage(poster, 0, 0, canvas.width, canvas.height);
-      };
-    } catch (_) {}
-    if (spriteImg) {
-      if (spriteImg.complete && spriteImg.naturalWidth) markSpriteReady();
-      return spriteImg;
-    }
-    spriteImg = new Image();
+  function warmSplash() {
+    if (splashImg) return splashImg;
+    const portrait = window.matchMedia("(orientation: portrait)").matches;
+    splashImg = new Image();
     const finish = () => {
-      const go = () => markSpriteReady();
-      if (spriteImg.decode) spriteImg.decode().then(go).catch(go);
+      const go = () => { splashReady = true; };
+      if (splashImg.decode) splashImg.decode().then(go).catch(go);
       else go();
     };
-    spriteImg.addEventListener("load", finish);
-    spriteImg.src = SPRITE_SRC;
-    if (spriteImg.complete && spriteImg.naturalWidth) finish();
-    return spriteImg;
+    splashImg.addEventListener("load", finish);
+    splashImg.addEventListener("error", () => { splashReady = true; });
+    splashImg.src = portrait ? SPLASH_PORTRAIT : SPLASH_LANDSCAPE;
+    if (splashImg.complete && splashImg.naturalWidth) finish();
+    return splashImg;
   }
 
-  function setBootBar(ratio) {
-    const { bar } = bootNodes();
-    if (!bar) return;
-    const value = Math.max(0.02, Math.min(1, ratio));
-    bar.style.transform = `scaleX(${value.toFixed(4)})`;
-  }
+  const BOOT_HTML = '<div class="boot" id="boot" role="img" aria-label="LONGYING STUDIO 加载中"></div>';
 
-  const BOOT_HTML =
-    '<div class="boot" id="boot" aria-live="polite" aria-label="加载中">' +
-      '<div class="boot-stage">' +
-        '<div class="boot-sprite" id="bootSprite" aria-hidden="true">' +
-          '<canvas class="boot-anim" id="bootCanvas" width="220" height="220"></canvas>' +
-        "</div>" +
-        '<div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>' +
-      "</div>" +
-    "</div>";
-
-  function showBoot(options = {}) {
-    let { root, bar, sprite, canvas } = bootNodes();
+  function showBoot() {
+    let root = document.getElementById("boot");
     if (!root) {
       document.body.insertAdjacentHTML("afterbegin", BOOT_HTML);
-      ({ root, bar, sprite, canvas } = bootNodes());
-    }
-    if (sprite && !canvas) {
-      sprite.innerHTML = '<canvas class="boot-anim" id="bootCanvas" width="220" height="220"></canvas>';
+      root = document.getElementById("boot");
     }
     bootHiding = false;
     bootStartedAt = performance.now();
     root.classList.remove("is-out");
     document.documentElement.classList.add("is-booting");
     document.documentElement.style.background = "#000";
-    setBootBar(options.bar != null ? options.bar : 0.08);
-    warmBootAnim();
-    if (spriteReady) startBootAnim(!!options.reset);
+    warmSplash();
   }
 
   function hideBoot() {
-    const { root } = bootNodes();
+    const root = document.getElementById("boot");
     if (!root || bootHiding) return;
     bootHiding = true;
-    stopBootAnim();
-    if (bootProgressRaf) {
-      cancelAnimationFrame(bootProgressRaf);
-      bootProgressRaf = 0;
-    }
-    setBootBar(1);
     root.classList.add("is-out");
     document.documentElement.classList.remove("is-booting");
     document.documentElement.style.background = "";
@@ -281,44 +181,21 @@
 
   function finishBootWhenReady(readyPromise) {
     const gen = ++bootGen;
-    showBoot({ reset: true, bar: 0.1 });
-    let shown = 0.1;
-    if (bootProgressRaf) cancelAnimationFrame(bootProgressRaf);
-    const tick = () => {
-      if (gen !== bootGen || !document.getElementById("boot")) return;
-      const elapsed = performance.now() - bootStartedAt;
-      const target = spriteReady ? Math.min(0.92, 0.12 + elapsed / 1800) : Math.min(0.7, 0.1 + elapsed / 2200);
-      shown += (target - shown) * 0.12;
-      setBootBar(shown);
-      bootProgressRaf = requestAnimationFrame(tick);
-    };
-    bootProgressRaf = requestAnimationFrame(tick);
-
+    showBoot();
     Promise.resolve(readyPromise)
       .catch(() => {})
       .then(() => {
         if (gen !== bootGen) return;
         const wait = Math.max(0, BOOT_MIN_MS - (performance.now() - bootStartedAt));
-        const close = () => {
-          if (gen !== bootGen) return;
-          const finish = () => {
+        setTimeout(() => {
+          const started = performance.now();
+          const poll = () => {
             if (gen !== bootGen) return;
-            shown = Math.max(shown, 0.98);
-            setBootBar(1);
-            hideBoot();
+            if (splashReady || performance.now() - started > 1200) hideBoot();
+            else requestAnimationFrame(poll);
           };
-          if (spriteReady) finish();
-          else {
-            const started = performance.now();
-            const poll = () => {
-              if (gen !== bootGen) return;
-              if (spriteReady || performance.now() - started > 1200) finish();
-              else requestAnimationFrame(poll);
-            };
-            poll();
-          }
-        };
-        setTimeout(close, wait);
+          poll();
+        }, wait);
       });
   }
 
@@ -1383,7 +1260,7 @@
   });
 
   async function start() {
-    warmBootAnim();
+    warmSplash();
     const work = (async () => {
       if (!window.location.hash) {
         window.history.replaceState(null, "", "#/orders");
