@@ -5,9 +5,6 @@
     '<svg class="ce-go" viewBox="436.969 160.297 12 12" aria-hidden="true"><path d="M446.1 167.047H436.969V165.547H446.1L441.9 161.347L442.969 160.297L448.969 166.297L442.969 172.297L441.9 171.247L446.1 167.047Z" fill="currentColor"/></svg>';
   const SWATCHES = ["#F3F3F1", "#F7F7F7", "#E9E4DC", "#141414"];
 
-  const esc = (value) =>
-    String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[c]);
-
   function absSrc(src) {
     if (!src) return "";
     if (/^(data:|\/|https?:)/.test(src)) return src;
@@ -71,21 +68,6 @@
     return ("#" + hex(r) + hex(g) + hex(b)).toUpperCase();
   }
 
-  function cardMarkup({ no, name, en, bg, ink, src, photo }) {
-    return `
-      <div class="ce-card" data-ink="${ink}" style="--card:${esc(bg)}">
-        <span class="ce-photo" style="${src ? `background-image:url('${esc(src)}');` : ""}${esc(photo)}"></span>
-        <span class="ce-face">
-          <span class="ce-no">${esc(no)}</span>
-          <span class="ce-copy">
-            <span class="ce-name">${esc(name)}</span>
-            <span class="ce-en">${esc(en)}</span>
-          </span>
-          ${ARROW}
-        </span>
-      </div>`;
-  }
-
   function create(root, opts) {
     const options = opts || {};
     const state = {
@@ -103,8 +85,6 @@
       no: options.no || "NO. 00",
       ready: false,
     };
-    const others = (options.others || []).slice(0, 2);
-
     root.innerHTML = `
       <div class="ce-editor is-empty">
         <div class="ce-stage">
@@ -161,13 +141,6 @@
             </div>
           </div>
         </div>
-        <div class="ce-phone-col">
-          <span class="ce-phone-label">手机端效果</span>
-          <div class="ce-phone">
-            <div class="ce-phone-bar"><img src="/ZHANGLONGYING__STUDIO_7.svg?v=2" alt=""><span>购物袋</span></div>
-            <div class="ce-phone-list"></div>
-          </div>
-        </div>
       </div>`;
 
     const editor = root.querySelector(".ce-editor");
@@ -182,7 +155,6 @@
     const inkSeg = root.querySelector('[data-role="ink"]');
     const swatches = root.querySelector(".ce-swatches");
     const bgLabel = swatches.querySelector("small");
-    const phoneList = root.querySelector(".ce-phone-list");
 
     const hOf = (w) => w * R / state.aspect;
     const fitW = () => 100 * state.aspect / R;
@@ -275,30 +247,6 @@
         s.classList.toggle("is-on", s.hasAttribute("data-auto") ? !state.bg : s.dataset.color === state.bg);
       });
       inkSeg.querySelectorAll("button").forEach((b) => b.classList.toggle("is-on", b.dataset.ink === state.ink));
-
-      phoneList.innerHTML =
-        cardMarkup({
-          no: state.no,
-          name: state.name || "商品名字",
-          en: state.en || "保存后自动翻译",
-          bg,
-          ink,
-          src: state.ready ? state.src : "",
-          photo: style,
-        }) +
-        others
-          .map((p) =>
-            cardMarkup({
-              no: p.no,
-              name: p.name,
-              en: p.nameEn,
-              bg: p.cardBg || "#F3F3F1",
-              ink: p.cardInk === "light" || p.cardInk === "dark" ? p.cardInk : autoInk(p.cardBg || "#F3F3F1"),
-              src: absSrc(p.cardImage || p.image),
-              photo: p.cardPhoto || "left:0%;top:0%;width:100%;height:100%;background-size:cover",
-            }).replace("ce-card", "ce-card is-dim"),
-          )
-          .join("");
     }
 
     function setImage(raw, saved) {

@@ -1836,15 +1836,9 @@ html.is-booting body {
   display: block;
 }
 
-.ce-bottom {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px;
-  gap: 12px;
-  align-items: start;
-}
-
 .ce-panel {
   display: grid;
+  width: 100%;
   gap: 14px;
   align-content: start;
   padding: 14px;
@@ -2031,65 +2025,8 @@ html.is-booting body {
   font-size: 11px;
 }
 
-.ce-phone-col {
-  display: grid;
-  gap: 6px;
-  align-content: start;
-}
-
-.ce-phone-label {
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.ce-phone {
-  padding: 12px 9px 16px;
-  border-radius: 26px;
-  background: var(--background);
-  box-shadow: inset 0 0 0 1px #2a2a2a, 0 20px 40px rgba(0, 0, 0, 0.4);
-}
-
-.ce-phone-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 16px;
-  padding: 0 5px 8px;
-}
-
-.ce-phone-bar img {
-  height: 6px;
-}
-
-.ce-phone-bar span {
-  color: #cccccc;
-  font-size: 7px;
-}
-
-.ce-phone-list {
-  display: grid;
-  gap: 6px;
-}
-
-.ce-phone .ce-card {
-  border-radius: 7px;
-}
-
-.ce-phone .ce-card.is-dim {
-  opacity: 0.35;
-}
-
 @media (max-width: 640px) {
   .ce-editor {
     padding: 22px 14px 12px;
-  }
-
-  .ce-bottom {
-    grid-template-columns: 1fr;
-  }
-
-  .ce-phone-col {
-    width: 220px;
-    margin: 0 auto;
   }
 }

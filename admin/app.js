@@ -742,7 +742,6 @@
           no: existingProduct?.no || `NO. ${String(makeId() + 1).padStart(2, "0")}`,
           name: nameInput.value.trim(),
           en: englishFor(nameInput.value.trim()),
-          others: products.filter((p) => p.id !== existingProduct?.id && p.status !== "inactive"),
         })
       : null;
     let cardCover = existingProduct?.image || "";
