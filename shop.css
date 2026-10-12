@@ -1278,7 +1278,7 @@ label.field.wide { grid-column: 1 / -1; }
     background: #d8d8d5;
   }
   .hero-shade {
-    background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 35%, rgba(0, 0, 0, .35) 62%, rgba(0, 0, 0, .88) 100%);
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 28%, rgba(0, 0, 0, .28) 55%, rgba(0, 0, 0, .78) 78%, #0e0e0e 100%);
   }
   .hero-photo {
     opacity: 1;
@@ -1287,29 +1287,43 @@ label.field.wide { grid-column: 1 / -1; }
   }
   .hero-foot {
     display: flex;
-    padding: 24px 20px max(22px, env(safe-area-inset-bottom, 0px));
+    padding: 28px 20px max(24px, env(safe-area-inset-bottom, 0px));
     gap: 16px;
     align-items: flex-end;
+    justify-content: space-between;
   }
-  .hero-info { gap: 14px; }
+  .hero-info {
+    gap: 18px;
+    min-width: 0;
+    flex: 1;
+  }
   .hero-info h1 {
     font-size: 34px;
     font-weight: 500;
     letter-spacing: 0.02em;
+    line-height: 1.15;
   }
   .hero .specs {
-    gap: 18px;
-    flex-wrap: wrap;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    flex-wrap: nowrap;
+  }
+  .hero .spec {
+    gap: 5px;
   }
   .hero .spec b {
-    color: #9a9a9a;
+    color: #8e9192;
     font-size: 12px;
+    letter-spacing: 0.04em;
   }
   .hero .spec span {
-    font-size: 14px;
+    font-size: 15px;
+    color: #f4f4f4;
   }
   .hero-center {
-    top: 42%;
+    top: 40%;
     left: 50%;
     bottom: auto;
     transform: translate(-50%, -50%);
@@ -1333,6 +1347,8 @@ label.field.wide { grid-column: 1 / -1; }
     padding: 0 16px 0 18px;
     border-radius: 10px;
     gap: 14px;
+    align-self: flex-end;
+    margin-bottom: 2px;
   }
   .hero:hover .hero-photo { transform: none; }
 
