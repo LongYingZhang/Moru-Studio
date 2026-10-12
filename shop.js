@@ -366,7 +366,7 @@
     const done = () => { splashReady = true; };
     img.onload = () => (img.decode ? img.decode().then(done, done) : done());
     img.onerror = done;
-    img.src = window.matchMedia("(orientation: portrait)").matches ? "assets/splash/phone.jpg" : "assets/splash/desktop.jpg";
+    img.src = window.matchMedia("(orientation: portrait)").matches ? "assets/splash/phone.webp" : "assets/splash/desktop.webp";
   }
 
   function bootNodes() {

@@ -11,6 +11,19 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <title>LONGYING STUDIO</title>
 <link rel="icon" href="assets/favicon.svg?v=2" type="image/svg+xml">
+<script>
+(function () {
+  if (/[?&](?:enter=left|soft=1)(?:&|$)/.test(location.search)) return;
+  try {
+    if (sessionStorage.getItem("ly-splash")) return;
+    sessionStorage.setItem("ly-splash", "1");
+  } catch (_) {}
+  document.documentElement.classList.add("is-splash");
+  var img = new Image();
+  img.fetchPriority = "high";
+  img.src = matchMedia("(orientation: portrait)").matches ? "assets/splash/phone.webp" : "assets/splash/desktop.webp";
+})();
+</script>
 <link rel="stylesheet" href="shop.css">
 <link rel="preload" href="assets/loader/moru-loop-poster.png" as="image">
 <link rel="preload" href="assets/loader/moru-sprite.webp" as="image" type="image/webp">
@@ -24,18 +37,6 @@ html.is-booting, html.is-booting body { background: #000 !important; }
   var soft = /[?&](?:enter=left|soft=1)(?:&|$)/.test(location.search);
   if (soft) document.documentElement.classList.add("is-soft-enter");
   else document.documentElement.classList.add("is-booting");
-})();
-</script>
-<script>
-(function () {
-  var html = document.documentElement;
-  if (!html.classList.contains("is-booting")) return;
-  try {
-    if (sessionStorage.getItem("ly-splash")) return;
-    sessionStorage.setItem("ly-splash", "1");
-  } catch (_) {}
-  html.classList.add("is-splash");
-  new Image().src = matchMedia("(orientation: portrait)").matches ? "assets/splash/phone.jpg" : "assets/splash/desktop.jpg";
 })();
 </script>
 </head>

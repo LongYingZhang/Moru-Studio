@@ -17,6 +17,19 @@
     <link rel="icon" href="./assets/favicon.svg?v=1" type="image/svg+xml" />
     <link rel="preload" href="../assets/loader/moru-loop-poster.png" as="image" />
     <link rel="preload" href="../assets/loader/moru-sprite.webp" as="image" type="image/webp" />
+    <script>
+    (function () {
+      if (/[?&](?:enter=left|soft=1)(?:&|$)/.test(location.search)) return;
+      try {
+        if (sessionStorage.getItem("ly-admin-splash")) return;
+        sessionStorage.setItem("ly-admin-splash", "1");
+      } catch (_) {}
+      document.documentElement.classList.add("is-splash");
+      var img = new Image();
+      img.fetchPriority = "high";
+      img.src = matchMedia("(orientation: portrait)").matches ? "../assets/splash/phone.webp" : "../assets/splash/desktop.webp";
+    })();
+    </script>
     <link rel="stylesheet" href="./styles.css" />
     <style>
       html, body { margin: 0; }
@@ -24,18 +37,6 @@
     </style>
     <script src="./card-editor.js" defer></script>
     <script src="./app.js" defer></script>
-    <script>
-    (function () {
-      var html = document.documentElement;
-      if (!html.classList.contains("is-booting")) return;
-      try {
-        if (sessionStorage.getItem("ly-admin-splash")) return;
-        sessionStorage.setItem("ly-admin-splash", "1");
-      } catch (_) {}
-      html.classList.add("is-splash");
-      new Image().src = matchMedia("(orientation: portrait)").matches ? "../assets/splash/phone.jpg" : "../assets/splash/desktop.jpg";
-    })();
-    </script>
   </head>
   <body>
     <div class="boot" id="boot" aria-live="polite" aria-label="加载中">
