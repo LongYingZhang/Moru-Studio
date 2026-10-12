@@ -1975,8 +1975,23 @@ html.is-booting body {
   background: #f4f4f4;
 }
 
+.ce-swatch {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  padding: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+}
+
+.ce-swatch.is-on {
+  box-shadow: 0 0 0 2px var(--surface-low), 0 0 0 4px #ffffff;
+}
+
 .ce-picker {
   position: relative;
+  flex: none;
   display: block;
   width: 30px;
   height: 30px;

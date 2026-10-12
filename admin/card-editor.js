@@ -122,6 +122,8 @@
           </div>
           <div class="ce-row">
             <b>卡片底色</b>
+            <button class="ce-swatch" type="button" data-color="#FFFFFF" style="background:#FFFFFF" aria-label="白色"></button>
+            <button class="ce-swatch" type="button" data-color="#141414" style="background:#141414" aria-label="黑色"></button>
             <span class="ce-picker">
               <button class="ce-picker-ring" type="button" title="自动取色（取自图片边缘）" aria-label="自动取色"></button>
               <label class="ce-picker-color" title="自定义颜色"><input type="color" value="#f3f3f1" aria-label="自定义颜色"></label>
@@ -227,6 +229,7 @@
       card.querySelector(".ce-en").textContent = state.en || "保存后自动翻译";
 
       if (state.ready) zoom.value = String(Math.round(state.w / fitW() * 100));
+      root.querySelectorAll(".ce-swatch").forEach((s) => s.classList.toggle("is-on", s.dataset.color === state.bg));
       inkSeg.querySelectorAll("button").forEach((b) => b.classList.toggle("is-on", b.dataset.ink === state.ink));
     }
 
@@ -265,9 +268,15 @@
     let last = null;
     let pinch = null;
 
+    // 浏览器原生拖拽会吞掉后续 pointermove，图片就拖不动
+    card.addEventListener("dragstart", (e) => e.preventDefault());
     card.addEventListener("pointerdown", (e) => {
-      if (!state.ready) return;
-      card.setPointerCapture(e.pointerId);
+      if (!state.ready || e.button !== 0) return;
+      e.preventDefault();
+      card.focus({ preventScroll: true });
+      try {
+        card.setPointerCapture(e.pointerId);
+      } catch (_) {}
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       editor.classList.add("is-dragging");
       if (pointers.size === 1) last = { x: e.clientX, y: e.clientY };
@@ -350,6 +359,12 @@
     zoom.addEventListener("input", () => zoomAt(fitW() * Number(zoom.value) / 100, 50, 50));
     root.querySelector('[data-zoom="in"]').addEventListener("click", () => zoomAt(state.w * 1.1, 50, 50));
     root.querySelector('[data-zoom="out"]').addEventListener("click", () => zoomAt(state.w / 1.1, 50, 50));
+    root.querySelectorAll(".ce-swatch").forEach((s) =>
+      s.addEventListener("click", () => {
+        state.bg = s.dataset.color;
+        render();
+      }),
+    );
     picker.querySelector(".ce-picker-ring").addEventListener("click", () => {
       state.bg = null;
       render();
