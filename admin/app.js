@@ -646,6 +646,11 @@
               />
             </div>
 
+            <div class="field">
+              <span class="field-label">前台卡片</span>
+              <div class="card-editor" id="card-editor"></div>
+            </div>
+
             <div class="field-row">
               <div class="field">
                 <label for="product-price">商品定价</label>
@@ -722,9 +727,37 @@
     let processingImage = false;
     const accept = "image/png,image/jpeg,image/webp,image/gif";
 
+    const nameInput = document.getElementById("product-name");
+    const savedName = existingProduct?.name || "";
+    const englishFor = (name) =>
+      existingProduct && name === savedName && existingProduct.nameEn !== "LONGYING OBJECT"
+        ? existingProduct.nameEn || ""
+        : "";
+    const cardEditor = window.CardEditor
+      ? window.CardEditor.create(document.getElementById("card-editor"), {
+          src: existingProduct ? existingProduct.cardImage || existingProduct.image : "",
+          photo: existingProduct?.cardPhoto,
+          bg: existingProduct?.cardBg,
+          ink: existingProduct?.cardInk,
+          no: existingProduct?.no || `NO. ${String(makeId() + 1).padStart(2, "0")}`,
+          name: nameInput.value.trim(),
+          en: englishFor(nameInput.value.trim()),
+          others: products.filter((p) => p.id !== existingProduct?.id && p.status !== "inactive"),
+        })
+      : null;
+    let cardCover = existingProduct?.image || "";
+    nameInput.addEventListener("input", () => {
+      const name = nameInput.value.trim();
+      cardEditor?.setName(name, englishFor(name));
+    });
+
     function renderShots() {
       const left = SHOTS_MAX - shots.length;
       shotsBox.classList.toggle("is-empty", !shots.length);
+      if ((shots[0] || "") !== cardCover) {
+        cardCover = shots[0] || "";
+        cardEditor?.setImage(cardCover);
+      }
 
       if (!shots.length) {
         shotsBox.innerHTML = `
@@ -883,6 +916,12 @@
         nextProduct.cardPhoto =
           "left:0%;top:0%;width:100%;height:100%;background-size:cover";
         nextProduct.heroPosition = "center center";
+      }
+      const cardLayout = cardEditor?.value();
+      if (cardLayout && cardLayout.cardImage === image) {
+        Object.assign(nextProduct, cardLayout, { cardFace: "" });
+      } else if (cardLayout && existingProduct && image === existingProduct.image) {
+        Object.assign(nextProduct, cardLayout);
       }
 
       const nextProducts = existingProduct

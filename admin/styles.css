@@ -1641,3 +1641,455 @@ html.is-booting body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* 上新商品 · 前台卡片位置调整 */
+
+@font-face {
+  font-family: "Space Grotesk";
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("../assets/fonts/space-grotesk.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Space Mono";
+  font-weight: 400;
+  font-display: swap;
+  src: url("../assets/fonts/space-mono.woff2") format("woff2");
+}
+
+.card-editor {
+  display: grid;
+  gap: 12px;
+}
+
+.ce-editor {
+  position: relative;
+  overflow: hidden;
+  padding: 32px 30px 14px;
+  border-radius: 14px;
+  background: var(--surface-deep);
+  user-select: none;
+}
+
+.ce-stage {
+  position: relative;
+}
+
+.ce-ghost {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.ce-ghost .ce-photo {
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.ce-editor.is-dragging .ce-ghost .ce-photo,
+.ce-editor.is-zooming .ce-ghost .ce-photo {
+  opacity: 0.22;
+}
+
+/* 与前台 shop.css 的 .card 保持一致 */
+.ce-card {
+  position: relative;
+  z-index: 1;
+  container-type: inline-size;
+  width: 100%;
+  aspect-ratio: 466 / 188;
+  overflow: hidden;
+  border-radius: 15px;
+  background: var(--card, #f1f1f1);
+  box-shadow: 0 8px 10px rgba(0, 0, 0, 0.08), 0 18px 28px rgba(0, 0, 0, 0.1);
+}
+
+.ce-main {
+  cursor: grab;
+  touch-action: none;
+}
+
+.ce-main:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
+.ce-editor.is-dragging .ce-main {
+  cursor: grabbing;
+}
+
+.ce-editor.is-empty .ce-main {
+  cursor: default;
+}
+
+.ce-photo {
+  position: absolute;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+}
+
+.ce-face {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  padding: 4.6% 4.2% 4.8%;
+  pointer-events: none;
+}
+
+.ce-no {
+  color: var(--face-muted);
+  font-family: "Space Mono", monospace;
+  font-size: 2.6cqw;
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+.ce-copy {
+  display: flex;
+  max-width: 58%;
+  margin-top: auto;
+  flex-direction: column;
+  gap: 0.35em;
+}
+
+.ce-name {
+  color: var(--face-ink);
+  font-family: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: 5.4cqw;
+  font-weight: 700;
+  font-synthesis: weight;
+  line-height: 1.15;
+}
+
+.ce-en {
+  color: var(--face-muted);
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 2.8cqw;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.ce-go {
+  position: absolute;
+  right: 3.65%;
+  bottom: 8.35%;
+  display: block;
+  width: 2.58%;
+  height: auto;
+  aspect-ratio: 1;
+  color: var(--face-ink);
+}
+
+.ce-card[data-ink="dark"] {
+  --face-ink: #111111;
+  --face-muted: #9a9a9a;
+}
+
+.ce-card[data-ink="light"] {
+  --face-ink: #ffffff;
+  --face-muted: rgba(255, 255, 255, 0.72);
+}
+
+.ce-guide {
+  position: absolute;
+  z-index: 4;
+  display: none;
+  background: #ff3b7f;
+  pointer-events: none;
+}
+
+.ce-guide.is-v {
+  top: -12px;
+  bottom: -12px;
+  width: 1px;
+}
+
+.ce-guide.is-h {
+  right: -12px;
+  left: -12px;
+  height: 1px;
+}
+
+.ce-guide.is-on {
+  display: block;
+}
+
+.ce-tip,
+.ce-empty-tip {
+  margin: 12px 0 0;
+  color: var(--subtle);
+  font-size: 11px;
+  text-align: center;
+}
+
+.ce-empty-tip,
+.ce-editor.is-empty .ce-tip {
+  display: none;
+}
+
+.ce-editor.is-empty .ce-empty-tip {
+  display: block;
+}
+
+.ce-bottom {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 12px;
+  align-items: start;
+}
+
+.ce-panel {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--surface-low);
+}
+
+.ce-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+}
+
+.ce-row > b {
+  flex: none;
+  width: 56px;
+  color: #c9c9c9;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.ce-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--surface-deep);
+}
+
+.ce-seg button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: transparent;
+  color: #bdbdbd;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ce-seg button:hover {
+  color: var(--primary);
+}
+
+.ce-seg button.is-on {
+  background: var(--surface-highest);
+  color: var(--primary);
+}
+
+.ce-seg svg {
+  width: 22px;
+  height: 10px;
+}
+
+.ce-reset {
+  margin-left: auto;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ce-reset:hover {
+  color: var(--primary);
+}
+
+.ce-zoom {
+  display: flex;
+  min-width: 200px;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+}
+
+.ce-icon {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 7px;
+  background: var(--surface-deep);
+  color: #dddddd;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.card-editor .ce-zoom input[type="range"],
+.card-editor .ce-zoom input[type="range"]:hover,
+.card-editor .ce-zoom input[type="range"]:focus {
+  height: 20px;
+  min-width: 0;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.card-editor .ce-zoom input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border: 0;
+  border-radius: 999px;
+  background: #3a3a3a;
+}
+
+.card-editor .ce-zoom input[type="range"]::-moz-range-track {
+  height: 4px;
+  border: 0;
+  border-radius: 999px;
+  background: #3a3a3a;
+}
+
+.card-editor .ce-zoom input[type="range"]::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border: 0;
+  border-radius: 50%;
+  background: #f4f4f4;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.card-editor .ce-zoom input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: #f4f4f4;
+}
+
+.ce-zoom output {
+  width: 40px;
+  color: var(--muted);
+  font-family: "Space Mono", monospace;
+  font-size: 11px;
+  text-align: right;
+}
+
+.ce-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.ce-swatch {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  cursor: pointer;
+}
+
+.ce-swatch.is-on {
+  border-color: var(--primary);
+}
+
+.ce-swatch.is-pick {
+  background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);
+}
+
+.card-editor .ce-swatch.is-pick input {
+  position: absolute;
+  inset: -8px;
+  width: auto;
+  height: auto;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.ce-swatches small {
+  margin-left: 2px;
+  color: var(--subtle);
+  font-size: 11px;
+}
+
+.ce-phone-col {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.ce-phone-label {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.ce-phone {
+  padding: 12px 9px 16px;
+  border-radius: 26px;
+  background: var(--background);
+  box-shadow: inset 0 0 0 1px #2a2a2a, 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.ce-phone-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 16px;
+  padding: 0 5px 8px;
+}
+
+.ce-phone-bar img {
+  height: 6px;
+}
+
+.ce-phone-bar span {
+  color: #cccccc;
+  font-size: 7px;
+}
+
+.ce-phone-list {
+  display: grid;
+  gap: 6px;
+}
+
+.ce-phone .ce-card {
+  border-radius: 7px;
+}
+
+.ce-phone .ce-card.is-dim {
+  opacity: 0.35;
+}
+
+@media (max-width: 640px) {
+  .ce-editor {
+    padding: 22px 14px 12px;
+  }
+
+  .ce-bottom {
+    grid-template-columns: 1fr;
+  }
+
+  .ce-phone-col {
+    width: 220px;
+    margin: 0 auto;
+  }
+}
