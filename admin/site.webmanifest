@@ -1,7 +1,7 @@
 {
-  "name": "LONGYING STUDIO 后台",
-  "short_name": "LY 后台",
-  "description": "LONGYING STUDIO 商品管理",
+  "name": "STUDIO-ADMIN",
+  "short_name": "STUDIO-ADMIN",
+  "description": "STUDIO-ADMIN 商品管理",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

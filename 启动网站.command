@@ -8,7 +8,7 @@ BASE_URL="http://127.0.0.1:${PORT}"
 START_URL="${BASE_URL}/admin/#/orders"
 
 ADMIN_PAGE="$(curl --silent --fail --max-time 1 "${BASE_URL}/admin/" 2>/dev/null || true)"
-if [[ "$ADMIN_PAGE" == *"LONGYING STUDIO 商品管理后台"* ]]; then
+if [[ "$ADMIN_PAGE" == *"STUDIO-ADMIN 商品管理后台"* ]]; then
   open "$START_URL"
   exit 0
 fi
