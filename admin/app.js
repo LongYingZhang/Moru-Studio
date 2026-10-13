@@ -580,7 +580,7 @@
             ${icons.edit}
           </button>
           <button
-            class="toggle-button"
+            class="toggle-button${isActive ? " is-unlist" : ""}"
             type="button"
             data-action="toggle"
             data-id="${id}"

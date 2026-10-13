@@ -389,6 +389,15 @@ textarea:focus-visible,
   background: #dedede;
 }
 
+.toggle-button.is-unlist {
+  background: var(--surface-high);
+  color: #fff;
+}
+
+.toggle-button.is-unlist:hover {
+  background: var(--surface-highest);
+}
+
 .toggle-button:active,
 .primary-button:active {
   transform: scale(0.985);
