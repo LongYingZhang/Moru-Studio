@@ -20,3 +20,9 @@ assets/pay/demo-qr.png
 assets/pay/.DS_Store
 admin/stitch/
 *.before-uploads
+.env
+.env.local
+.tmp-moru-video/
+.wrangler/
+.tmp-moru-video2/
+.tmp*/

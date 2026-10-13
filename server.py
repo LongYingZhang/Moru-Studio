@@ -19,6 +19,8 @@ from functools import partial
 from http.cookies import SimpleCookie
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import unquote, urlsplit
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 
 import name_en
 
@@ -30,11 +32,35 @@ ORDERS_FILE = os.path.join(DATA_DIR, "orders.json")
 AUTH_FILE = os.path.join(DATA_DIR, "auth.json")
 SESSIONS_FILE = os.path.join(DATA_DIR, "sessions.json")
 UPLOADS_DIR = os.path.join(DATA_DIR, "uploads")
+ENV_FILE = os.path.join(SHOP_DIR, ".env")
 PORT = int(os.environ.get("PORT", "8787"))
 HOST = os.environ.get("HOST", "127.0.0.1")
 MAX_BODY = 50 * 1024 * 1024
 MAX_SMALL_BODY = 64 * 1024
 API_PATH = "/api/products"
+MORU_CHAT_PATH = "/api/moru/chat"
+
+
+def load_dotenv(path=ENV_FILE):
+    """Load KEY=VALUE pairs from .env into os.environ (does not overwrite)."""
+    if not os.path.isfile(path):
+        return
+    try:
+        with open(path, encoding="utf-8") as file:
+            for raw in file:
+                line = raw.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, value = line.partition("=")
+                key = key.strip()
+                value = value.strip().strip("'").strip('"')
+                if key and key not in os.environ:
+                    os.environ[key] = value
+    except OSError:
+        pass
+
+
+load_dotenv()
 SESSION_COOKIE = "ly_admin"
 # Cookie Max-Age：浏览器侧长期保留；会话本身不设过期，直到主动退出
 SESSION_COOKIE_MAX_AGE = 10 * 365 * 24 * 3600
@@ -179,6 +205,163 @@ def now_iso():
 
 def clean_text(value, limit):
     return str(value or "").strip()[:limit]
+
+
+def catalog_snapshot():
+    with data_lock:
+        products = read_json(DATA_FILE, [])
+    if not isinstance(products, list):
+        return []
+    rows = []
+    for product in products:
+        if not isinstance(product, dict):
+            continue
+        if product.get("status") and product.get("status") != "active":
+            continue
+        rows.append({
+            "id": product.get("id"),
+            "no": product.get("no") or "",
+            "name": product.get("name") or "",
+            "nameEn": product.get("nameEn") or "",
+            "price": product.get("price"),
+            "desc": product.get("desc") or "",
+            "dimension": product.get("dimension") or product.get("dimensions") or "",
+            "material": product.get("material") or "",
+        })
+    return rows
+
+
+def moru_system_prompt(page_context=None):
+    catalog = catalog_snapshot()
+    lines = [
+        "你是 Moru，LONGYING STUDIO 商店的吉祥物与前台助手。",
+        "说话简短、亲切、口语化，默认中文。不知道就诚实说不知道。",
+        "你可以介绍在售商品、价格、下单流程、运费与售后、隐私政策。",
+        "店铺规则：中国大陆订单免运费；支持微信/支付宝扫码付款；确认收款后现货一般 3 个工作日内发货；签收 7 天内质量问题可联系售后。",
+        "若用户明确要去购物袋/结算/须知/某商品详情，可在回答末尾单独一行输出工具指令（不要解释这行）：",
+        'TOOL [{"name":"openCart"}] 或 TOOL [{"name":"openCheckout"}] 或 TOOL [{"name":"openTerms"}] 或 TOOL [{"name":"openHome"}] 或 TOOL [{"name":"openProduct","args":{"id":数字}}]',
+        "没有必要时不要输出 TOOL 行。",
+        "当前在售商品：",
+        json.dumps(catalog, ensure_ascii=False),
+    ]
+    if page_context and isinstance(page_context, dict):
+        lines.append("用户当前页面：" + json.dumps(page_context, ensure_ascii=False))
+    return "\n".join(lines)
+
+
+def local_moru_reply(user_text, page_context=None):
+    """Offline shop brain when no LLM API key is configured."""
+    text = (user_text or "").strip()
+    low = text.lower()
+    catalog = catalog_snapshot()
+    tools = []
+
+    def product_blurb(product):
+        price = product.get("price")
+        price_s = f"¥{price:g}" if isinstance(price, (int, float)) else "价格见页面"
+        bits = [f"{product.get('no') or ''} {product.get('name') or ''}".strip(), price_s]
+        if product.get("desc"):
+            bits.append(product["desc"])
+        return " · ".join(bits)
+
+    if any(k in text for k in ("购物袋", "购物车", "去买", "结算")) or "cart" in low:
+        tools.append({"name": "openCart"})
+        return "好，带你去购物袋看看～", tools
+    if any(k in text for k in ("隐私", "须知", "退换", "售后政策")):
+        tools.append({"name": "openTerms"})
+        return "购物须知和隐私政策在这里，我帮你打开。", tools
+    if any(k in text for k in ("运费", "快递", "包邮", "邮费")):
+        return "中国大陆订单目前免运费。发货后会有快递单号，可以联系我们查物流。", tools
+    if any(k in text for k in ("付款", "支付", "下单", "怎么买", "购买")):
+        return "挑好商品加入购物袋 → 去结算 → 选微信或支付宝扫码付款 → 点「我已支付」提交订单。我们人工核对到账后会安排发货。", tools
+    if any(k in text for k in ("你好", "嗨", "在吗", "hello", "hi")):
+        return "嗨，我是 Moru～想看商品、问运费，或让我带你去购物袋，都可以说。", tools
+
+    matched = []
+    for product in catalog:
+        hay = " ".join([
+            str(product.get("name") or ""),
+            str(product.get("nameEn") or ""),
+            str(product.get("desc") or ""),
+            str(product.get("no") or ""),
+        ]).lower()
+        if any(token and token in hay for token in re.split(r"\s+", low) if len(token) >= 2):
+            matched.append(product)
+        elif any(k in text for k in ("香片", "帆布袋", "马克杯", "帆布帽", "雪梨纸", "作品集")):
+            name = product.get("name") or ""
+            if ("香片" in text and "香片" in name) or ("帆布袋" in text and "帆布袋" in name) \
+                    or ("马克杯" in text and "马克杯" in name) or ("帆布帽" in text and "帆布帽" in name) \
+                    or ("雪梨纸" in text and "雪梨纸" in name) or ("作品集" in text and "作品集" in name):
+                matched.append(product)
+
+    # de-dupe
+    seen = set()
+    uniq = []
+    for product in matched:
+        key = product.get("id")
+        if key in seen:
+            continue
+        seen.add(key)
+        uniq.append(product)
+
+    if uniq:
+        if len(uniq) == 1:
+            product = uniq[0]
+            tools.append({"name": "openProduct", "args": {"id": product.get("id")}})
+            return f"找到了：{product_blurb(product)}\n要不要我打开详情页？", tools
+        lines = ["这些可能是你要的："] + [f"- {product_blurb(p)}" for p in uniq[:5]]
+        return "\n".join(lines), tools
+
+    if any(k in text for k in ("在卖", "有什么", "商品", "清单", "catalog", "产品")):
+        if not catalog:
+            return "现在橱窗还是空的，等上新了再来找我～", tools
+        lines = ["现在在售："] + [f"- {product_blurb(p)}" for p in catalog]
+        return "\n".join(lines), tools
+
+    if catalog:
+        preview = "、".join((p.get("name") or "未命名") for p in catalog[:3])
+        return f"我可以介绍在售商品（比如 {preview}），也可以讲运费、怎么下单。你想问哪一块？", tools
+    return "我在～可以问商品、运费或怎么买。", tools
+
+
+def split_moru_tools(text):
+    tools = []
+    clean = text or ""
+    match = re.search(r"(?m)^TOOL\s+(\[.*\])\s*$", clean)
+    if match:
+        try:
+            parsed = json.loads(match.group(1))
+            if isinstance(parsed, list):
+                tools = [t for t in parsed if isinstance(t, dict) and t.get("name")]
+        except ValueError:
+            tools = []
+        clean = (clean[: match.start()] + clean[match.end():]).strip()
+    return clean, tools
+
+
+def openai_stream_chat(messages):
+    """Yield text deltas from an OpenAI-compatible Chat Completions stream."""
+    api_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("MORU_API_KEY")
+    if not api_key:
+        return None
+    base = (os.environ.get("OPENAI_BASE_URL") or os.environ.get("MORU_BASE_URL") or "https://api.openai.com/v1").rstrip("/")
+    model = os.environ.get("MORU_MODEL") or os.environ.get("OPENAI_MODEL") or "gpt-4o-mini"
+    body = json.dumps({
+        "model": model,
+        "stream": True,
+        "temperature": 0.7,
+        "messages": messages,
+    }).encode("utf-8")
+    req = urllib_request.Request(
+        base + "/chat/completions",
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        },
+        method="POST",
+    )
+    return urllib_request.urlopen(req, timeout=90)
 
 
 class ShopHandler(SimpleHTTPRequestHandler):
@@ -441,6 +624,8 @@ class ShopHandler(SimpleHTTPRequestHandler):
             return self.auth_logout()
         if path == "/api/orders":
             return self.create_order()
+        if path == MORU_CHAT_PATH:
+            return self.moru_chat()
         self.send_error(405)
 
     def do_PATCH(self):
@@ -614,6 +799,96 @@ class ShopHandler(SimpleHTTPRequestHandler):
             write_json(ORDERS_FILE, orders)
         self.send_json(200, order)
 
+    # ---- Moru assistant (local floating chat) ----
+
+    def sse_write(self, obj):
+        payload = ("data: " + json.dumps(obj, ensure_ascii=False) + "\n\n").encode("utf-8")
+        self.wfile.write(payload)
+        self.wfile.flush()
+
+    def moru_chat(self):
+        body = self.read_body(MAX_SMALL_BODY)
+        if body is None:
+            return
+        raw_messages = body.get("messages") if isinstance(body, dict) else None
+        page_context = body.get("pageContext") if isinstance(body, dict) else None
+        if not isinstance(raw_messages, list) or not raw_messages:
+            return self.send_json(400, {"error": "messages required"})
+
+        history = []
+        for item in raw_messages[-16:]:
+            if not isinstance(item, dict):
+                continue
+            role = item.get("role")
+            content = item.get("content")
+            if role in ("user", "assistant") and isinstance(content, str) and content.strip():
+                history.append({"role": role, "content": content.strip()[:4000]})
+        if not history or history[-1]["role"] != "user":
+            return self.send_json(400, {"error": "last message must be from user"})
+
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Connection", "close")
+        self.end_headers()
+
+        try:
+            llm_messages = [{"role": "system", "content": moru_system_prompt(page_context)}] + history
+            stream = openai_stream_chat(llm_messages)
+            if stream is None:
+                reply, tools = local_moru_reply(history[-1]["content"], page_context)
+                chunk = 12
+                for i in range(0, len(reply), chunk):
+                    self.sse_write({"type": "text", "text": reply[i:i + chunk]})
+                    time.sleep(0.012)
+                if tools:
+                    self.sse_write({"type": "tools", "tools": tools})
+                self.sse_write({"type": "done"})
+                self.wfile.write(b"data: [DONE]\n\n")
+                self.wfile.flush()
+                return
+
+            full = []
+            with stream:
+                while True:
+                    line = stream.readline()
+                    if not line:
+                        break
+                    if isinstance(line, bytes):
+                        line = line.decode("utf-8", errors="ignore")
+                    line = line.strip()
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if data == "[DONE]":
+                        break
+                    try:
+                        evt = json.loads(data)
+                    except ValueError:
+                        continue
+                    delta = (((evt.get("choices") or [{}])[0]).get("delta") or {}).get("content")
+                    if delta:
+                        full.append(delta)
+                        self.sse_write({"type": "text", "text": delta})
+
+            _clean, tools = split_moru_tools("".join(full))
+            if tools:
+                self.sse_write({"type": "tools", "tools": tools})
+            self.sse_write({"type": "done"})
+            self.wfile.write(b"data: [DONE]\n\n")
+            self.wfile.flush()
+        except urllib_error.HTTPError as err:
+            detail = err.read().decode("utf-8", errors="ignore")[:300]
+            try:
+                self.sse_write({"type": "error", "error": f"模型接口错误 {err.code}: {detail}"})
+            except BrokenPipeError:
+                pass
+        except Exception as err:
+            try:
+                self.sse_write({"type": "error", "error": str(err) or "chat failed"})
+            except BrokenPipeError:
+                pass
+
 
 if __name__ == "__main__":
     if not os.path.isdir(ADMIN_DIR):
@@ -623,4 +898,5 @@ if __name__ == "__main__":
     server = ThreadingHTTPServer((HOST, PORT), partial(ShopHandler))
     print(f"前台：http://127.0.0.1:{PORT}/index.html")
     print(f"后台：http://127.0.0.1:{PORT}/admin/#/orders")
+    print(f"Moru：本机悬浮助手已启用（/api/moru/chat）")
     server.serve_forever()

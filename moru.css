@@ -1,0 +1,322 @@
+/* Moru — floating shop assistant (local) */
+
+.moru-root {
+  position: fixed;
+  z-index: 120;
+  width: 62px;
+  height: 62px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.moru-root.is-open {
+  z-index: 130;
+}
+
+.moru-avatar {
+  position: absolute;
+  inset: 0;
+  width: 62px;
+  height: 62px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.42);
+  cursor: grab;
+  overflow: visible;
+  display: grid;
+  place-items: center;
+}
+
+.moru-root.is-dragging .moru-avatar {
+  cursor: grabbing;
+}
+
+.moru-avatar:focus-visible {
+  outline: 2px solid #f4f4f4;
+  outline-offset: 3px;
+}
+
+/* 白圆容器：直接播放参考视频，小生物只在圆内 */
+.moru-orb {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #fff;
+  pointer-events: none;
+  box-shadow:
+    inset 0 -8px 14px rgba(0, 0, 0, 0.1),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.04);
+}
+
+.moru-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  border: 0;
+  /* 避免部分浏览器视频层合成闪烁 */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.moru-video-think {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.moru-root.is-thinking .moru-video-idle {
+  opacity: 0;
+}
+
+.moru-root.is-thinking .moru-video-think {
+  opacity: 1;
+}
+
+
+.moru-bubble {
+  --moru-fs: 13px;
+  --moru-lh: 1.5;
+  --moru-log-max: calc(8 * var(--moru-fs) * var(--moru-lh));
+  position: absolute;
+  width: 287px;
+  max-width: calc(100vw - 24px);
+  height: 100px;
+  display: none;
+  flex-direction: column;
+  padding: 0;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  color: #fff;
+  font-family: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+.moru-root.is-open .moru-bubble {
+  display: flex;
+}
+
+/* 有对话时：高度随当前这一条回答往上长；单条最多 8 行 */
+.moru-root.has-chat:not(.is-thinking) .moru-bubble {
+  height: auto;
+  min-height: 0;
+  max-height: calc(12px + var(--moru-log-max) + 44px);
+  background: #1a1a1a;
+}
+
+.moru-root.is-thinking .moru-bubble {
+  height: 84px;
+  min-height: 84px;
+  max-height: 84px;
+  background: transparent;
+}
+
+.moru-bubble[data-side="above"] {
+  bottom: calc(100% + 12px);
+  right: -8px;
+}
+
+.moru-bubble[data-side="below"] {
+  top: calc(100% + 12px);
+  right: -8px;
+}
+
+.moru-bubble[data-side="left"] {
+  right: calc(100% + 12px);
+  bottom: -2px;
+}
+
+.moru-bubble[data-side="right"] {
+  left: calc(100% + 12px);
+  bottom: -2px;
+}
+
+.moru-shell {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+
+.moru-shell svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.moru-shell-think {
+  display: none;
+}
+
+.moru-root.is-thinking .moru-shell-open {
+  display: none;
+}
+
+.moru-root.is-thinking .moru-shell-think {
+  display: block;
+}
+
+/* 对话展开后不用固定高度 SVG，避免被拉伸 */
+.moru-root.has-chat:not(.is-thinking) .moru-shell {
+  display: none;
+}
+
+.moru-log {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 12px;
+  bottom: 46px;
+  overflow: auto;
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  background: transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
+.moru-root.has-chat:not(.is-thinking) .moru-log {
+  position: relative;
+  left: auto;
+  right: auto;
+  top: auto;
+  bottom: auto;
+  flex: 0 1 auto;
+  display: block;
+  margin: 12px 14px 0;
+  max-height: var(--moru-log-max);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.moru-root.is-thinking .moru-log {
+  display: none;
+}
+
+.moru-msg {
+  max-width: 100%;
+  max-height: var(--moru-log-max);
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  overflow: hidden;
+  font-size: var(--moru-fs);
+  line-height: var(--moru-lh);
+  white-space: pre-wrap;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 8;
+  line-clamp: 8;
+}
+
+.moru-msg.is-assistant {
+  color: #fff;
+}
+
+.moru-form {
+  position: absolute;
+  left: 14px;
+  right: 12px;
+  bottom: 8px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.moru-root.has-chat:not(.is-thinking) .moru-form {
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  flex: none;
+  width: auto;
+  margin: 0 12px 8px 14px;
+  padding-top: 8px;
+  border-top: 1px solid #1f1f1f;
+}
+
+.moru-root.is-thinking .moru-form {
+  bottom: 6px;
+}
+
+.moru-form input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 32px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 13px;
+  outline: none;
+  caret-color: #fff;
+}
+
+.moru-form input::placeholder {
+  color: transparent; /* SVG 已画占位文案 */
+}
+
+.moru-root.has-chat .moru-form input::placeholder,
+.moru-root.is-thinking .moru-form input::placeholder {
+  color: #6e6e6e;
+}
+
+.moru-root.has-chat:not(.is-thinking) .moru-send {
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22' fill='none'%3E%3Cpath d='M11.5 8.3V14.7H10.45V8.3L7.53 11.22L6.8 10.48L10.98 6.3L15.16 10.48L14.43 11.22L11.5 8.3Z' fill='%23000'/%3E%3C/svg%3E") center / 22px 22px no-repeat;
+}
+
+.moru-send {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent; /* 空窗态由 SVG 画发送圆钮 */
+  cursor: pointer;
+}
+
+.moru-send:disabled {
+  cursor: default;
+}
+
+@media (max-width: 560px) {
+  .moru-root {
+    width: 53px;
+    height: 53px;
+  }
+
+  .moru-avatar {
+    width: 53px;
+    height: 53px;
+    border-radius: 50%;
+  }
+
+
+  .moru-bubble {
+    width: min(280px, calc(100vw - 20px));
+  }
+}

@@ -61,6 +61,7 @@ html.is-splash .boot { position: fixed; inset: 0; z-index: 9999; background: #00
 html.is-splash .boot-stage { visibility: hidden; }
 </style>
 <link rel="stylesheet" href="shop.css">
+<link rel="stylesheet" href="moru.css">
 <link rel="preload" href="assets/loader/moru-loop-poster.png" as="image">
 <link rel="preload" href="assets/loader/moru-sprite.webp" as="image" type="image/webp">
 <style>
@@ -170,6 +171,7 @@ document.documentElement.classList.add("is-booting");
 </div>
 
 <script src="shop.js"></script>
+<script src="moru.js" defer></script>
 <script>
 (function () {
   if (Shop.cartLines().length === 0) {
