@@ -114,11 +114,15 @@ function systemPrompt(catalog, pageContext) {
     "3. 如果用户问的内容你确实无法回答：自然、俏皮地承认就好，不必每次都推荐商品。",
     "4. 只有用户在咨询店铺、选购相关场景时，才主动提及店内产品。",
     "5. 若用户问 Moru 的创造者是谁：回答创造者是一位产品设计师，ZHANGLONGYING。不要主动提；只在被问到时说。",
+    "6. 用户明确要购买/下单/加购某商品时：先从在售商品匹配 id，再用 TOOL 替用户操作网站（可一次输出多个工具，按顺序执行）。短句确认后附 TOOL 行。",
+    '   直接买并去结算：TOOL [{"name":"buyAndCheckout","args":{"id":数字,"qty":1}}]',
+    '   或分步：TOOL [{"name":"addToCart","args":{"id":数字,"qty":1}},{"name":"openCheckout"}]',
+    '   只加购看购物袋：TOOL [{"name":"addToCart","args":{"id":数字,"qty":1}},{"name":"openCart"}]',
+    "   不确定是哪件时先问清，不要乱加购。",
     "店铺事实（仅在相关时使用）：中国大陆订单免运费；支持微信/支付宝扫码付款；确认收款后现货一般 3 个工作日内发货；签收 7 天内质量问题可联系售后。",
-    "若用户明确要去购物袋/结算/须知/某商品详情，可在回答末尾单独一行输出工具指令（不要解释这行）：",
-    'TOOL [{"name":"openCart"}] 或 TOOL [{"name":"openCheckout"}] 或 TOOL [{"name":"openTerms"}] 或 TOOL [{"name":"openHome"}] 或 TOOL [{"name":"openProduct","args":{"id":数字}}]',
+    "其它导航工具（需要时）：openCart / openCheckout / openTerms / openHome / openProduct(args.id)。",
     "没有必要时不要输出 TOOL 行。",
-    "当前在售商品（选购相关时再参考）：",
+    "当前在售商品（购买/选购时必须据此匹配 id）：",
     JSON.stringify(catalog),
   ];
   if (pageContext && typeof pageContext === "object") {
@@ -150,15 +154,12 @@ function localMoruReply(userText, catalog) {
   if (["运费", "快递", "包邮", "邮费"].some((k) => text.includes(k))) {
     return { reply: "中国大陆订单目前免运费。发货后会有快递单号，可以联系我们查物流。", tools };
   }
-  if (["付款", "支付", "下单", "怎么买", "购买"].some((k) => text.includes(k))) {
-    return {
-      reply: "挑好商品加入购物袋 → 去结算 → 选微信或支付宝扫码付款 → 点「我已支付」提交订单。我们人工核对到账后会安排发货。",
-      tools,
-    };
-  }
-  if (["你好", "嗨", "在吗", "hello", "hi"].some((k) => text.includes(k) || low.includes(k))) {
-    return { reply: "嗨，我是 Moru～想看商品、问运费，或让我带你去购物袋，都可以说。", tools };
-  }
+  const buyIntent =
+    ["买", "加购", "加入购物袋", "帮我下单", "来一份", "来一个"].some((k) => text.includes(k)) ||
+    ((text.includes("下单") || text.includes("购买")) &&
+      ["香片", "帆布袋", "马克杯", "帆布帽", "雪梨纸", "作品集", "cup", "mug", "bag"].some((k) =>
+        text.includes(k)
+      ));
 
   const matched = [];
   for (const product of catalog) {
@@ -186,6 +187,28 @@ function localMoruReply(userText, catalog) {
     if (seen.has(product.id)) continue;
     seen.add(product.id);
     uniq.push(product);
+  }
+
+  if (buyIntent && uniq.length === 1) {
+    const product = uniq[0];
+    tools.push({ name: "buyAndCheckout", args: { id: product.id, qty: 1 } });
+    return { reply: `好嘞，帮你把「${product.name || "它"}」丢进购物袋，这就带你去结算～`, tools };
+  }
+  if (buyIntent && uniq.length > 1) {
+    return {
+      reply: ["你想买哪一件呀？", ...uniq.slice(0, 5).map((p) => `- ${productBlurb(p)}`)].join("\n"),
+      tools,
+    };
+  }
+
+  if (["付款", "支付", "怎么买"].some((k) => text.includes(k)) || ((text.includes("下单") || text.includes("购买")) && !buyIntent)) {
+    return {
+      reply: "挑好商品加入购物袋 → 去结算 → 选微信或支付宝扫码付款 → 点「我已支付」提交订单。我们人工核对到账后会安排发货。",
+      tools,
+    };
+  }
+  if (["你好", "嗨", "在吗", "hello", "hi"].some((k) => text.includes(k) || low.includes(k))) {
+    return { reply: "嗨，我是 Moru～想看商品、问运费，或让我带你去购物袋，都可以说。", tools };
   }
 
   if (uniq.length === 1) {

@@ -221,19 +221,54 @@
     };
   }
 
+  function resolveProductId(args) {
+    if (!args || typeof args !== "object") return null;
+    if (args.id != null && args.id !== "") {
+      const n = Number(args.id);
+      return Number.isFinite(n) ? n : null;
+    }
+    const q = String(args.name || args.query || "").trim();
+    if (!q || !window.Shop || !Array.isArray(Shop.products)) return null;
+    const low = q.toLowerCase();
+    const hit = Shop.products.find((p) => {
+      const name = String(p.name || "");
+      const en = String(p.nameEn || "").toLowerCase();
+      return name.includes(q) || en.includes(low);
+    });
+    return hit ? hit.id : null;
+  }
+
   function runClientTools(tools) {
-    if (!Array.isArray(tools)) return;
+    if (!Array.isArray(tools) || !tools.length) return;
+    const shop = window.Shop;
+    let navigateTo = null;
+
     tools.forEach((tool) => {
       const name = tool && tool.name;
       const args = (tool && tool.args) || {};
-      if (name === "openCart") location.href = "cart.html";
-      else if (name === "openTerms") location.href = "terms.html";
-      else if (name === "openCheckout") location.href = "checkout.html";
-      else if (name === "openHome") location.href = "index.html";
-      else if (name === "openProduct" && args.id != null) {
-        location.href = "product.html?id=" + encodeURIComponent(args.id);
+      if (name === "addToCart" || name === "buyAndCheckout") {
+        const id = resolveProductId(args);
+        if (id == null || !shop || typeof shop.addToCart !== "function") return;
+        const qty = Math.max(1, Math.min(9, Number(args.qty) || 1));
+        shop.addToCart(id, qty);
+        if (typeof shop.addedNotice === "function") shop.addedNotice();
+        else if (typeof shop.refreshCount === "function") shop.refreshCount();
+        if (name === "buyAndCheckout") navigateTo = "checkout.html";
+      } else if (name === "openCart") {
+        navigateTo = "cart.html";
+      } else if (name === "openTerms") {
+        navigateTo = "terms.html";
+      } else if (name === "openCheckout") {
+        navigateTo = "checkout.html";
+      } else if (name === "openHome") {
+        navigateTo = "index.html";
+      } else if (name === "openProduct") {
+        const id = resolveProductId(args);
+        if (id != null) navigateTo = "product.html?id=" + encodeURIComponent(id);
       }
     });
+
+    if (navigateTo) location.href = navigateTo;
   }
 
   async function sendMessage(text) {
@@ -313,7 +348,7 @@
         else setReply(full);
         messages.push({ role: "assistant", content: full });
         if (tools.length) {
-          setTimeout(() => runClientTools(tools), 450);
+          setTimeout(() => runClientTools(tools), 900);
         }
       }
     } catch (err) {
