@@ -257,9 +257,17 @@
           pageContext: pageContext(),
         }),
       });
-      if (!res.ok) {
+      const contentType = res.headers.get("content-type") || "";
+      // 限流等：JSON { message }，不走 SSE
+      if (contentType.includes("application/json") || !res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || ("HTTP " + res.status));
+        const tip = err.message || err.error || ("HTTP " + res.status);
+        setReply(tip);
+        // 限流提示不算一次成功对话进历史
+        if (messages.length && messages[messages.length - 1].role === "user") {
+          messages.pop();
+        }
+        return;
       }
 
       const reader = res.body.getReader();

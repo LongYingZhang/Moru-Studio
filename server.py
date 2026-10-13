@@ -40,6 +40,83 @@ MAX_SMALL_BODY = 64 * 1024
 API_PATH = "/api/products"
 MORU_CHAT_PATH = "/api/moru/chat"
 
+# ---- Moru 限流（内存；重启清零；每日 0 点按自然日清空）----
+MORU_GLOBAL_TOKEN_DAY = 150_000
+MORU_IP_TOKEN_DAY = 60_000
+MORU_INPUT_CHAR_MAX = 1200
+MORU_ASK_WINDOW_SEC = 5 * 60
+MORU_ASK_LIMIT = 5
+MORU_COOLDOWN_SEC = 10 * 60
+
+MORU_MSG_GLOBAL = "Moru今天电量已经耗尽啦，明天再来唠吧！"
+MORU_MSG_TOO_LONG = "文字太长扛不住咯，精简一小段再问我吧"
+MORU_MSG_COOLDOWN = "Moru摸鱼休息10分钟，稍后再来找我哦"
+MORU_MSG_IP_QUOTA = "你的今日额度用光咯，明天继续调戏Moru吧"
+
+
+class MoruRateLimit:
+    """按 IP 的内存限流；命中则不调用 DeepSeek。"""
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.day = None
+        self.global_tokens = 0
+        self.ip_tokens = {}       # ip -> int
+        self.ip_asks = {}         # ip -> [timestamps]
+        self.ip_cooldown_until = {}  # ip -> unix ts
+
+    def _roll_day(self):
+        today = datetime.now().astimezone().date().isoformat()
+        if self.day != today:
+            self.day = today
+            self.global_tokens = 0
+            self.ip_tokens.clear()
+            self.ip_asks.clear()
+            self.ip_cooldown_until.clear()
+
+    def check(self, ip, user_text):
+        """按优先级返回拦截文案；通过则返回 None。"""
+        now = time.time()
+        with self.lock:
+            self._roll_day()
+            if self.global_tokens >= MORU_GLOBAL_TOKEN_DAY:
+                return MORU_MSG_GLOBAL
+            if len(user_text or "") > MORU_INPUT_CHAR_MAX:
+                return MORU_MSG_TOO_LONG
+            until = self.ip_cooldown_until.get(ip) or 0
+            if until > now:
+                return MORU_MSG_COOLDOWN
+            window = [t for t in self.ip_asks.get(ip, []) if now - t <= MORU_ASK_WINDOW_SEC]
+            self.ip_asks[ip] = window
+            if len(window) >= MORU_ASK_LIMIT:
+                self.ip_cooldown_until[ip] = now + MORU_COOLDOWN_SEC
+                return MORU_MSG_COOLDOWN
+            if self.ip_tokens.get(ip, 0) >= MORU_IP_TOKEN_DAY:
+                return MORU_MSG_IP_QUOTA
+            return None
+
+    def record_ask(self, ip):
+        now = time.time()
+        with self.lock:
+            self._roll_day()
+            window = [t for t in self.ip_asks.get(ip, []) if now - t <= MORU_ASK_WINDOW_SEC]
+            window.append(now)
+            self.ip_asks[ip] = window
+            if len(window) >= MORU_ASK_LIMIT:
+                self.ip_cooldown_until[ip] = now + MORU_COOLDOWN_SEC
+
+    def add_tokens(self, ip, total_tokens):
+        n = max(0, int(total_tokens or 0))
+        if n <= 0:
+            return
+        with self.lock:
+            self._roll_day()
+            self.global_tokens += n
+            self.ip_tokens[ip] = self.ip_tokens.get(ip, 0) + n
+
+
+moru_rate_limit = MoruRateLimit()
+
 
 def load_dotenv(path=ENV_FILE):
     """Load KEY=VALUE pairs from .env into os.environ (does not overwrite)."""
@@ -340,7 +417,7 @@ def split_moru_tools(text):
 
 
 def openai_stream_chat(messages):
-    """Yield text deltas from an OpenAI-compatible Chat Completions stream."""
+    """OpenAI-compatible Chat Completions stream (DeepSeek 等)。"""
     api_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("MORU_API_KEY")
     if not api_key:
         return None
@@ -351,6 +428,7 @@ def openai_stream_chat(messages):
         "stream": True,
         "temperature": 0.7,
         "messages": messages,
+        "stream_options": {"include_usage": True},
     }).encode("utf-8")
     req = urllib_request.Request(
         base + "/chat/completions",
@@ -362,6 +440,11 @@ def openai_stream_chat(messages):
         method="POST",
     )
     return urllib_request.urlopen(req, timeout=90)
+
+
+def estimate_moru_tokens(prompt_text, completion_text):
+    """API 未返回 usage 时的粗估（偏中文：约 1 字 ≈ 1 token）。"""
+    return max(1, len(prompt_text or "") + len(completion_text or ""))
 
 
 class ShopHandler(SimpleHTTPRequestHandler):
@@ -806,6 +889,12 @@ class ShopHandler(SimpleHTTPRequestHandler):
         self.wfile.write(payload)
         self.wfile.flush()
 
+    def client_ip(self):
+        forwarded = (self.headers.get("X-Forwarded-For") or "").split(",")[0].strip()
+        if forwarded:
+            return forwarded
+        return self.client_address[0] if self.client_address else "unknown"
+
     def moru_chat(self):
         body = self.read_body(MAX_SMALL_BODY)
         if body is None:
@@ -813,7 +902,7 @@ class ShopHandler(SimpleHTTPRequestHandler):
         raw_messages = body.get("messages") if isinstance(body, dict) else None
         page_context = body.get("pageContext") if isinstance(body, dict) else None
         if not isinstance(raw_messages, list) or not raw_messages:
-            return self.send_json(400, {"error": "messages required"})
+            return self.send_json(400, {"error": "messages required", "message": "messages required"})
 
         history = []
         for item in raw_messages[-16:]:
@@ -824,7 +913,17 @@ class ShopHandler(SimpleHTTPRequestHandler):
             if role in ("user", "assistant") and isinstance(content, str) and content.strip():
                 history.append({"role": role, "content": content.strip()[:4000]})
         if not history or history[-1]["role"] != "user":
-            return self.send_json(400, {"error": "last message must be from user"})
+            return self.send_json(400, {
+                "error": "last message must be from user",
+                "message": "last message must be from user",
+            })
+
+        user_text = history[-1]["content"]
+        ip = self.client_ip()
+        limited = moru_rate_limit.check(ip, user_text)
+        if limited:
+            # 限流：JSON + message，不调 DeepSeek
+            return self.send_json(429, {"message": limited, "error": limited})
 
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream; charset=utf-8")
@@ -832,11 +931,14 @@ class ShopHandler(SimpleHTTPRequestHandler):
         self.send_header("Connection", "close")
         self.end_headers()
 
+        # 通过限流后记一次提问；满 5 次开启 10 分钟冷却
+        moru_rate_limit.record_ask(ip)
+
         try:
             llm_messages = [{"role": "system", "content": moru_system_prompt(page_context)}] + history
             stream = openai_stream_chat(llm_messages)
             if stream is None:
-                reply, tools = local_moru_reply(history[-1]["content"], page_context)
+                reply, tools = local_moru_reply(user_text, page_context)
                 chunk = 12
                 for i in range(0, len(reply), chunk):
                     self.sse_write({"type": "text", "text": reply[i:i + chunk]})
@@ -849,6 +951,7 @@ class ShopHandler(SimpleHTTPRequestHandler):
                 return
 
             full = []
+            usage = None
             with stream:
                 while True:
                     line = stream.readline()
@@ -866,17 +969,30 @@ class ShopHandler(SimpleHTTPRequestHandler):
                         evt = json.loads(data)
                     except ValueError:
                         continue
+                    if isinstance(evt.get("usage"), dict):
+                        usage = evt["usage"]
                     delta = (((evt.get("choices") or [{}])[0]).get("delta") or {}).get("content")
                     if delta:
                         full.append(delta)
                         self.sse_write({"type": "text", "text": delta})
 
-            _clean, tools = split_moru_tools("".join(full))
+            reply_text = "".join(full)
+            _clean, tools = split_moru_tools(reply_text)
             if tools:
                 self.sse_write({"type": "tools", "tools": tools})
             self.sse_write({"type": "done"})
             self.wfile.write(b"data: [DONE]\n\n")
             self.wfile.flush()
+
+            # DeepSeek 成功后累加本次 input+output token
+            if usage:
+                total = int(usage.get("total_tokens") or 0)
+                if total <= 0:
+                    total = int(usage.get("prompt_tokens") or 0) + int(usage.get("completion_tokens") or 0)
+            else:
+                prompt_blob = "\n".join(m.get("content") or "" for m in llm_messages)
+                total = estimate_moru_tokens(prompt_blob, reply_text)
+            moru_rate_limit.add_tokens(ip, total)
         except urllib_error.HTTPError as err:
             detail = err.read().decode("utf-8", errors="ignore")[:300]
             try:
