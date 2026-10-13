@@ -648,6 +648,15 @@ img { display: block; max-width: 100%; }
 .btn.dark:hover { background: #2a2a2a; }
 .btn.panel { background: var(--panel); color: #f4f4f4; }
 .btn.panel:hover { background: #2a2929; }
+.btn.light.is-moru-drive {
+  animation: moru-pay-pulse 0.7s ease;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.55);
+}
+@keyframes moru-pay-pulse {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
 .btn svg { display: block; }
 .drawer-actions { display: flex; flex-direction: column; gap: 14px; }
 
