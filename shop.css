@@ -44,6 +44,7 @@ body {
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --app-bar-h: 44px;
   --chrome-top: var(--safe-top);
+  --bar-top: var(--safe-top);
   --foot-pad: 8px; /* 无 Home 条时底部最小空隙（iPhone 8） */
   padding-top: var(--chrome-top);
   padding-right: env(safe-area-inset-right, 0px);
@@ -80,7 +81,7 @@ body {
   right: 0;
   z-index: 80;
   height: var(--chrome-top);
-  padding: var(--safe-top) 14px 0;
+  padding: var(--bar-top) 14px 0;
   box-sizing: border-box;
   align-items: center;
   justify-content: space-between;
@@ -1275,7 +1276,9 @@ label.field.wide { grid-column: 1 / -1; }
     overflow: hidden;
   }
   body {
-    --chrome-top: calc(var(--safe-top) + var(--app-bar-h));
+    /* 有刘海/灵动岛时多下移 10px；iPhone 8（inset 0）不加 */
+    --bar-top: calc(var(--safe-top) + min(10px, var(--safe-top)));
+    --chrome-top: calc(var(--bar-top) + var(--app-bar-h));
     padding-top: 0;
     padding-bottom: 0;
   }
