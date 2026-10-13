@@ -4,7 +4,7 @@
   window.__moruMounted = true;
 
   const POS_KEY = "ly-moru-pos";
-  const SIZE = () => (window.matchMedia("(max-width: 560px)").matches ? 53 : 62);
+  const SIZE = () => (window.matchMedia("(max-width: 560px)").matches ? 42 : 50);
   const CLICK_SLOP = 6;
   const MARGIN = 10;
 

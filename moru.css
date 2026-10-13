@@ -3,8 +3,8 @@
 .moru-root {
   position: fixed;
   z-index: 120;
-  width: 62px;
-  height: 62px;
+  width: 50px;
+  height: 50px;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -17,8 +17,8 @@
 .moru-avatar {
   position: absolute;
   inset: 0;
-  width: 62px;
-  height: 62px;
+  width: 50px;
+  height: 50px;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -354,13 +354,13 @@
 
 @media (max-width: 560px) {
   .moru-root {
-    width: 53px;
-    height: 53px;
+    width: 42px;
+    height: 42px;
   }
 
   .moru-avatar {
-    width: 53px;
-    height: 53px;
+    width: 42px;
+    height: 42px;
     border-radius: 50%;
   }
 
