@@ -14,6 +14,7 @@
     <div class="moru-bubble" data-side="above" role="dialog" aria-label="Moru 助手">
       <div class="moru-shell moru-shell-open" data-src="assets/moru/chat-open.svg" aria-hidden="true"></div>
       <div class="moru-shell moru-shell-think" data-src="assets/moru/chat-thinking.svg" aria-hidden="true"></div>
+      <div class="moru-thinking-label" aria-hidden="true">正在思考...</div>
       <div class="moru-log" id="moruLog"></div>
       <form class="moru-form" id="moruForm">
         <input id="moruInput" type="text" maxlength="500" placeholder="" autocomplete="off" aria-label="问Moru任何问题" />
@@ -39,43 +40,15 @@
   const videoThink = root.querySelector(".moru-video-think");
   const shellThink = root.querySelector(".moru-shell-think");
 
-  // SMIL 在动态插入的 SVG 里经常不播；用 JS 驱动「正在思考中」黑白扫光
-  let shimmerRaf = 0;
-  function stopThinkingShimmer() {
-    if (shimmerRaf) cancelAnimationFrame(shimmerRaf);
-    shimmerRaf = 0;
-  }
-  function startThinkingShimmer() {
-    stopThinkingShimmer();
-    const grad = shellThink && shellThink.querySelector("linearGradient");
-    if (!grad) return;
-    // 去掉 SVG 内 SMIL，避免和 JS 抢
-    grad.querySelectorAll("animateTransform, animate").forEach((n) => n.remove());
-    const from = -80;
-    const to = 120;
-    const duration = 1350;
-    const started = performance.now();
-    const tick = (now) => {
-      if (!root.classList.contains("is-thinking")) {
-        stopThinkingShimmer();
-        return;
-      }
-      const t = ((now - started) % duration) / duration;
-      const x = from + (to - from) * t;
-      grad.setAttribute("gradientTransform", "translate(" + x + " 0)");
-      shimmerRaf = requestAnimationFrame(tick);
-    };
-    shimmerRaf = requestAnimationFrame(tick);
-  }
-
-  // 内联 SVG（思考态扫光由上面的 JS 驱动）
+  // 内联 SVG；思考态标题改用 HTML 扫光，去掉 SVG 里那行静态字形以免叠字
   root.querySelectorAll(".moru-shell[data-src]").forEach((el) => {
     fetch(el.dataset.src)
       .then((r) => r.text())
       .then((svg) => {
         el.innerHTML = svg;
-        if (el === shellThink && root.classList.contains("is-thinking")) {
-          startThinkingShimmer();
+        if (el === shellThink) {
+          el.querySelectorAll('path[fill*="paint0_linear"]').forEach((p) => p.remove());
+          el.querySelectorAll("linearGradient[id*='paint0_linear']").forEach((g) => g.remove());
         }
       })
       .catch(() => {});
@@ -93,9 +66,7 @@
     if (thinking) {
       if (videoIdle) videoIdle.pause();
       playVideo(videoThink);
-      startThinkingShimmer();
     } else {
-      stopThinkingShimmer();
       if (videoThink) videoThink.pause();
       playVideo(videoIdle);
     }
