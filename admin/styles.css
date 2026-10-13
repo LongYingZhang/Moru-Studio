@@ -1454,10 +1454,6 @@ body.is-locked .app-shell {
     gap: 14px;
   }
 
-  .brand-sub {
-    display: none;
-  }
-
   .page {
     width: calc(100% - 24px);
   }
