@@ -246,14 +246,23 @@
     tools.forEach((tool) => {
       const name = tool && tool.name;
       const args = (tool && tool.args) || {};
-      if (name === "addToCart" || name === "buyAndCheckout") {
+      if (name === "addToCart") {
         const id = resolveProductId(args);
         if (id == null || !shop || typeof shop.addToCart !== "function") return;
         const qty = Math.max(1, Math.min(9, Number(args.qty) || 1));
         shop.addToCart(id, qty);
         if (typeof shop.addedNotice === "function") shop.addedNotice();
         else if (typeof shop.refreshCount === "function") shop.refreshCount();
-        if (name === "buyAndCheckout") navigateTo = "checkout.html";
+      } else if (name === "buyAndCheckout") {
+        // 打开商品详情 → 自动点「确认支付」→ 结算填地址
+        const id = resolveProductId(args);
+        if (id == null) return;
+        const qty = Math.max(1, Math.min(9, Number(args.qty) || 1));
+        navigateTo =
+          "product.html?id=" +
+          encodeURIComponent(id) +
+          "&moruBuy=1&qty=" +
+          encodeURIComponent(qty);
       } else if (name === "openCart") {
         navigateTo = "cart.html";
       } else if (name === "openTerms") {

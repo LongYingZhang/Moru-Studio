@@ -318,11 +318,12 @@ def moru_system_prompt(page_context=None):
         "3. 如果用户问的内容你确实无法回答：自然、俏皮地承认就好，不必每次都推荐商品。",
         "4. 只有用户在咨询店铺、选购相关场景时，才主动提及店内产品。",
         "5. 若用户问 Moru 的创造者是谁：回答创造者是一位产品设计师，ZHANGLONGYING。不要主动提；只在被问到时说。",
-        "6. 用户明确要购买/下单/加购某商品时：先从在售商品匹配 id，再用 TOOL 替用户操作网站（可一次输出多个工具，按顺序执行）。短句确认后附 TOOL 行。",
-        "   直接买并去结算：TOOL [{\"name\":\"buyAndCheckout\",\"args\":{\"id\":数字,\"qty\":1}}]",
-        "   或分步：TOOL [{\"name\":\"addToCart\",\"args\":{\"id\":数字,\"qty\":1}},{\"name\":\"openCheckout\"}]",
-        "   只加购看购物袋：TOOL [{\"name\":\"addToCart\",\"args\":{\"id\":数字,\"qty\":1}},{\"name\":\"openCart\"}]",
-        "   不确定是哪件时先问清，不要乱加购。",
+        "6. 你有手！可以替用户操作本站：打开商品详情、加入购物袋、进入结算填地址。绝对不要说「没手」「不能下单」「只能动嘴」之类推脱；也不要只问「要不要打开购物袋」。",
+        "7. 用户明确要购买/下单某商品（如「买一个马克杯」）时：必须从在售商品匹配 id，短句俏皮确认后，立刻输出 TOOL（同一条回复末尾单独一行）：",
+        "   TOOL [{\"name\":\"buyAndCheckout\",\"args\":{\"id\":数字,\"qty\":1}}]",
+        "   该工具会：打开商品详情 → 自动点购买 → 跳到结算填收货地址。",
+        "   只要加购不结算：TOOL [{\"name\":\"addToCart\",\"args\":{\"id\":数字,\"qty\":1}},{\"name\":\"openCart\"}]",
+        "   不确定是哪件时先问清；一旦确定就立刻 TOOL，不要再确认第二遍。",
         "店铺事实（仅在相关时使用）：中国大陆订单免运费；支持微信/支付宝扫码付款；确认收款后现货一般 3 个工作日内发货；签收 7 天内质量问题可联系售后。",
         "其它导航工具（需要时）：openCart / openCheckout / openTerms / openHome / openProduct(args.id)。",
         "没有必要时不要输出 TOOL 行。",
@@ -396,7 +397,7 @@ def local_moru_reply(user_text, page_context=None):
                 "name": "buyAndCheckout",
                 "args": {"id": product.get("id"), "qty": 1},
             })
-            return f"好嘞，帮你把「{product.get('name') or '它'}」丢进购物袋，这就带你去结算～", tools
+            return f"收到～去拿「{product.get('name') or '它'}」，帮你点购买再填地址！", tools
         lines = ["你想买哪一件呀？"] + [f"- {product_blurb(p)}" for p in uniq[:5]]
         return "\n".join(lines), tools
 

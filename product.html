@@ -271,6 +271,24 @@ html.is-booting, html.is-booting body { background: #000 !important; }
   });
 
   paint(false);
+
+  // Moru 代购：先展示详情，再自动走「确认支付」进结算填地址
+  const moruBuy = params.get("moruBuy") === "1" || params.get("buy") === "1";
+  if (moruBuy) {
+    const buyQty = parseInt(params.get("qty"), 10);
+    if (Number.isFinite(buyQty) && buyQty > 0) {
+      qty = Math.min(99, buyQty);
+      document.getElementById("qty").textContent = String(qty);
+    }
+    const payBtn = document.getElementById("pay");
+    if (payBtn) {
+      payBtn.classList.add("is-moru-drive");
+      setTimeout(() => {
+        Shop.addToCart(products[cursor].id, qty);
+        Shop.navigate("checkout.html");
+      }, 750);
+    }
+  }
 })();
 </script>
 <div class="added-toast" id="addedToast" role="status" aria-live="polite" aria-hidden="true"></div>
