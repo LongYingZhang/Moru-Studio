@@ -1314,27 +1314,24 @@ label.field.wide { grid-column: 1 / -1; }
     flex-direction: column;
     overflow: hidden;
     padding-top: 2px;
-    /* 底栏改为 fixed，这里不再给 foot 留 flex 位 */
-    padding-bottom: 0;
+    /* 8：~8px；14 Pro：home 指示条 inset，只加一次 */
+    padding-bottom: max(var(--foot-pad), var(--safe-bottom));
   }
   .cards {
     flex: 1 1 auto;
     min-height: 0;
     overflow: auto;
     -webkit-overflow-scrolling: touch;
-    /* 给固定底栏留空，避免最后一张卡片被挡住 */
-    padding-bottom: calc(36px + max(var(--foot-pad), var(--safe-bottom)));
+    padding-bottom: 8px;
   }
-  /* 竖屏固定在视口底：下拉刷新只拉卡片，隐私协议不跟着走 */
+  /* 仍在卡片列表下方正常排版；下拉只平移 .cards，底栏不跟着动 */
   .rail-foot {
-    position: fixed;
-    left: 6px;
-    right: auto;
-    bottom: max(var(--foot-pad), var(--safe-bottom));
+    position: relative;
     z-index: 50;
-    margin: 0;
-    padding: 10px 12px 2px 0;
-    background: linear-gradient(to top, var(--bg) 55%, rgba(19, 19, 19, 0));
+    flex: none;
+    margin: 2px 0 0 6px;
+    padding: 0;
+    background: none;
   }
   .page {
     position: fixed;

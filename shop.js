@@ -713,6 +713,8 @@
       const resistance = Math.min(MAX_PULL, dist * 0.55);
       if (scroller) {
         scroller.style.transition = "none";
+        // 只平移卡片列表；裁切底部，避免盖住下方的隐私协议
+        scroller.style.overflow = resistance ? "hidden" : "";
         scroller.style.transform = resistance ? "translateY(" + resistance + "px)" : "";
       }
       tip.classList.toggle("is-on", resistance > 2);
@@ -727,9 +729,13 @@
       if (scroller) {
         scroller.style.transition = animate ? "transform .28s ease" : "";
         scroller.style.transform = "";
+        scroller.style.overflow = "";
         if (animate) {
           window.setTimeout(() => {
-            if (scroller) scroller.style.transition = "";
+            if (scroller) {
+              scroller.style.transition = "";
+              scroller.style.overflow = "";
+            }
             tip.style.transition = "";
           }, 300);
         }
@@ -750,6 +756,7 @@
       if (scroller) {
         scroller.style.transition = "transform .22s ease";
         scroller.style.transform = "translateY(0px)";
+        scroller.style.overflow = "";
       }
       tip.style.transition = "height .22s ease";
       tip.style.height = "0px";
