@@ -1748,10 +1748,10 @@ html.is-booting body {
   top: var(--chrome-top, 44px);
   height: 0;
   z-index: 40;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   pointer-events: none;
-  overflow: visible;
+  overflow: hidden;
 }
 .pull-refresh.is-on {
   display: flex;
@@ -1759,11 +1759,12 @@ html.is-booting body {
 .pull-refresh-icon {
   width: 28px;
   height: 28px;
-  margin-top: 10px;
-  color: #f4f4f4;
+  margin: 0;
+  color: #6a6a6a;
   opacity: 0;
   transform: rotate(0deg);
   will-change: transform, opacity;
+  flex: none;
 }
 .pull-refresh-icon svg {
   display: block;
