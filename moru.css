@@ -1,8 +1,9 @@
 /* Moru — floating shop assistant (local) */
 
+/* 悬浮球始终置顶，盖在加载页（.boot，z-index 9999）上面 */
 .moru-root {
   position: fixed;
-  z-index: 120;
+  z-index: 10001;
   width: 50px;
   height: 50px;
   touch-action: none;
@@ -11,12 +12,7 @@
 }
 
 .moru-root.is-open {
-  z-index: 130;
-}
-
-/* 接管态要盖在加载页（.boot，z-index 9999）上面，跳页加载时也不消失 */
-.moru-root.is-takeover {
-  z-index: 10001;
+  z-index: 10002;
 }
 
 .moru-avatar {

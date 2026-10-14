@@ -275,6 +275,12 @@ html.is-booting, html.is-booting body { background: #000 !important; }
       qty = Math.min(99, buyQty);
       document.getElementById("qty").textContent = String(qty);
     }
+    // 去掉 moruBuy，返回到这页时不会再自动买一次
+    params.delete("moruBuy");
+    params.delete("buy");
+    params.delete("qty");
+    const cleanQuery = params.toString();
+    history.replaceState(history.state, "", location.pathname + (cleanQuery ? "?" + cleanQuery : "") + location.hash);
     const payBtn = document.getElementById("pay");
     if (payBtn) {
       payBtn.classList.add("is-moru-drive");
