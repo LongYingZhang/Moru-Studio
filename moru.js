@@ -167,8 +167,8 @@
     sendBtn.disabled = on;
     input.disabled = on;
     if (on) {
-      root.classList.add("has-chat");
       setOpen(true, false);
+      root.classList.add("has-chat");
     }
     syncOrbVideo();
   }
@@ -188,8 +188,9 @@
     } catch (_) {}
     setTakeover(false);
     const summary = takeoverSummary || "搞定啦～";
-    setReply(summary);
     messages.push({ role: "assistant", content: summary });
+    setReply(summary);
+    root.classList.add("has-chat");
   }
 
   // 页面加载条消失、图片都到齐后，再停留一下才收尾
