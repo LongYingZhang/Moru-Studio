@@ -17,7 +17,7 @@
       <div class="moru-thinking-label" aria-hidden="true">正在思考...</div>
       <div class="moru-log" id="moruLog"></div>
       <form class="moru-form" id="moruForm">
-        <input id="moruInput" type="text" maxlength="500" placeholder="" autocomplete="off" aria-label="问Moru任何问题" />
+        <input id="moruInput" type="text" maxlength="500" placeholder="问Moru任何问题" autocomplete="off" aria-label="问Moru任何问题" />
         <button type="submit" id="moruSend" class="moru-send" aria-label="发送"></button>
       </form>
     </div>
@@ -288,7 +288,6 @@
     logEl.innerHTML = "";
     root.classList.add("has-chat", "is-thinking");
     syncOrbVideo();
-    input.placeholder = "问Moru任何问题";
     messages.push({ role: "user", content });
     let replyEl = null;
 

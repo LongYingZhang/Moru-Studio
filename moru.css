@@ -325,12 +325,8 @@
 }
 
 .moru-form input::placeholder {
-  color: transparent; /* SVG 已画占位文案 */
-}
-
-.moru-root.has-chat .moru-form input::placeholder,
-.moru-root.is-thinking .moru-form input::placeholder {
   color: #6e6e6e;
+  opacity: 1;
 }
 
 .moru-root.has-chat:not(.is-thinking) .moru-send {
