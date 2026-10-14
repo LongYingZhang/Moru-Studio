@@ -1314,8 +1314,9 @@ label.field.wide { grid-column: 1 / -1; }
     flex-direction: column;
     overflow: hidden;
     padding-top: 2px;
-    /* 8：~8px；14 Pro：home 指示条 inset，只加一次 */
-    padding-bottom: max(var(--foot-pad), var(--safe-bottom));
+    padding-bottom: 0;
+    /* 底栏（隐私协议 + 底部黑边）高度，卡片区据此留白 */
+    --rail-dock-h: calc(28px + max(var(--foot-pad), var(--safe-bottom)));
   }
   .cards {
     flex: 1 1 auto;
@@ -1323,15 +1324,35 @@ label.field.wide { grid-column: 1 / -1; }
     overflow: auto;
     -webkit-overflow-scrolling: touch;
     padding-bottom: 8px;
+    /* 列表滚到底时，最后一张卡停在底栏上方 */
+    margin-bottom: var(--rail-dock-h);
   }
-  /* 仍在卡片列表下方正常排版；下拉只平移 .cards，底栏不跟着动 */
+  /* 隐私协议 + 底部安全黑边：钉在视口底，下拉刷新绝不跟着动 */
+  .rail-dock {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    height: var(--rail-dock-h);
+    padding: 6px 0 max(var(--foot-pad), var(--safe-bottom)) 6px;
+    background: var(--bg);
+    box-sizing: border-box;
+    pointer-events: auto;
+  }
   .rail-foot {
-    position: relative;
-    z-index: 50;
-    flex: none;
-    margin: 2px 0 0 6px;
+    position: static;
+    display: inline-block;
+    margin: 0;
     padding: 0;
     background: none;
+  }
+  /* 预览/画册/档案盖住底栏，避免浮在全屏层上 */
+  .home.is-hero .rail-dock,
+  body:has(.lightbox.open) .rail-dock,
+  body:has(.backdrop.open) .rail-dock {
+    visibility: hidden;
+    pointer-events: none;
   }
   .page {
     position: fixed;

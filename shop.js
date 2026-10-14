@@ -685,11 +685,8 @@
     let refreshing = false;
 
     function surface() {
-      return (
-        document.querySelector(".cards") ||
-        document.querySelector(".page") ||
-        null
-      );
+      // 首页只拉商品列表；其它页拉 .page。底栏 .rail-dock 永不作为拉动面
+      return document.querySelector(".cards") || document.querySelector(".page") || null;
     }
 
     function blocked() {
@@ -770,9 +767,11 @@
       "touchstart",
       (e) => {
         if (blocked() || e.touches.length !== 1) return;
-        if (e.target.closest("input, textarea, select, .moru-root")) return;
+        if (e.target.closest("input, textarea, select, .moru-root, .rail-dock, .rail-foot, .app-bar")) return;
         scroller = surface();
-        if (!atTop(scroller)) return;
+        if (!scroller || !atTop(scroller)) return;
+        // 触摸落在底栏上时不进入下拉
+        if (e.target.closest(".rail-dock")) return;
         tracking = true;
         pulling = false;
         startY = e.touches[0].clientY;
