@@ -54,8 +54,14 @@
         if (el === shellThink) {
           el.querySelectorAll('path[fill*="paint0_linear"]').forEach((p) => p.remove());
           el.querySelectorAll("linearGradient[id*='paint0_linear']").forEach((g) => g.remove());
-          // 发送箭头改由 HTML 停止键绘制，去掉 SVG 里那枚灰箭头
+          // 停止键改由 HTML 绘制，去掉 SVG 里的发送圆钮和灰箭头，避免叠成两个圆
           el.querySelectorAll('path[fill="#8E9192"], path[fill="#8e9192"]').forEach((p) => p.remove());
+          el.querySelectorAll("rect").forEach((r) => {
+            const w = Number(r.getAttribute("width"));
+            const h = Number(r.getAttribute("height"));
+            const rx = Number(r.getAttribute("rx"));
+            if (w === 22 && h === 22 && rx === 11) r.remove();
+          });
         }
       })
       .catch(() => {});
