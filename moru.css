@@ -116,10 +116,10 @@
   background: #1a1a1a;
 }
 
-/* Moru 接管时按下作品集卡片 */
-.card.is-moru-press {
-  transform: scale(0.97);
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85), 0 0 28px rgba(255, 255, 255, 0.45);
+/* Moru 接管时「按下」页面上的卡片或按钮 */
+.is-moru-press {
+  transform: scale(0.96);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85), 0 0 28px rgba(255, 255, 255, 0.45) !important;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 

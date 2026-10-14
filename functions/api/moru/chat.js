@@ -47,7 +47,7 @@ export async function onRequestPost(context) {
             send,
           });
         } else {
-          const { reply, tools } = localMoruReply(history[history.length - 1].content, catalog);
+          const { reply, tools } = localMoruReply(history[history.length - 1].content, catalog, pageContext);
           const chunk = 12;
           for (let i = 0; i < reply.length; i += chunk) {
             send({ type: "text", text: reply.slice(i, i + chunk) });
@@ -121,7 +121,19 @@ function systemPrompt(catalog, pageContext) {
     '   只要加购不结算：TOOL [{"name":"addToCart","args":{"id":数字,"qty":1}},{"name":"openCart"}]',
     "   不确定是哪件时先问清；一旦确定就立刻 TOOL，不要再确认第二遍。",
     "店铺事实（仅在相关时使用）：中国大陆订单免运费；支持微信/支付宝扫码付款；确认收款后现货一般 3 个工作日内发货；签收 7 天内质量问题可联系售后。",
-    "其它导航工具（需要时）：openCart / openCheckout / openTerms / openHome / openProduct(args.id)。",
+    "其它导航工具（需要时）：openCart / openCheckout / openTerms / openHome / openProduct(args.id) / openOrder（最近订单页）。",
+    "页面操作工具（用户要求就直接做，不用再确认）：",
+    '   showPhoto {"dir":"next"|"prev","steps":1,"id":可选} 翻商品图片（详情页翻图；首页在全屏画册里切换）',
+    '   openGallery {"id":可选} 打开首页全屏画册',
+    '   setCartQty {"id":数字,"qty":数字} 改购物袋里某件的数量（0=删除）',
+    '   removeCartItem {"id":数字} 从购物袋删掉某件',
+    "   clearCart 清空购物袋",
+    '   choosePayment {"method":"wechat"|"alipay"} 在结算页选择付款方式',
+    '   scrollPage {"dir":"down"|"up"|"top"|"bottom"} 滚动页面 / 回到顶部',
+    "   refreshPage 刷新页面；goBack 返回上一页",
+    "推荐与对比：按用户条件（预算、用途、送人等）从在售商品里挑，简短说理由，然后 openProduct 最合适的一件；对比时把尺寸、材质、价格并排说清楚，再问要看哪件，不必出 TOOL。",
+    "问购物袋总价、里面有什么、最近订单：直接根据「用户当前页面」里的 cart / cartTotal / lastOrder 回答；查订单可以顺手 openOrder。订单发货状态需要人工确认，不要编造。",
+    "不能替用户付款，也不能替用户填写姓名、电话、地址。",
     "用户想看「珑瀛的作品集」/设计师作品集/ZHANGLONGYING 的作品时：短句回应后输出 TOOL [{\"name\":\"openPortfolio\"}]。作品集不是商品，不要用 openProduct 或 buyAndCheckout。",
     "没有必要时不要输出 TOOL 行。",
     "当前在售商品（购买/选购时必须据此匹配 id）：",
@@ -140,10 +152,136 @@ function productBlurb(product) {
   return bits.join(" · ");
 }
 
-function localMoruReply(userText, catalog) {
+const PRODUCT_WORDS = ["香片", "帆布袋", "马克杯", "帆布帽", "雪梨纸"];
+
+function findProducts(text, catalog) {
+  const low = text.toLowerCase();
+  return catalog.filter((p) => {
+    const name = String(p.name || "");
+    if (PRODUCT_WORDS.some((w) => text.includes(w) && name.includes(w))) return true;
+    const en = String(p.nameEn || "").toLowerCase();
+    return en.length > 2 && low.includes(en);
+  });
+}
+
+function parseCount(text) {
+  const digits = text.match(/(\d+)\s*(?:个|件|份|只|顶|张|包)?/);
+  if (digits) return Number(digits[1]);
+  const map = { 零: 0, 一: 1, 两: 2, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
+  const cn = text.match(/(?:改成|改为|变成|换成|要|留)\s*([零一两二三四五六七八九十])/);
+  return cn ? map[cn[1]] : null;
+}
+
+function money(n) {
+  return "¥" + Number(n || 0).toFixed(2).replace(/\.00$/, "");
+}
+
+function cartSummary(ctx) {
+  const cart = (ctx && Array.isArray(ctx.cart) && ctx.cart) || [];
+  if (!cart.length) return "购物袋现在是空的～";
+  const list = cart.map((l) => `${l.name}×${l.qty}`).join("、");
+  return `购物袋里有 ${list}，一共 ${money(ctx.cartTotal)}～`;
+}
+
+// 页面操作类口令：翻图、画册、改购物袋、选支付、滚动、刷新、返回、订单、推荐对比
+function pageActionReply(text, catalog, ctx) {
+  const hits = findProducts(text, catalog);
+  const one = hits.length === 1 ? hits[0] : null;
+  const path = (ctx && ctx.path) || "";
+  const inCart = (id) => ((ctx && ctx.cart) || []).some((l) => Number(l.id) === Number(id));
+
+  if (text.includes("刷新")) return { reply: "好，刷新一下～", tools: [{ name: "refreshPage" }] };
+  if (/上一页|退回去|^返回/.test(text) && !text.includes("首页")) {
+    return { reply: "好，回上一页～", tools: [{ name: "goBack" }] };
+  }
+  if (/回到顶部|回顶部|到顶部|最上面/.test(text)) {
+    return { reply: "回顶部～", tools: [{ name: "scrollPage", args: { dir: "top" } }] };
+  }
+  if (/到底|最下面|最底/.test(text)) {
+    return { reply: "滑到底～", tools: [{ name: "scrollPage", args: { dir: "bottom" } }] };
+  }
+  if (/往下翻|往下滑|下滑|向下翻/.test(text)) {
+    return { reply: "往下翻～", tools: [{ name: "scrollPage", args: { dir: "down" } }] };
+  }
+  if (/往上翻|往上滑|上滑|向上翻/.test(text)) {
+    return { reply: "往上翻～", tools: [{ name: "scrollPage", args: { dir: "up" } }] };
+  }
+
+  if (/全屏|画册|放大/.test(text)) {
+    return { reply: "打开全屏画册～", tools: [{ name: "openGallery", args: one ? { id: one.id } : {} }] };
+  }
+  if (/下一张|上一张|换张图|换一张|翻图|别的角度|其他角度|背面|侧面/.test(text)) {
+    const args = { dir: text.includes("上一张") ? "prev" : "next" };
+    if (one) args.id = one.id;
+    return { reply: "翻给你看～", tools: [{ name: "showPhoto", args }] };
+  }
+
+  if (text.includes("清空")) return { reply: "好，清空购物袋～", tools: [{ name: "clearCart" }] };
+  if (/删|去掉|拿掉|移除|不要了/.test(text) && one) {
+    if (!inCart(one.id)) return { reply: `购物袋里还没有${one.name}哦～`, tools: [] };
+    return { reply: `把${one.name}拿掉～`, tools: [{ name: "removeCartItem", args: { id: one.id } }] };
+  }
+  const count = parseCount(text);
+  if (/改成|改为|变成|换成|数量/.test(text) && one && count != null) {
+    if (!inCart(one.id)) return { reply: `购物袋里还没有${one.name}哦，要我先加进去吗？`, tools: [] };
+    return {
+      reply: `${one.name}改成 ${count} 件～`,
+      tools: [{ name: "setCartQty", args: { id: one.id, qty: count } }],
+    };
+  }
+
+  if (/用|选|换成|改成|切换/.test(text) && /支付宝/.test(text)) {
+    return { reply: "选支付宝～", tools: [{ name: "choosePayment", args: { method: "alipay" } }] };
+  }
+  if (/用|选|换成|改成|切换/.test(text) && /微信/.test(text)) {
+    return { reply: "选微信支付～", tools: [{ name: "choosePayment", args: { method: "wechat" } }] };
+  }
+
+  if (text.includes("订单")) {
+    const order = ctx && ctx.lastOrder;
+    if (!order) return { reply: "这台设备上还没有找到你的订单哦～", tools: [] };
+    return {
+      reply: `你最近的订单 ${order.no}，实付 ${money(order.total)}。确认收款后会尽快发货～`,
+      tools: path === "order.html" ? [] : [{ name: "openOrder" }],
+    };
+  }
+  if (/购物(袋|车)里(有|都)/.test(text) || (/总价|一共多少|总共多少|合计/.test(text) && !one)) {
+    return { reply: cartSummary(ctx), tools: [] };
+  }
+
+  if (hits.length >= 2 && /比|对比|区别|哪个/.test(text)) {
+    const rows = hits.slice(0, 3).map(
+      (p) => `- ${p.name}：${money(p.price)}${p.dimension ? " · " + p.dimension : ""}${p.material ? " · " + p.material : ""}`
+    );
+    return { reply: ["并排看看：", ...rows, "想看哪件的详情？"].join("\n"), tools: [] };
+  }
+  const budget = text.match(/(\d+(?:\.\d+)?)\s*(?:元|块)?\s*(?:以内|以下|之内)/);
+  if (budget || /推荐|送人|送朋友|礼物|买什么/.test(text)) {
+    let pool = catalog.slice();
+    if (budget) pool = pool.filter((p) => Number(p.price) <= Number(budget[1]));
+    if (!pool.length) return { reply: "这个预算里暂时没有合适的，稍微放宽一点试试？", tools: [] };
+    pool.sort((a, b) => Number(b.price) - Number(a.price));
+    const pick = pool[0];
+    const others = pool.slice(1, 3).map((p) => p.name).join("、");
+    return {
+      reply: `推荐「${pick.name}」${money(pick.price)}${others ? `，也可以看看 ${others}` : ""}～先带你看它`,
+      tools: [{ name: "openProduct", args: { id: pick.id } }],
+    };
+  }
+  return null;
+}
+
+function localMoruReply(userText, catalog, ctx) {
   const text = String(userText || "").trim();
   const low = text.toLowerCase();
   const tools = [];
+
+  if (["作品集", "珑瀛"].some((k) => text.includes(k)) || low.includes("portfolio")) {
+    tools.push({ name: "openPortfolio" });
+    return { reply: "走，带你去看珑瀛的作品集～", tools };
+  }
+  const action = pageActionReply(text, catalog, ctx);
+  if (action) return action;
 
   if (["购物袋", "购物车", "去买", "结算"].some((k) => text.includes(k)) || low.includes("cart")) {
     tools.push({ name: "openCart" });

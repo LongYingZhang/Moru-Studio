@@ -240,6 +240,30 @@
     const s = summary || takeoverSummary || "";
     takeoverSummary = s;
     writeTakeover({ t: Date.now(), summary: s, remaining: [], last: "", sealed: true });
+    clearPendingAction();
+  }
+
+  // 需要先跳页再执行的页面内操作（改购物袋、选支付方式等）
+  const PENDING_KEY = "ly-moru-pending";
+
+  function readPendingAction() {
+    try {
+      return JSON.parse(sessionStorage.getItem(PENDING_KEY));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function writePendingAction(page, tool) {
+    try {
+      sessionStorage.setItem(PENDING_KEY, JSON.stringify({ page, tool }));
+    } catch (_) {}
+  }
+
+  function clearPendingAction() {
+    try {
+      sessionStorage.removeItem(PENDING_KEY);
+    } catch (_) {}
   }
 
   function showTakeoverSummary() {
@@ -368,16 +392,20 @@
     setTimeout(endTakeover, dwell);
   }
 
-  function clickPortfolioWhenLoaded(startedAt = Date.now()) {
+  function whenPageLoaded(fn, startedAt = Date.now()) {
     const boot = document.getElementById("boot");
     const loading =
       (boot && !boot.classList.contains("is-out")) ||
       document.documentElement.classList.contains("is-booting");
     if (loading && Date.now() - startedAt < 8000) {
-      setTimeout(() => clickPortfolioWhenLoaded(startedAt), 120);
+      setTimeout(() => whenPageLoaded(fn, startedAt), 120);
       return;
     }
-    setTimeout(() => clickPortfolioCard(), 500);
+    setTimeout(fn, 500);
+  }
+
+  function clickPortfolioWhenLoaded() {
+    whenPageLoaded(() => clickPortfolioCard());
   }
 
   function productName(id) {
@@ -405,6 +433,26 @@
         return "带你回首页啦～";
       case "openPortfolio":
         return "珑瀛的作品集给你打开啦，慢慢逛～";
+      case "openOrder":
+        return "你最近的订单在这儿～";
+      case "showPhoto":
+        return "换好图啦，看看喜不喜欢～";
+      case "openGallery":
+        return "全屏画册打开啦，左右翻着看～";
+      case "setCartQty":
+        return `${productName(id)} 改成 ${Math.max(0, Number(args.qty) || 0)} 件啦～`;
+      case "removeCartItem":
+        return `${productName(id)} 已经从购物袋拿掉啦～`;
+      case "clearCart":
+        return "购物袋清空啦，干干净净～";
+      case "choosePayment":
+        return `已经帮你选好${args.method === "alipay" ? "支付宝" : "微信支付"}～`;
+      case "scrollPage":
+        return args.dir === "top" ? "回到顶部啦～" : args.dir === "bottom" ? "到底啦～" : "翻好啦～";
+      case "refreshPage":
+        return "刷新好啦～";
+      case "goBack":
+        return "回到上一页啦～";
       default:
         return "";
     }
@@ -498,6 +546,12 @@
         clickPortfolioWhenLoaded();
         return;
       }
+      const pending = readPendingAction();
+      if (pending && pending.page === here && pending.tool) {
+        clearPendingAction();
+        whenPageLoaded(() => runPageAction(pending.tool));
+        return;
+      }
       endTakeoverWhenLoaded(fromCache ? 400 : 900);
     }
   }
@@ -564,11 +618,36 @@
   });
 
   function pageContext() {
-    return {
+    const ctx = {
       path: location.pathname.split("/").pop() || "index.html",
       href: location.href,
       title: document.title,
     };
+    const shop = window.Shop;
+    if (!shop) return ctx;
+    try {
+      ctx.cart = shop.cartLines().map(({ product, qty, subtotal }) => ({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        qty,
+        subtotal,
+      }));
+      ctx.cartTotal = shop.cartTotal();
+      const order = typeof shop.lastOrder === "function" ? shop.lastOrder() : null;
+      if (order && order.no) {
+        ctx.lastOrder = {
+          no: order.no,
+          total: order.total,
+          method: (shop.paymentLabels && shop.paymentLabels[order.method]) || order.method,
+          createdAt: order.createdAt,
+          items: (order.items || []).map((i) => `${i.name}×${i.qty}`),
+        };
+      }
+      const id = Number(new URLSearchParams(location.search).get("id"));
+      if (ctx.path === "product.html" && Number.isFinite(id)) ctx.productId = id;
+    } catch (_) {}
+    return ctx;
   }
 
   function resolveProductId(args) {
@@ -593,7 +672,150 @@
     openTerms: "terms.html",
     openCheckout: "checkout.html",
     openHome: "index.html",
+    openOrder: "order.html",
   };
+
+  // 页面内操作：值为必须所在的页面；null = 当前页即可
+  const PAGE_ACTIONS = {
+    showPhoto: null,
+    openGallery: "index.html",
+    setCartQty: "cart.html",
+    removeCartItem: "cart.html",
+    clearCart: "cart.html",
+    choosePayment: "checkout.html",
+    scrollPage: null,
+    refreshPage: null,
+    goBack: null,
+  };
+
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  // 接管态下「按」一下页面上的按钮：先滚到可见、亮一下，再点击
+  async function pressEl(el) {
+    if (!el || isStopped()) return false;
+    try {
+      el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+    } catch (_) {}
+    await wait(260);
+    if (isStopped()) return false;
+    el.classList.add("is-moru-press");
+    await wait(260);
+    el.classList.remove("is-moru-press");
+    if (isStopped()) return false;
+    el.click();
+    return true;
+  }
+
+  function scrollTarget() {
+    const candidates = [
+      document.getElementById("cards"),
+      document.querySelector(".page"),
+      document.querySelector("main"),
+    ];
+    for (const el of candidates) {
+      if (!el) continue;
+      const style = getComputedStyle(el);
+      if (/(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight + 10) return el;
+    }
+    return document.scrollingElement || document.documentElement;
+  }
+
+  async function runPageAction(tool) {
+    const name = tool.name;
+    const args = tool.args || {};
+    const id = tool.id != null ? tool.id : resolveProductId(args);
+    const here = pagePath(location.href);
+    if (isStopped()) return;
+    setTakeover(true);
+
+    if (name === "refreshPage") {
+      endTakeover();
+      setTimeout(() => location.reload(), 300);
+      return;
+    }
+    if (name === "goBack") {
+      endTakeover();
+      setTimeout(() => {
+        if (history.length > 1) history.back();
+        else if (window.Shop) Shop.navigate("index.html");
+      }, 300);
+      return;
+    }
+
+    if (name === "showPhoto") {
+      const prev = args.dir === "prev";
+      const steps = Math.max(1, Math.min(9, Number(args.steps) || 1));
+      let btn = null;
+      if (here === "product.html") {
+        const dots = document.querySelectorAll("#dots [data-shot]");
+        if (dots.length < 2) {
+          takeoverSummary = "这件目前只有一张图哦～";
+        } else {
+          btn = document.getElementById(prev ? "prev" : "next");
+        }
+      } else if (here === "index.html") {
+        const lightbox = document.getElementById("lightbox");
+        if (lightbox && !lightbox.classList.contains("open")) {
+          await pressEl(document.getElementById("hero"));
+          await wait(450);
+        }
+        btn = document.getElementById(prev ? "lbPrev" : "lbNext");
+      }
+      for (let i = 0; i < steps && btn; i++) {
+        if (!(await pressEl(btn))) return;
+        await wait(380);
+      }
+    } else if (name === "openGallery") {
+      if (id != null) {
+        const card = document.querySelector(`.card[data-id="${id}"]`);
+        if (card) {
+          await pressEl(card);
+          await wait(450);
+        }
+      }
+      await pressEl(document.getElementById("hero"));
+    } else if (name === "setCartQty") {
+      const target = Math.max(0, Math.min(99, Math.round(Number(args.qty) || 0)));
+      const line = window.Shop && Shop.cartLines().find((l) => l.product.id === id);
+      if (!line) {
+        takeoverSummary = `购物袋里还没有${productName(id)}哦～`;
+      } else if (target === 0) {
+        await pressEl(document.querySelector(`[data-action="remove"][data-id="${id}"]`));
+      } else {
+        let guard = 0;
+        while (guard++ < 99) {
+          const cur = Shop.cartLines().find((l) => l.product.id === id);
+          if (!cur || cur.qty === target) break;
+          const action = cur.qty < target ? "inc" : "dec";
+          const ok = await pressEl(document.querySelector(`[data-action="${action}"][data-id="${id}"]`));
+          if (!ok) return;
+          await wait(120);
+        }
+      }
+    } else if (name === "removeCartItem") {
+      const btn = document.querySelector(`[data-action="remove"][data-id="${id}"]`);
+      if (btn) await pressEl(btn);
+      else takeoverSummary = `购物袋里没有${productName(id)}哦～`;
+    } else if (name === "clearCart") {
+      const btn = document.getElementById("clear");
+      if (window.Shop && Shop.cartLines().length && btn) await pressEl(btn);
+      else takeoverSummary = "购物袋本来就是空的哦～";
+    } else if (name === "choosePayment") {
+      const method = args.method === "alipay" ? "alipay" : "wechat";
+      await pressEl(document.querySelector(`.pay[data-method="${method}"]`));
+    } else if (name === "scrollPage") {
+      const el = scrollTarget();
+      const isRoot = el === document.scrollingElement || el === document.documentElement;
+      const view = isRoot ? window.innerHeight : el.clientHeight;
+      const opts = { behavior: "smooth" };
+      if (args.dir === "top") el.scrollTo({ top: 0, ...opts });
+      else if (args.dir === "bottom") el.scrollTo({ top: el.scrollHeight, ...opts });
+      else el.scrollBy({ top: (args.dir === "up" ? -1 : 1) * view * 0.8, ...opts });
+    }
+
+    await wait(700);
+    if (!isStopped()) endTakeover();
+  }
 
   const PORTFOLIO_URL = "https://zhanglongying.pages.dev";
   const PORTFOLIO_FLAG = "moruOpen=portfolio";
@@ -673,6 +895,19 @@
         // 本页有作品集卡片就直接点；否则先回首页再点
         if (portfolioCard()) plan.push({ name, args, portfolio: true });
         else plan.push({ name, args, href: "index.html?" + PORTFOLIO_FLAG });
+      } else if (Object.prototype.hasOwnProperty.call(PAGE_ACTIONS, name)) {
+        const id = resolveProductId(args);
+        const here = pagePath(location.href);
+        let page = PAGE_ACTIONS[name];
+        let href = page;
+        if (name === "showPhoto" && here !== "product.html" && here !== "index.html") {
+          // 不在能翻图的页面：有指定商品就去它的详情页
+          if (id == null) return;
+          page = "product.html";
+          href = "product.html?id=" + encodeURIComponent(id);
+        }
+        if ((name === "setCartQty" || name === "removeCartItem") && id == null) return;
+        plan.push({ name, args, id, action: true, page: page && page !== here ? page : null, href });
       }
     });
     return plan;
@@ -691,6 +926,7 @@
 
     let navigateTo = null;
     let portfolioHere = false;
+    let actionStep = null;
     plan.forEach((step) => {
       if (step.name === "addToCart") {
         shop.addToCart(step.id, step.qty);
@@ -698,10 +934,34 @@
         else if (typeof shop.refreshCount === "function") shop.refreshCount();
       } else if (step.portfolio) {
         portfolioHere = true;
+      } else if (step.action) {
+        if (!actionStep) actionStep = step;
       } else if (step.href) {
         navigateTo = step.href;
       }
     });
+
+    if (actionStep && actionStep.name === "choosePayment" && shop && !shop.cartLines().length) {
+      takeoverSummary = "购物袋还是空的，先挑点东西再结算吧～";
+      driveTimer = setTimeout(endTakeover, 900);
+      return true;
+    }
+
+    if (actionStep) {
+      clearStopped();
+      const tool = { name: actionStep.name, args: actionStep.args, id: actionStep.id };
+      if (!actionStep.page) {
+        saveTakeover([]);
+        driveTimer = setTimeout(() => {
+          driveTimer = null;
+          runPageAction(tool);
+        }, 500);
+        return true;
+      }
+      // 先跳到需要的页面，落地后由 resumeTakeover 接着执行
+      writePendingAction(actionStep.page, tool);
+      navigateTo = actionStep.href;
+    }
 
     if (portfolioHere) {
       clearStopped();
