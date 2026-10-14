@@ -96,7 +96,8 @@
   padding: 0;
   border: 0;
   border-radius: 15px;
-  background: transparent;
+  /* 手机上框比 SVG 窄，SVG 等比缩放后底部会差几像素，用同色底补上 */
+  background: #1a1a1a;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
   overflow: hidden;
   color: #fff;
@@ -119,7 +120,6 @@
   height: 84px;
   min-height: 84px;
   max-height: 84px;
-  background: transparent;
 }
 
 .moru-bubble[data-side="above"] {
