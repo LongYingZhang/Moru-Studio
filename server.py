@@ -14,11 +14,11 @@ import sys
 import tempfile
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import partial
 from http.cookies import SimpleCookie
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 
@@ -31,6 +31,7 @@ DATA_FILE = os.path.join(DATA_DIR, "products.json")
 ORDERS_FILE = os.path.join(DATA_DIR, "orders.json")
 AUTH_FILE = os.path.join(DATA_DIR, "auth.json")
 SESSIONS_FILE = os.path.join(DATA_DIR, "sessions.json")
+TRAFFIC_FILE = os.path.join(DATA_DIR, "traffic.json")
 UPLOADS_DIR = os.path.join(DATA_DIR, "uploads")
 ENV_FILE = os.path.join(SHOP_DIR, ".env")
 PORT = int(os.environ.get("PORT", "8787"))
@@ -39,6 +40,20 @@ MAX_BODY = 50 * 1024 * 1024
 MAX_SMALL_BODY = 64 * 1024
 API_PATH = "/api/products"
 MORU_CHAT_PATH = "/api/moru/chat"
+TRAFFIC_HIT_PATH = "/api/traffic/hit"
+TRAFFIC_PATH = "/api/traffic"
+TRAFFIC_ONLINE_SEC = 5 * 60
+TRAFFIC_KEEP_DAYS = 90
+TRAFFIC_SID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+TRAFFIC_PAGES = {
+    "index.html": "首页画册",
+    "product.html": "商品详情",
+    "cart.html": "购物袋",
+    "checkout.html": "结算页",
+    "order.html": "订单",
+    "terms.html": "购物须知",
+}
+WEEKDAY_CN = ("一", "二", "三", "四", "五", "六", "日")
 
 # ---- Moru 限流（内存；重启清零；每日 0 点按自然日清空）----
 MORU_GLOBAL_TOKEN_DAY = 150_000
@@ -187,6 +202,194 @@ def version_assets(html, base_dir, mtime):
 
 data_lock = threading.Lock()
 sessions_lock = threading.Lock()
+traffic_hit_guard = {}  # ip -> last hit ts；防刷
+traffic_hit_lock = threading.Lock()
+
+
+def traffic_today():
+    return datetime.now().astimezone().date()
+
+
+def traffic_empty_day():
+    return {
+        "uv": 0,
+        "pv": 0,
+        "seen": {},
+        "active": {},
+        "pages": {},
+        "devices": {"mobile": 0, "desktop": 0, "tablet": 0},
+    }
+
+
+def traffic_prune(store, today):
+    days = store.setdefault("days", {})
+    keep_after = today.toordinal() - TRAFFIC_KEEP_DAYS
+    for key in list(days.keys()):
+        try:
+            day = datetime.strptime(key, "%Y-%m-%d").date()
+        except ValueError:
+            days.pop(key, None)
+            continue
+        if day.toordinal() < keep_after:
+            days.pop(key, None)
+            continue
+        row = days[key]
+        if day != today:
+            row.pop("seen", None)
+            row.pop("active", None)
+        else:
+            cutoff = time.time() - TRAFFIC_ONLINE_SEC * 2
+            active = row.get("active") or {}
+            row["active"] = {sid: ts for sid, ts in active.items() if ts >= cutoff}
+
+
+def traffic_record_hit(sid, path, device, ping=False):
+    today = traffic_today()
+    key = today.isoformat()
+    now = time.time()
+    with data_lock:
+        store = read_json(TRAFFIC_FILE, {"days": {}})
+        if not isinstance(store, dict):
+            store = {"days": {}}
+        traffic_prune(store, today)
+        days = store.setdefault("days", {})
+        row = days.get(key)
+        if not isinstance(row, dict):
+            row = traffic_empty_day()
+            days[key] = row
+        seen = row.setdefault("seen", {})
+        if sid not in seen:
+            seen[sid] = 1
+            row["uv"] = int(row.get("uv") or 0) + 1
+        row.setdefault("active", {})[sid] = now
+        if not ping:
+            row["pv"] = int(row.get("pv") or 0) + 1
+            pages = row.setdefault("pages", {})
+            pages[path] = int(pages.get(path) or 0) + 1
+            devices = row.setdefault("devices", {"mobile": 0, "desktop": 0, "tablet": 0})
+            if device not in devices:
+                device = "desktop"
+            devices[device] = int(devices.get(device) or 0) + 1
+        write_json(TRAFFIC_FILE, store)
+
+
+def traffic_day_uv(row):
+    if not isinstance(row, dict):
+        return 0
+    if row.get("seen"):
+        return len(row["seen"])
+    return int(row.get("uv") or 0)
+
+
+def traffic_summary(range_key="7"):
+    today = traffic_today()
+    with data_lock:
+        store = read_json(TRAFFIC_FILE, {"days": {}})
+        if not isinstance(store, dict):
+            store = {"days": {}}
+        traffic_prune(store, today)
+        write_json(TRAFFIC_FILE, store)
+        days = store.get("days") or {}
+
+    today_key = today.isoformat()
+    yesterday = (today - timedelta(days=1)).isoformat()
+    today_row = days.get(today_key) or {}
+    yesterday_row = days.get(yesterday) or {}
+    today_uv = traffic_day_uv(today_row)
+    yesterday_uv = traffic_day_uv(yesterday_row)
+
+    if range_key == "30":
+        span = 30
+    elif range_key == "all":
+        span = max(TRAFFIC_KEEP_DAYS, 1)
+    else:
+        span = 7
+
+    week_uv = 0
+    prev_week_uv = 0
+    for offset in range(14):
+        day = today - timedelta(days=offset)
+        uv = traffic_day_uv(days.get(day.isoformat()) or {})
+        if offset < 7:
+            week_uv += uv
+        else:
+            prev_week_uv += uv
+
+    series = []
+    page_totals = {}
+    device_totals = {"mobile": 0, "desktop": 0, "tablet": 0}
+    for offset in range(span - 1, -1, -1):
+        day = today - timedelta(days=offset)
+        key = day.isoformat()
+        row = days.get(key) or {}
+        uv = traffic_day_uv(row)
+        label = "今" if offset == 0 else WEEKDAY_CN[day.weekday()]
+        series.append({"label": label, "value": uv, "today": offset == 0, "date": key})
+        for path, count in (row.get("pages") or {}).items():
+            page_totals[path] = page_totals.get(path, 0) + int(count or 0)
+        for device, count in (row.get("devices") or {}).items():
+            if device in device_totals:
+                device_totals[device] += int(count or 0)
+
+    # 近 7 日柱始终用最近 7 天；其余范围只影响热门页与设备占比
+    last7 = []
+    for offset in range(6, -1, -1):
+        day = today - timedelta(days=offset)
+        key = day.isoformat()
+        row = days.get(key) or {}
+        uv = traffic_day_uv(row)
+        label = "今" if offset == 0 else WEEKDAY_CN[day.weekday()]
+        last7.append({"label": label, "value": uv, "today": offset == 0, "date": key})
+
+    online = 0
+    cutoff = time.time() - TRAFFIC_ONLINE_SEC
+    for ts in (today_row.get("active") or {}).values():
+        try:
+            if float(ts) >= cutoff:
+                online += 1
+        except (TypeError, ValueError):
+            pass
+
+    device_sum = sum(device_totals.values()) or 1
+    devices = [
+        {"label": "手机", "pct": round(device_totals["mobile"] * 100 / device_sum)},
+        {"label": "电脑", "pct": round(device_totals["desktop"] * 100 / device_sum)},
+        {"label": "平板", "pct": round(device_totals["tablet"] * 100 / device_sum)},
+    ]
+    # 修正四舍五入导致的合计偏差
+    drift = 100 - sum(d["pct"] for d in devices)
+    if devices:
+        devices[0]["pct"] = max(0, devices[0]["pct"] + drift)
+
+    ranked = sorted(page_totals.items(), key=lambda item: item[1], reverse=True)[:6]
+    pages = [
+        {"label": TRAFFIC_PAGES.get(path, path.replace(".html", "")), "views": count}
+        for path, count in ranked
+    ]
+
+    def delta_pct(current, previous):
+        if previous <= 0:
+            return 100 if current > 0 else 0
+        return round((current - previous) * 100 / previous)
+
+    range_uv = sum(day["value"] for day in series)
+    return {
+        "today": today_uv,
+        "yesterday": yesterday_uv,
+        "week": week_uv,
+        "rangeUv": range_uv,
+        "online": online,
+        "todayDelta": delta_pct(today_uv, yesterday_uv),
+        "weekDelta": delta_pct(week_uv, prev_week_uv),
+        "days": last7,
+        "devices": devices,
+        "pages": pages,
+        "range": range_key,
+        "live": True,
+        "source": "server",
+    }
+
+
 sessions = set()
 
 
@@ -846,6 +1049,8 @@ class ShopHandler(SimpleHTTPRequestHandler):
             with data_lock:
                 orders = read_json(ORDERS_FILE, [])
             return self.send_json(200, orders)
+        if path == TRAFFIC_PATH:
+            return self.get_traffic()
         return super().do_GET()
 
     def do_PUT(self):
@@ -877,6 +1082,8 @@ class ShopHandler(SimpleHTTPRequestHandler):
             return self.create_order()
         if path == MORU_CHAT_PATH:
             return self.moru_chat()
+        if path == TRAFFIC_HIT_PATH:
+            return self.traffic_hit()
         self.send_error(405)
 
     def do_PATCH(self):
@@ -1049,6 +1256,53 @@ class ShopHandler(SimpleHTTPRequestHandler):
                 return self.send_json(409, {"error": "订单状态已变化，请刷新"})
             write_json(ORDERS_FILE, orders)
         self.send_json(200, order)
+
+    # ---- traffic ----
+
+    def get_traffic(self):
+        if not self.require_auth():
+            return
+        query = parse_qs(urlsplit(self.path).query)
+        range_key = (query.get("range") or ["7"])[0]
+        if range_key not in ("7", "30", "all"):
+            range_key = "7"
+        self.send_json(200, traffic_summary(range_key))
+
+    def traffic_hit(self):
+        body = self.read_body(MAX_SMALL_BODY)
+        if body is None:
+            return
+        if not isinstance(body, dict):
+            return self.send_json(400, {"error": "invalid body"})
+        sid = str(body.get("sid") or "").strip()
+        if not TRAFFIC_SID.match(sid):
+            return self.send_json(400, {"error": "invalid sid"})
+        raw_path = str(body.get("path") or "").strip().lstrip("/")
+        page = os.path.basename(raw_path.split("?")[0]) or "index.html"
+        if page not in TRAFFIC_PAGES:
+            page = "index.html"
+        device = str(body.get("device") or "desktop").strip().lower()
+        if device not in ("mobile", "desktop", "tablet"):
+            device = "desktop"
+        ping = bool(body.get("ping"))
+        ip = self.client_ip()
+        now = time.time()
+        with traffic_hit_lock:
+            last = traffic_hit_guard.get(ip, 0)
+            # 心跳可更密；新页打点限制约 1 次 / 1.5s
+            min_gap = 0.4 if ping else 1.5
+            if now - last < min_gap:
+                return self.send_json(200, {"ok": True, "skipped": True})
+            traffic_hit_guard[ip] = now
+            if len(traffic_hit_guard) > 4000:
+                cutoff = now - 3600
+                for key in [k for k, ts in traffic_hit_guard.items() if ts < cutoff]:
+                    traffic_hit_guard.pop(key, None)
+        try:
+            traffic_record_hit(sid, page, device, ping=ping)
+        except OSError:
+            return self.send_json(500, {"error": "write failed"})
+        self.send_json(200, {"ok": True})
 
     # ---- Moru assistant (local floating chat) ----
 

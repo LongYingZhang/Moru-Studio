@@ -882,6 +882,94 @@
     hideBoot
   };
 
+  // 访问打点：本机店铺服务写入 admin/data/traffic.json；后台「访问监控」读取
+  (function trackTraffic() {
+    const HIT = "/api/traffic/hit";
+    const SID_KEY = "ly-traffic-sid";
+    const PAGES = {
+      "index.html": 1,
+      "product.html": 1,
+      "cart.html": 1,
+      "checkout.html": 1,
+      "order.html": 1,
+      "terms.html": 1,
+      "": 1,
+      "/": 1,
+    };
+
+    function pageName() {
+      const raw = (location.pathname || "/").split("/").pop() || "index.html";
+      if (raw === "" || raw === "/") return "index.html";
+      return PAGES[raw] ? raw : raw.endsWith(".html") ? raw : "index.html";
+    }
+
+    function deviceType() {
+      const ua = navigator.userAgent || "";
+      if (/iPad|Tablet|PlayBook|Silk/i.test(ua)) return "tablet";
+      if (/Mobi|Android|iPhone|iPod|Phone/i.test(ua)) return "mobile";
+      const w = Math.min(window.innerWidth || 9999, screen.width || 9999);
+      if (w >= 768 && w <= 1024 && "ontouchstart" in window) return "tablet";
+      if (w < 768) return "mobile";
+      return "desktop";
+    }
+
+    function sid() {
+      try {
+        let id = localStorage.getItem(SID_KEY);
+        if (id && /^[A-Za-z0-9_-]{8,64}$/.test(id)) return id;
+        const bytes = new Uint8Array(16);
+        (crypto.getRandomValues || (() => 0))(bytes);
+        id = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+        localStorage.setItem(SID_KEY, id);
+        return id;
+      } catch {
+        return "anon" + String(Date.now()).slice(-10);
+      }
+    }
+
+    function post(body, keepalive) {
+      const payload = JSON.stringify(body);
+      if (keepalive && navigator.sendBeacon) {
+        try {
+          const blob = new Blob([payload], { type: "application/json" });
+          if (navigator.sendBeacon(HIT, blob)) return;
+        } catch {}
+      }
+      fetch(HIT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+        keepalive: !!keepalive,
+        cache: "no-store",
+      }).catch(() => {});
+    }
+
+    const base = { sid: sid(), path: pageName(), device: deviceType() };
+    if (!PAGES[base.path] && base.path !== "index.html") return;
+
+    post(base, false);
+
+    let timer = 0;
+    function beat() {
+      if (document.visibilityState === "hidden") return;
+      post({ ...base, ping: true }, false);
+    }
+    function start() {
+      window.clearInterval(timer);
+      timer = window.setInterval(beat, 60000);
+    }
+    start();
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        beat();
+        start();
+      }
+    });
+    window.addEventListener("pagehide", () => {
+      post({ ...base, ping: true }, true);
+    });
+  })();
+
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("/sw.js").catch(() => {});

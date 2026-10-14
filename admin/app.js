@@ -107,6 +107,7 @@
 
   const ORDERS_API = "/api/orders";
   const AUTH_API = "/api/auth";
+  const TRAFFIC_API = "/api/traffic";
   const SHOTS_MAX = 4;
   const ORDER_STATUS = {
     pending: { label: "待确认收款", action: "处理收款" },
@@ -121,6 +122,9 @@
   let products = loadProducts();
   let orders = [];
   let orderTab = "pending";
+  let trafficRange = "7";
+  let trafficCache = null;
+  let trafficPoll = 0;
   let auth = { setup: true, authed: false };
   let toastTimer = 0;
   let orderPoll = 0;
@@ -321,6 +325,7 @@
   function lockOut() {
     auth.authed = false;
     window.clearInterval(orderPoll);
+    stopTrafficPoll();
     render();
   }
 
@@ -998,44 +1003,44 @@
       </a>`;
   }
 
-  // 访问监控：先用示意数据上线界面；真实统计接上后再替换 MOCK_TRAFFIC
-  const MOCK_TRAFFIC = {
-    today: 128,
-    yesterday: 108,
-    week: 742,
-    online: 6,
-    todayDelta: 18,
-    weekDelta: -4,
-    days: [
-      { label: "三", value: 86 },
-      { label: "四", value: 102 },
-      { label: "五", value: 94 },
-      { label: "六", value: 121 },
-      { label: "日", value: 103 },
-      { label: "一", value: 108 },
-      { label: "今", value: 128, today: true },
-    ],
-    devices: [
-      { label: "手机", pct: 72 },
-      { label: "电脑", pct: 23 },
-      { label: "平板", pct: 5 },
-    ],
-    pages: [
-      { label: "首页画册", views: 312 },
-      { label: "商品详情", views: 186 },
-      { label: "购物袋", views: 64 },
-      { label: "结算页", views: 29 },
-    ],
-  };
+  function emptyTraffic() {
+    return {
+      today: 0,
+      yesterday: 0,
+      week: 0,
+      online: 0,
+      todayDelta: 0,
+      weekDelta: 0,
+      days: Array.from({ length: 7 }, (_, i) => ({
+        label: i === 6 ? "今" : "—",
+        value: 0,
+        today: i === 6,
+      })),
+      devices: [
+        { label: "手机", pct: 0 },
+        { label: "电脑", pct: 0 },
+        { label: "平板", pct: 0 },
+      ],
+      pages: [],
+      live: false,
+    };
+  }
 
-  function renderTraffic() {
-    const data = MOCK_TRAFFIC;
-    const max = Math.max(...data.days.map((d) => d.value), 1);
+  async function loadTraffic(range = trafficRange) {
+    const data = await api(`${TRAFFIC_API}?range=${encodeURIComponent(range)}`);
+    trafficCache = data;
+    trafficRange = range;
+    return data;
+  }
+
+  function paintTraffic(data, { loading = false, error = "" } = {}) {
+    const safe = data && Array.isArray(data.days) ? data : emptyTraffic();
+    const max = Math.max(...safe.days.map((d) => d.value), 1);
     const todayLabel = new Date().toLocaleDateString("zh-CN", {
       month: "numeric",
       day: "numeric",
     });
-    const bars = data.days
+    const bars = safe.days
       .map((day) => {
         const height = Math.max(4, Math.round((day.value / max) * 100));
         return `
@@ -1046,7 +1051,7 @@
           </div>`;
       })
       .join("");
-    const devices = data.devices
+    const devices = (safe.devices || [])
       .map(
         (row) => `
           <div class="split-row">
@@ -1056,56 +1061,69 @@
           </div>`,
       )
       .join("");
-    const pages = data.pages
-      .map(
-        (row) => `
+    const pages = (safe.pages || []).length
+      ? safe.pages
+          .map(
+            (row) => `
           <div class="page-row">
             <span>${escapeHTML(row.label)}</span>
             <b>${row.views}</b>
           </div>`,
-      )
-      .join("");
+          )
+          .join("")
+      : `<div class="page-row"><span>暂无页面数据</span><b>0</b></div>`;
+    const pageNote =
+      trafficRange === "30"
+        ? "热门页为近 30 日浏览次数。"
+        : trafficRange === "all"
+          ? "热门页为全部留存期内浏览次数。"
+          : "热门页为近 7 日浏览次数。";
+    const banner = error
+      ? `<div class="traffic-banner">${escapeHTML(error)}</div>`
+      : loading
+        ? `<div class="traffic-banner">正在读取访问数据…</div>`
+        : `<div class="traffic-banner">统计本机店铺服务收到的访问（局域网 / 2015）。Cloudflare 公网页暂不计入。</div>`;
 
     document.title = "访问监控 · STUDIO-ADMIN";
     app.innerHTML = `
       <section class="page" aria-label="访问监控">
-        <div class="traffic-banner">当前为示意数据，真实访问统计接入后会自动替换。</div>
+        ${banner}
         <div class="traffic-head">
           <div>
             <h1>访问监控</h1>
             <p>看店铺有多少人来过 · 今天 ${escapeHTML(todayLabel)}</p>
           </div>
           <div class="traffic-range" role="group" aria-label="时间范围">
-            <button class="tab is-on" type="button" data-traffic-range="7">近 7 日</button>
-            <button class="tab" type="button" data-traffic-range="30">近 30 日</button>
-            <button class="tab" type="button" data-traffic-range="all">全部</button>
+            <button class="tab${trafficRange === "7" ? " is-on" : ""}" type="button" data-traffic-range="7">近 7 日</button>
+            <button class="tab${trafficRange === "30" ? " is-on" : ""}" type="button" data-traffic-range="30">近 30 日</button>
+            <button class="tab${trafficRange === "all" ? " is-on" : ""}" type="button" data-traffic-range="all">全部</button>
           </div>
         </div>
         <div class="traffic-kpis">
           <article class="kpi-card">
             <span class="kpi-label">今日访客</span>
-            <div class="kpi-value">${data.today}</div>
+            <div class="kpi-value">${safe.today}</div>
             <div class="kpi-foot">
-              <span class="kpi-delta ${data.todayDelta >= 0 ? "is-up" : "is-down"}">${data.todayDelta >= 0 ? "↑" : "↓"} ${Math.abs(data.todayDelta)}%</span>
+              <span class="kpi-delta ${safe.todayDelta >= 0 ? "is-up" : "is-down"}">${safe.todayDelta >= 0 ? "↑" : "↓"} ${Math.abs(safe.todayDelta)}%</span>
               <span>较昨日</span>
             </div>
           </article>
           <article class="kpi-card">
             <span class="kpi-label">昨日访客</span>
-            <div class="kpi-value">${data.yesterday}</div>
+            <div class="kpi-value">${safe.yesterday}</div>
             <div class="kpi-foot"><span>独立访客 UV</span></div>
           </article>
           <article class="kpi-card">
             <span class="kpi-label">近 7 日</span>
-            <div class="kpi-value">${data.week}</div>
+            <div class="kpi-value">${safe.week}</div>
             <div class="kpi-foot">
-              <span class="kpi-delta ${data.weekDelta >= 0 ? "is-up" : "is-down"}">${data.weekDelta >= 0 ? "↑" : "↓"} ${Math.abs(data.weekDelta)}%</span>
+              <span class="kpi-delta ${safe.weekDelta >= 0 ? "is-up" : "is-down"}">${safe.weekDelta >= 0 ? "↑" : "↓"} ${Math.abs(safe.weekDelta)}%</span>
               <span>较上周</span>
             </div>
           </article>
           <article class="kpi-card">
             <span class="kpi-label">当前在线</span>
-            <div class="kpi-value">${data.online}</div>
+            <div class="kpi-value">${safe.online}</div>
             <div class="kpi-foot">
               <span class="kpi-live"><i></i>实时</span>
               <span>约 5 分钟内活跃</span>
@@ -1116,16 +1134,49 @@
           <section class="traffic-panel" aria-label="近七日访客">
             <h2>近 7 日访客</h2>
             <div class="traffic-chart">${bars}</div>
-            <p class="traffic-note">柱高按当日独立访客估算，今日会随时间增长。</p>
+            <p class="traffic-note">柱高按当日独立访客统计，今日会随时间增长。</p>
           </section>
           <section class="traffic-panel" aria-label="来源与页面">
             <h2>设备与热门页</h2>
             <div class="split-list" style="margin-bottom: 22px">${devices}</div>
             <div class="page-list">${pages}</div>
-            <p class="traffic-note">热门页为近 7 日浏览次数。</p>
+            <p class="traffic-note">${pageNote}</p>
           </section>
         </div>
       </section>`;
+  }
+
+  function stopTrafficPoll() {
+    window.clearInterval(trafficPoll);
+    trafficPoll = 0;
+  }
+
+  function startTrafficPoll() {
+    stopTrafficPoll();
+    trafficPoll = window.setInterval(() => {
+      if (readRoute().name !== "traffic" || !auth.authed) {
+        stopTrafficPoll();
+        return;
+      }
+      loadTraffic(trafficRange)
+        .then((data) => paintTraffic(data))
+        .catch(() => {});
+    }, 30000);
+  }
+
+  async function renderTraffic() {
+    paintTraffic(trafficCache || emptyTraffic(), { loading: !trafficCache });
+    try {
+      const data = await loadTraffic(trafficRange);
+      if (readRoute().name !== "traffic") return;
+      paintTraffic(data);
+      startTrafficPoll();
+    } catch (error) {
+      if (readRoute().name !== "traffic") return;
+      paintTraffic(trafficCache || emptyTraffic(), {
+        error: error.message || "无法读取访问数据，请确认店铺服务正在运行。",
+      });
+    }
   }
 
   function renderOrders() {
@@ -1311,10 +1362,12 @@
     const route = readRoute();
     document.body.classList.toggle("is-locked", !auth.authed);
     if (!auth.authed) {
+      stopTrafficPoll();
       renderLogin();
       return;
     }
     setActiveNavigation(route.name);
+    if (route.name !== "traffic") stopTrafficPoll();
 
     if (route.name === "orders") {
       renderOrders();
@@ -1348,12 +1401,26 @@
   }
 
   app.addEventListener("click", (event) => {
-    const trafficRange = event.target.closest("[data-traffic-range]");
-    if (trafficRange) {
+    const rangeBtn = event.target.closest("[data-traffic-range]");
+    if (rangeBtn) {
+      const next = rangeBtn.dataset.trafficRange || "7";
+      if (next === trafficRange) return;
+      trafficRange = next;
       app.querySelectorAll("[data-traffic-range]").forEach((btn) => {
-        btn.classList.toggle("is-on", btn === trafficRange);
+        btn.classList.toggle("is-on", btn === rangeBtn);
       });
-      showToast("时间范围切换将在接入真实数据后生效。");
+      paintTraffic(trafficCache || emptyTraffic(), { loading: true });
+      loadTraffic(next)
+        .then((data) => {
+          if (readRoute().name !== "traffic") return;
+          paintTraffic(data);
+        })
+        .catch((error) => {
+          if (readRoute().name !== "traffic") return;
+          paintTraffic(trafficCache || emptyTraffic(), {
+            error: error.message || "无法读取访问数据。",
+          });
+        });
       return;
     }
 
