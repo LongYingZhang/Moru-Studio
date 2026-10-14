@@ -14,6 +14,11 @@
   z-index: 130;
 }
 
+/* 接管态要盖在加载页（.boot，z-index 9999）上面，跳页加载时也不消失 */
+.moru-root.is-takeover {
+  z-index: 10001;
+}
+
 .moru-avatar {
   position: absolute;
   inset: 0;

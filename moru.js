@@ -158,7 +158,7 @@
   }
 
   /* ---- 接管态：Moru 自动操作网站时，聊天框四周白光呼吸 ---- */
-  let takeoverReply = "";
+  let takeoverSummary = "";
 
   function setTakeover(on) {
     root.classList.toggle("is-takeover", on);
@@ -173,9 +173,12 @@
     syncOrbVideo();
   }
 
-  function saveTakeover(reply) {
+  function saveTakeover() {
     try {
-      sessionStorage.setItem(TAKEOVER_KEY, JSON.stringify({ t: Date.now(), reply }));
+      sessionStorage.setItem(
+        TAKEOVER_KEY,
+        JSON.stringify({ t: Date.now(), summary: takeoverSummary }),
+      );
     } catch (_) {}
   }
 
@@ -184,7 +187,51 @@
       sessionStorage.removeItem(TAKEOVER_KEY);
     } catch (_) {}
     setTakeover(false);
-    if (takeoverReply) setReply(takeoverReply);
+    const summary = takeoverSummary || "搞定啦～";
+    setReply(summary);
+    messages.push({ role: "assistant", content: summary });
+  }
+
+  // 页面加载条消失、图片都到齐后，再停留一下才收尾
+  function endTakeoverWhenLoaded(dwell) {
+    const boot = document.getElementById("boot");
+    const loading =
+      document.readyState !== "complete" ||
+      (boot && !boot.classList.contains("is-out")) ||
+      document.documentElement.classList.contains("is-booting");
+    if (loading) {
+      setTimeout(() => endTakeoverWhenLoaded(dwell), 120);
+      return;
+    }
+    setTimeout(endTakeover, dwell);
+  }
+
+  function productName(id) {
+    const list = window.Shop && Array.isArray(Shop.products) ? Shop.products : [];
+    const hit = list.find((p) => String(p.id) === String(id));
+    return hit ? hit.name : "这件宝贝";
+  }
+
+  function summarize(name, args, id) {
+    const qty = Math.max(1, Math.min(9, Number(args.qty) || 1));
+    switch (name) {
+      case "buyAndCheckout":
+        return `搞定！${productName(id)} ×${qty} 已经带你到结算页，填好地址就能下单～`;
+      case "addToCart":
+        return `${productName(id)} ×${qty} 已经塞进购物袋啦～`;
+      case "openCart":
+        return "购物袋给你打开啦，看看还缺点啥？";
+      case "openCheckout":
+        return "结算页到啦，填好地址就能下单～";
+      case "openProduct":
+        return `${productName(id)} 的详情在这儿啦～`;
+      case "openTerms":
+        return "购物须知在这儿，慢慢看～";
+      case "openHome":
+        return "带你回首页啦～";
+      default:
+        return "";
+    }
   }
 
   function resumeTakeover() {
@@ -198,12 +245,12 @@
       } catch (_) {}
       return;
     }
-    takeoverReply = String(saved.reply || "");
+    takeoverSummary = String(saved.summary || "");
     setTakeover(true);
     // 详情页代购会自己跳去结算，接管态延续到下一页
     const params = new URLSearchParams(location.search);
-    if (params.get("moruBuy") === "1") saveTakeover(takeoverReply);
-    else setTimeout(endTakeover, 1800);
+    if (params.get("moruBuy") === "1") saveTakeover();
+    else endTakeoverWhenLoaded(900);
   }
 
   /* ---- drag ---- */
@@ -292,57 +339,72 @@
     return hit ? hit.id : null;
   }
 
-  function runClientTools(tools, reply) {
-    if (!Array.isArray(tools) || !tools.length) return;
-    const shop = window.Shop;
-    let navigateTo = null;
-    let acted = false;
-    takeoverReply = reply || "";
-    setTakeover(true);
+  const PAGE_TOOLS = {
+    openCart: "cart.html",
+    openTerms: "terms.html",
+    openCheckout: "checkout.html",
+    openHome: "index.html",
+  };
 
+  function planTools(tools) {
+    const shop = window.Shop;
+    const plan = [];
     tools.forEach((tool) => {
       const name = tool && tool.name;
       const args = (tool && tool.args) || {};
+      const qty = Math.max(1, Math.min(9, Number(args.qty) || 1));
       if (name === "addToCart") {
         const id = resolveProductId(args);
         if (id == null || !shop || typeof shop.addToCart !== "function") return;
-        const qty = Math.max(1, Math.min(9, Number(args.qty) || 1));
-        shop.addToCart(id, qty);
-        acted = true;
-        if (typeof shop.addedNotice === "function") shop.addedNotice();
-        else if (typeof shop.refreshCount === "function") shop.refreshCount();
+        plan.push({ name, args, id, qty });
       } else if (name === "buyAndCheckout") {
         // 打开商品详情 → 自动点「确认支付」→ 结算填地址
         const id = resolveProductId(args);
         if (id == null) return;
-        const qty = Math.max(1, Math.min(9, Number(args.qty) || 1));
-        navigateTo =
-          "product.html?id=" +
-          encodeURIComponent(id) +
-          "&moruBuy=1&qty=" +
-          encodeURIComponent(qty);
-      } else if (name === "openCart") {
-        navigateTo = "cart.html";
-      } else if (name === "openTerms") {
-        navigateTo = "terms.html";
-      } else if (name === "openCheckout") {
-        navigateTo = "checkout.html";
-      } else if (name === "openHome") {
-        navigateTo = "index.html";
+        const href =
+          "product.html?id=" + encodeURIComponent(id) + "&moruBuy=1&qty=" + encodeURIComponent(qty);
+        plan.push({ name, args, id, href });
       } else if (name === "openProduct") {
         const id = resolveProductId(args);
-        if (id != null) navigateTo = "product.html?id=" + encodeURIComponent(id);
+        if (id != null) plan.push({ name, args, id, href: "product.html?id=" + encodeURIComponent(id) });
+      } else if (PAGE_TOOLS[name]) {
+        plan.push({ name, args, href: PAGE_TOOLS[name] });
+      }
+    });
+    return plan;
+  }
+
+  function runClientTools(tools) {
+    if (!Array.isArray(tools) || !tools.length) return;
+    const plan = planTools(tools);
+    if (!plan.length) return;
+    const shop = window.Shop;
+
+    const lines = plan.map((step) => summarize(step.name, step.args, step.id)).filter(Boolean);
+    takeoverSummary =
+      lines.length > 1 ? lines[0].replace(/[～~！!。]*$/, "，") + lines[lines.length - 1] : lines[0] || "";
+    setTakeover(true);
+
+    let navigateTo = null;
+    plan.forEach((step) => {
+      if (step.name === "addToCart") {
+        shop.addToCart(step.id, step.qty);
+        if (typeof shop.addedNotice === "function") shop.addedNotice();
+        else if (typeof shop.refreshCount === "function") shop.refreshCount();
+      } else if (step.href) {
+        navigateTo = step.href;
       }
     });
 
-    if (navigateTo) {
-      saveTakeover(takeoverReply);
-      setTimeout(() => {
-        location.href = navigateTo;
-      }, 900);
-    } else {
-      setTimeout(endTakeover, acted ? 1600 : 0);
+    if (!navigateTo) {
+      setTimeout(endTakeover, 1600);
+      return;
     }
+    saveTakeover();
+    setTimeout(() => {
+      if (shop && typeof shop.navigate === "function") shop.navigate(navigateTo);
+      else location.href = navigateTo;
+    }, 900);
   }
 
   async function sendMessage(text) {
@@ -421,7 +483,7 @@
         else setReply(full);
         messages.push({ role: "assistant", content: full });
         if (tools.length) {
-          setTimeout(() => runClientTools(tools, full), 900);
+          setTimeout(() => runClientTools(tools), 900);
         }
       }
     } catch (err) {
