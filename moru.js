@@ -391,6 +391,8 @@
         return "购物须知在这儿，慢慢看～";
       case "openHome":
         return "带你回首页啦～";
+      case "openPortfolio":
+        return "珑瀛的作品集给你打开啦，慢慢逛～";
       default:
         return "";
     }
@@ -568,6 +570,24 @@
     openHome: "index.html",
   };
 
+  const PORTFOLIO_URL = "https://zhanglongying.pages.dev";
+
+  // 站外页面没有 Moru：先收尾接管再打开；新标签被拦就在本页跳
+  function openExternal(url) {
+    endTakeover();
+    let win = null;
+    try {
+      win = window.open(url, "_blank");
+    } catch (_) {}
+    if (win) {
+      try {
+        win.opener = null;
+      } catch (_) {}
+    } else {
+      location.href = url;
+    }
+  }
+
   function planTools(tools) {
     const shop = window.Shop;
     const plan = [];
@@ -591,6 +611,8 @@
         if (id != null) plan.push({ name, args, id, href: "product.html?id=" + encodeURIComponent(id) });
       } else if (PAGE_TOOLS[name]) {
         plan.push({ name, args, href: PAGE_TOOLS[name] });
+      } else if (name === "openPortfolio") {
+        plan.push({ name, args, external: PORTFOLIO_URL });
       }
     });
     return plan;
@@ -608,15 +630,28 @@
     setTakeover(true);
 
     let navigateTo = null;
+    let external = null;
     plan.forEach((step) => {
       if (step.name === "addToCart") {
         shop.addToCart(step.id, step.qty);
         if (typeof shop.addedNotice === "function") shop.addedNotice();
         else if (typeof shop.refreshCount === "function") shop.refreshCount();
+      } else if (step.external) {
+        external = step.external;
       } else if (step.href) {
         navigateTo = step.href;
       }
     });
+
+    if (external) {
+      clearStopped();
+      driveTimer = setTimeout(() => {
+        driveTimer = null;
+        if (window.__moruStopped || sessionStorage.getItem("ly-moru-stopped") === "1") return;
+        openExternal(external);
+      }, 900);
+      return;
+    }
 
     if (!navigateTo) {
       driveTimer = setTimeout(endTakeover, 1600);

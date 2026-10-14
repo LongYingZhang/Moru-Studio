@@ -122,6 +122,7 @@ function systemPrompt(catalog, pageContext) {
     "   不确定是哪件时先问清；一旦确定就立刻 TOOL，不要再确认第二遍。",
     "店铺事实（仅在相关时使用）：中国大陆订单免运费；支持微信/支付宝扫码付款；确认收款后现货一般 3 个工作日内发货；签收 7 天内质量问题可联系售后。",
     "其它导航工具（需要时）：openCart / openCheckout / openTerms / openHome / openProduct(args.id)。",
+    "用户想看「珑瀛的作品集」/设计师作品集/ZHANGLONGYING 的作品时：短句回应后输出 TOOL [{\"name\":\"openPortfolio\"}]。作品集不是商品，不要用 openProduct 或 buyAndCheckout。",
     "没有必要时不要输出 TOOL 行。",
     "当前在售商品（购买/选购时必须据此匹配 id）：",
     JSON.stringify(catalog),
@@ -147,6 +148,10 @@ function localMoruReply(userText, catalog) {
   if (["购物袋", "购物车", "去买", "结算"].some((k) => text.includes(k)) || low.includes("cart")) {
     tools.push({ name: "openCart" });
     return { reply: "好，带你去购物袋看看～", tools };
+  }
+  if (["作品集", "珑瀛"].some((k) => text.includes(k)) || low.includes("portfolio")) {
+    tools.push({ name: "openPortfolio" });
+    return { reply: "走，带你去看珑瀛的作品集～", tools };
   }
   if (["隐私", "须知", "退换", "售后政策"].some((k) => text.includes(k))) {
     tools.push({ name: "openTerms" });
