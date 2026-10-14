@@ -120,6 +120,7 @@ textarea:focus-visible,
 
 .header-left {
   min-width: 0;
+  flex: 1;
   gap: 28px;
 }
 
@@ -138,6 +139,33 @@ textarea:focus-visible,
   display: block;
   width: auto;
   height: 16px;
+}
+
+/* 横屏 / 宽屏：字标 · 导航 · 查看前台 同一行 */
+@media (min-width: 561px) {
+  .header-inner {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .header-left {
+    display: contents;
+  }
+
+  .brand {
+    grid-column: 1;
+  }
+
+  .main-nav {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .header-right {
+    grid-column: 3;
+  }
 }
 
 .main-nav {
@@ -464,22 +492,25 @@ body.is-sorting {
 }
 
 .empty-state {
-  padding: 70px 24px;
-  border-radius: 15px;
-  background: var(--surface-black);
+  padding: 48px 24px;
+  border-radius: 0;
+  background: transparent;
   text-align: center;
 }
 
 .empty-state h2 {
-  margin: 0 0 8px;
-  font-size: 18px;
-  font-weight: 500;
+  margin: 0 0 10px;
+  color: var(--primary);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 .empty-state p {
   margin: 0;
   color: var(--muted);
   font-size: 13px;
+  line-height: 1.5;
 }
 
 /* Product form */
@@ -941,6 +972,24 @@ body.is-locked .app-shell {
 
 .orders-page {
   padding-top: 40px;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(
+    100dvh - var(--header-height) - env(safe-area-inset-top, 0px) - 40px
+  );
+  box-sizing: border-box;
+}
+
+/* 空订单：文字居中，不要黑色底块（横竖同款） */
+.orders-page .empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 260px;
+  padding: 40px 20px 72px;
+  background: transparent;
 }
 
 .page-head {
