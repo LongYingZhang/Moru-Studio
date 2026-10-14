@@ -1,7 +1,7 @@
 {
-  "name": "STUDIO-ADMIN",
-  "short_name": "STUDIO-ADMIN",
-  "description": "STUDIO-ADMIN 商品管理",
+  "name": "Moru-ADMIN",
+  "short_name": "Moru-ADMIN",
+  "description": "Moru-ADMIN 商品管理",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

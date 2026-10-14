@@ -72,7 +72,7 @@ body {
   }
 }
 
-/* 全局顶栏：竖屏 App 栈常驻 LONGYING STUDIO + 购物袋 */
+/* 全局顶栏：竖屏 App 栈常驻 Moru + 购物袋 */
 .app-bar {
   display: none;
   position: fixed;
@@ -90,7 +90,9 @@ body {
   border: 0;
 }
 .app-bar .logo img {
-  width: min(248px, 68vw);
+  width: 62px;
+  height: 30px;
+  object-fit: contain;
 }
 button, input, textarea {
   font: inherit;
@@ -135,14 +137,25 @@ img { display: block; max-width: 100%; }
 .logo {
   display: flex;
   align-items: center;
+  gap: 10px;
   flex: 1;
   min-width: 0;
   line-height: 0;
 }
 .logo img {
   display: block;
-  width: min(285px, 100%);
-  height: auto;
+  width: 62px;
+  height: 30px;
+  flex: none;
+  object-fit: contain;
+  object-position: left center;
+}
+.logo-name {
+  color: #cfcfcf;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 1;
 }
 .bag-link {
   display: flex;

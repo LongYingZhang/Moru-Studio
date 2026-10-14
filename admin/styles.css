@@ -130,8 +130,17 @@ textarea:focus-visible,
 
 .brand {
   flex: 0 0 auto;
-  align-items: baseline;
-  gap: 15px;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-mark {
+  display: block;
+  width: 54px;
+  height: 26px;
+  flex: none;
+  object-fit: contain;
+  object-position: left center;
 }
 
 .brand-title {
