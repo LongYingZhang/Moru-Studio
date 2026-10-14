@@ -54,6 +54,8 @@
         if (el === shellThink) {
           el.querySelectorAll('path[fill*="paint0_linear"]').forEach((p) => p.remove());
           el.querySelectorAll("linearGradient[id*='paint0_linear']").forEach((g) => g.remove());
+          // 发送箭头改由 HTML 停止键绘制，去掉 SVG 里那枚灰箭头
+          el.querySelectorAll('path[fill="#8E9192"], path[fill="#8e9192"]').forEach((p) => p.remove());
         }
       })
       .catch(() => {});
@@ -85,6 +87,9 @@
   const messages = [];
   let busy = false;
   let greeted = false;
+  let chatAbort = null;
+  let driveTimer = null;
+  let toolsTimer = null;
 
   function clampPos(x, y) {
     const s = SIZE();
@@ -161,16 +166,25 @@
   let takeoverSummary = "";
   let moruNavigating = false; // true = 接下来这一跳是 Moru 自己开的
 
+  function syncActionButton() {
+    const stopping =
+      root.classList.contains("is-thinking") || root.classList.contains("is-takeover");
+    sendBtn.disabled = false;
+    sendBtn.type = stopping ? "button" : "submit";
+    sendBtn.setAttribute("aria-label", stopping ? "停止" : "发送");
+    sendBtn.title = stopping ? "停止" : "发送";
+  }
+
   function setTakeover(on) {
     root.classList.toggle("is-takeover", on);
     root.classList.toggle("is-thinking", on);
     thinkLabel.textContent = on ? TAKEOVER_LABEL : THINK_LABEL;
-    sendBtn.disabled = on;
     input.disabled = on;
     if (on) {
       setOpen(true, false);
       root.classList.add("has-chat");
     }
+    syncActionButton();
     syncOrbVideo();
   }
 
@@ -240,20 +254,60 @@
   }
 
   // 用户离开 Moru 路线：立刻正常态（可先出总结）
-  function abortTakeover() {
+  function abortTakeover(forcedSummary) {
+    if (driveTimer) {
+      clearTimeout(driveTimer);
+      driveTimer = null;
+    }
+    if (toolsTimer) {
+      clearTimeout(toolsTimer);
+      toolsTimer = null;
+    }
+    moruNavigating = false;
+    window.__moruDriving = false;
     const saved = readTakeover();
-    if (saved && saved.summary) takeoverSummary = String(saved.summary);
+    if (forcedSummary) takeoverSummary = forcedSummary;
+    else if (saved && saved.summary) takeoverSummary = String(saved.summary);
     const was = root.classList.contains("is-takeover");
     sealTakeover(takeoverSummary);
     if (!was) {
       root.classList.remove("is-thinking", "is-takeover");
+      syncActionButton();
       syncOrbVideo();
-      sendBtn.disabled = false;
       input.disabled = false;
       return;
     }
     setTakeover(false);
     showTakeoverSummary();
+  }
+
+  function stopThinking() {
+    if (chatAbort) {
+      try {
+        chatAbort.abort();
+      } catch (_) {}
+      chatAbort = null;
+    }
+    if (toolsTimer) {
+      clearTimeout(toolsTimer);
+      toolsTimer = null;
+    }
+    busy = false;
+    root.classList.remove("is-thinking");
+    syncActionButton();
+    syncOrbVideo();
+    input.disabled = false;
+    sendBtn.disabled = false;
+  }
+
+  function stopAction() {
+    if (root.classList.contains("is-takeover")) {
+      abortTakeover("行动已终止");
+      return;
+    }
+    if (busy || root.classList.contains("is-thinking")) {
+      stopThinking();
+    }
   }
 
   // 页面加载条消失后再停留一下才收尾；最多等 8 秒
@@ -325,7 +379,7 @@
         if (takeoverSummary) showTakeoverSummary();
         else {
           syncOrbVideo();
-          sendBtn.disabled = false;
+          syncActionButton();
           input.disabled = false;
         }
       }
@@ -509,14 +563,17 @@
     });
 
     if (!navigateTo) {
-      setTimeout(endTakeover, 1600);
+      driveTimer = setTimeout(endTakeover, 1600);
       return;
     }
     const remaining = [pagePath(navigateTo)];
     // 详情页代购会自己再跳结算；结算才是最后一页
     if (/[?&]moruBuy=1(?:&|$)/.test(navigateTo)) remaining.push("checkout.html");
     markMoruNavigation(remaining);
-    setTimeout(() => {
+    driveTimer = setTimeout(() => {
+      driveTimer = null;
+      const st = readTakeover();
+      if (st && st.sealed) return;
       if (shop && typeof shop.navigate === "function") shop.navigate(navigateTo);
       else location.href = navigateTo;
     }, 900);
@@ -526,12 +583,14 @@
     const content = String(text || "").trim();
     if (!content || busy || root.classList.contains("is-takeover")) return;
     busy = true;
-    sendBtn.disabled = true;
     logEl.innerHTML = "";
     root.classList.add("has-chat", "is-thinking");
+    syncActionButton();
     syncOrbVideo();
     messages.push({ role: "user", content });
     let replyEl = null;
+    let stopped = false;
+    chatAbort = typeof AbortController !== "undefined" ? new AbortController() : null;
 
     try {
       const res = await fetch("/api/moru/chat", {
@@ -541,6 +600,7 @@
           messages: messages.slice(-16),
           pageContext: pageContext(),
         }),
+        signal: chatAbort ? chatAbort.signal : undefined,
       });
       const contentType = res.headers.get("content-type") || "";
       // 限流等：JSON { message }，不走 SSE
@@ -598,25 +658,60 @@
         else setReply(full);
         messages.push({ role: "assistant", content: full });
         if (tools.length) {
-          setTimeout(() => runClientTools(tools), 900);
+          toolsTimer = setTimeout(() => {
+            toolsTimer = null;
+            runClientTools(tools);
+          }, 900);
         }
       }
     } catch (err) {
-      setReply("连不上助手服务：" + (err.message || err));
+      if (err && (err.name === "AbortError" || /abort/i.test(String(err.message || "")))) {
+        stopped = true;
+        if (messages.length && messages[messages.length - 1].role === "user") {
+          messages.pop();
+        }
+        logEl.innerHTML = "";
+        root.classList.remove("has-chat");
+      } else {
+        setReply("连不上助手服务：" + (err.message || err));
+      }
     } finally {
       busy = false;
-      root.classList.remove("is-thinking");
+      chatAbort = null;
+      if (!root.classList.contains("is-takeover")) {
+        root.classList.remove("is-thinking");
+      }
+      syncActionButton();
       syncOrbVideo();
-      sendBtn.disabled = false;
-      input.focus();
+      if (!stopped) input.focus();
     }
   }
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
+    if (
+      root.classList.contains("is-thinking") ||
+      root.classList.contains("is-takeover") ||
+      busy
+    ) {
+      stopAction();
+      return;
+    }
     const text = input.value;
     input.value = "";
     sendMessage(text);
+  });
+
+  sendBtn.addEventListener("click", (e) => {
+    if (
+      root.classList.contains("is-thinking") ||
+      root.classList.contains("is-takeover") ||
+      busy
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+      stopAction();
+    }
   });
 
   // 用户一点返回/离开：先封存任务，离开最后一页后任何页面都不再接管

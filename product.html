@@ -285,6 +285,14 @@ html.is-booting, html.is-booting body { background: #000 !important; }
     if (payBtn) {
       payBtn.classList.add("is-moru-drive");
       setTimeout(() => {
+        // 用户已点停止接管：不再自动进结算
+        try {
+          const raw = sessionStorage.getItem("ly-moru-takeover");
+          if (raw) {
+            const st = JSON.parse(raw);
+            if (st && st.sealed) return;
+          }
+        } catch (_) {}
         Shop.addToCart(products[cursor].id, qty);
         // 告诉 Moru：这一跳仍是它开的；replace 掉详情页，返回时不会回到半接管页
         if (typeof window.__moruDriveTo === "function") window.__moruDriveTo("checkout.html");
