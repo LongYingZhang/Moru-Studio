@@ -1260,49 +1260,34 @@ class ShopHandler(SimpleHTTPRequestHandler):
     # ---- traffic ----
 
     def get_traffic(self):
+        """本机后台已改为直连 Cloudflare；保留接口以免旧客户端报错。"""
         if not self.require_auth():
             return
         query = parse_qs(urlsplit(self.path).query)
         range_key = (query.get("range") or ["7"])[0]
         if range_key not in ("7", "30", "all"):
             range_key = "7"
-        self.send_json(200, traffic_summary(range_key))
+        # 本地不再记账；返回空统计并提示走公网
+        empty = traffic_summary(range_key)
+        empty["live"] = False
+        empty["source"] = "local-disabled"
+        empty["today"] = 0
+        empty["yesterday"] = 0
+        empty["week"] = 0
+        empty["online"] = 0
+        empty["pages"] = []
+        empty["days"] = [
+            {"label": d["label"], "value": 0, "today": d.get("today"), "date": d.get("date")}
+            for d in empty.get("days") or []
+        ]
+        self.send_json(200, empty)
 
     def traffic_hit(self):
+        # 本机 / 局域网不计；公网打点走 Cloudflare Pages Function + KV
         body = self.read_body(MAX_SMALL_BODY)
         if body is None:
             return
-        if not isinstance(body, dict):
-            return self.send_json(400, {"error": "invalid body"})
-        sid = str(body.get("sid") or "").strip()
-        if not TRAFFIC_SID.match(sid):
-            return self.send_json(400, {"error": "invalid sid"})
-        raw_path = str(body.get("path") or "").strip().lstrip("/")
-        page = os.path.basename(raw_path.split("?")[0]) or "index.html"
-        if page not in TRAFFIC_PAGES:
-            page = "index.html"
-        device = str(body.get("device") or "desktop").strip().lower()
-        if device not in ("mobile", "desktop", "tablet"):
-            device = "desktop"
-        ping = bool(body.get("ping"))
-        ip = self.client_ip()
-        now = time.time()
-        with traffic_hit_lock:
-            last = traffic_hit_guard.get(ip, 0)
-            # 心跳可更密；新页打点限制约 1 次 / 1.5s
-            min_gap = 0.4 if ping else 1.5
-            if now - last < min_gap:
-                return self.send_json(200, {"ok": True, "skipped": True})
-            traffic_hit_guard[ip] = now
-            if len(traffic_hit_guard) > 4000:
-                cutoff = now - 3600
-                for key in [k for k, ts in traffic_hit_guard.items() if ts < cutoff]:
-                    traffic_hit_guard.pop(key, None)
-        try:
-            traffic_record_hit(sid, page, device, ping=ping)
-        except OSError:
-            return self.send_json(500, {"error": "write failed"})
-        self.send_json(200, {"ok": True})
+        self.send_json(200, {"ok": True, "stored": False, "reason": "local-ignored"})
 
     # ---- Moru assistant (local floating chat) ----
 

@@ -1,0 +1,8 @@
+# Cloudflare Pages — longying-studio
+# Deploy via: bash scripts/deploy-cloudflare.sh
+name = "longying-studio"
+compatibility_date = "2024-11-12"
+
+[[kv_namespaces]]
+binding = "TRAFFIC"
+id = "60ad9ef69eae4bc48d1e625cce93737a"

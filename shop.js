@@ -882,7 +882,7 @@
     hideBoot
   };
 
-  // 访问打点：本机店铺服务写入 admin/data/traffic.json；后台「访问监控」读取
+  // 访问打点：只统计 Cloudflare 公网；本机 / 局域网不计
   (function trackTraffic() {
     const HIT = "/api/traffic/hit";
     const SID_KEY = "ly-traffic-sid";
@@ -893,14 +893,26 @@
       "checkout.html": 1,
       "order.html": 1,
       "terms.html": 1,
-      "": 1,
-      "/": 1,
     };
+
+    function isPublicHost() {
+      const h = (location.hostname || "").toLowerCase();
+      if (!h || h === "localhost" || h === "127.0.0.1" || h === "[::1]") return false;
+      if (h.endsWith(".local")) return false;
+      if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h)) return false;
+      if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h)) return false;
+      if (h === "longying-studio.pages.dev" || h.endsWith(".longying-studio.pages.dev")) {
+        return true;
+      }
+      return location.protocol === "https:";
+    }
+
+    if (!isPublicHost()) return;
 
     function pageName() {
       const raw = (location.pathname || "/").split("/").pop() || "index.html";
       if (raw === "" || raw === "/") return "index.html";
-      return PAGES[raw] ? raw : raw.endsWith(".html") ? raw : "index.html";
+      return PAGES[raw] ? raw : "index.html";
     }
 
     function deviceType() {
@@ -945,8 +957,6 @@
     }
 
     const base = { sid: sid(), path: pageName(), device: deviceType() };
-    if (!PAGES[base.path] && base.path !== "index.html") return;
-
     post(base, false);
 
     let timer = 0;

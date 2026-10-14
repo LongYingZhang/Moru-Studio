@@ -1,10 +1,25 @@
-/** Accept shop beacons on Cloudflare. Persistence lives on the 2015 Python host. */
-export async function onRequestPost() {
-  return new Response(JSON.stringify({ ok: true, stored: false }), {
-    status: 200,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
-    },
-  });
+import { corsHeaders, json, normalizeHitBody, recordHit } from "../../_traffic.js";
+
+export async function onRequestOptions() {
+  return new Response(null, { status: 204, headers: corsHeaders() });
+}
+
+export async function onRequestPost(context) {
+  const { request, env } = context;
+  let body;
+  try {
+    body = await request.json();
+  } catch (_) {
+    return json({ error: "invalid json" }, 400);
+  }
+  const hit = normalizeHitBody(body);
+  if (!hit) return json({ error: "invalid body" }, 400);
+  if (!env.TRAFFIC) return json({ ok: true, stored: false, reason: "no kv" });
+
+  try {
+    await recordHit(env, hit);
+  } catch (err) {
+    return json({ error: String((err && err.message) || err || "write failed") }, 500);
+  }
+  return json({ ok: true, stored: true });
 }

@@ -107,7 +107,8 @@
 
   const ORDERS_API = "/api/orders";
   const AUTH_API = "/api/auth";
-  const TRAFFIC_API = "/api/traffic";
+  // 公网统计在 Cloudflare KV；后台从公网读，本机访问不计
+  const TRAFFIC_API = "https://longying-studio.pages.dev/api/traffic";
   const SHOTS_MAX = 4;
   const ORDER_STATUS = {
     pending: { label: "待确认收款", action: "处理收款" },
@@ -1027,7 +1028,13 @@
   }
 
   async function loadTraffic(range = trafficRange) {
-    const data = await api(`${TRAFFIC_API}?range=${encodeURIComponent(range)}`);
+    const response = await fetch(`${TRAFFIC_API}?range=${encodeURIComponent(range)}`, {
+      cache: "no-store",
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || `HTTP ${response.status}`);
+    }
     trafficCache = data;
     trafficRange = range;
     return data;
@@ -1082,7 +1089,7 @@
       ? `<div class="traffic-banner">${escapeHTML(error)}</div>`
       : loading
         ? `<div class="traffic-banner">正在读取访问数据…</div>`
-        : `<div class="traffic-banner">统计本机店铺服务收到的访问（局域网 / 2015）。Cloudflare 公网页暂不计入。</div>`;
+        : `<div class="traffic-banner">统计 Cloudflare 公网访问；本机与局域网不计。</div>`;
 
     document.title = "访问监控 · STUDIO-ADMIN";
     app.innerHTML = `
