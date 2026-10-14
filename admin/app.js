@@ -1267,6 +1267,162 @@
     }
   });
 
+  /* ---- 长按商品卡片拖动排序（鼠标 / 触屏通用） ---- */
+  const SORT_PRESS_MS = 380;
+  const SORT_SLOP = 8;
+  let sort = null;
+
+  function sortSiblings() {
+    return sort ? [...sort.list.querySelectorAll(".product-card")] : [];
+  }
+
+  function cancelPress() {
+    if (!sort) return;
+    window.clearTimeout(sort.timer);
+    sort.card.classList.remove("is-pressing");
+    if (!sort.active) sort = null;
+  }
+
+  function startSort() {
+    if (!sort) return;
+    sort.active = true;
+    sort.card.classList.remove("is-pressing");
+    sort.card.classList.add("is-dragging");
+    document.body.classList.add("is-sorting");
+    sort.startOffset = sort.card.offsetTop;
+    sort.startPageY = sort.lastY + window.scrollY;
+    if (navigator.vibrate) navigator.vibrate(12);
+    sort.raf = window.requestAnimationFrame(sortAutoScroll);
+  }
+
+  function placeDragged() {
+    const { card, lastY } = sort;
+    const pageY = lastY + window.scrollY;
+    card.style.transform = `translateY(${pageY - sort.startPageY - (card.offsetTop - sort.startOffset)}px)`;
+  }
+
+  function reorderUnderPointer() {
+    const { card, list, lastY } = sort;
+    const others = sortSiblings().filter((el) => el !== card);
+    const center = sort.startOffset + (lastY + window.scrollY - sort.startPageY) + card.offsetHeight / 2;
+    const before = others.find((el) => center < el.offsetTop + el.offsetHeight / 2);
+    const currentNext = card.nextElementSibling;
+    if (before === currentNext || (!before && !currentNext)) return;
+
+    // FLIP：其余卡片平滑让位
+    const firstRects = new Map(others.map((el) => [el, el.getBoundingClientRect().top]));
+    list.insertBefore(card, before || null);
+    others.forEach((el) => {
+      const dy = firstRects.get(el) - el.getBoundingClientRect().top;
+      if (!dy) return;
+      el.style.transition = "none";
+      el.style.transform = `translateY(${dy}px)`;
+      window.requestAnimationFrame(() => {
+        el.style.transition = "transform 200ms ease";
+        el.style.transform = "";
+      });
+    });
+  }
+
+  function sortAutoScroll() {
+    if (!sort || !sort.active) return;
+    const edge = 72;
+    let speed = 0;
+    if (sort.lastY < edge) speed = -Math.ceil((edge - sort.lastY) / 6);
+    else if (sort.lastY > window.innerHeight - edge) speed = Math.ceil((sort.lastY - (window.innerHeight - edge)) / 6);
+    if (speed) {
+      window.scrollBy(0, speed);
+      reorderUnderPointer();
+      placeDragged();
+    }
+    sort.raf = window.requestAnimationFrame(sortAutoScroll);
+  }
+
+  function finishSort() {
+    if (!sort) return;
+    const { card, active, raf } = sort;
+    window.clearTimeout(sort.timer);
+    window.cancelAnimationFrame(raf);
+    card.classList.remove("is-pressing");
+    if (!active) {
+      sort = null;
+      return;
+    }
+    const ids = sortSiblings().map((el) => el.dataset.productId);
+    sort = null;
+    document.body.classList.remove("is-sorting");
+
+    card.style.transition = "transform 180ms ease";
+    card.style.transform = "";
+    window.setTimeout(() => {
+      card.classList.remove("is-dragging");
+      card.style.transition = "";
+    }, 180);
+
+    const changed = ids.some((id, index) => String(products[index]?.id) !== id);
+    if (!changed) return;
+    const byId = new Map(products.map((p) => [String(p.id), p]));
+    const nextProducts = ids
+      .map((id) => byId.get(id))
+      .filter(Boolean)
+      .map((p, index) => ({ ...p, no: `NO. ${String(index + 1).padStart(2, "0")}` }));
+    if (commitProducts(nextProducts)) {
+      window.setTimeout(renderProducts, 200);
+      showToast("排序已保存，前台同步更新。");
+    }
+  }
+
+  app.addEventListener("pointerdown", (event) => {
+    if (event.button != null && event.button !== 0) return;
+    if (event.target.closest("button, a, input")) return;
+    const card = event.target.closest(".product-list .product-card");
+    if (!card) return;
+    sort = {
+      card,
+      list: card.parentElement,
+      pointerId: event.pointerId,
+      downX: event.clientX,
+      downY: event.clientY,
+      lastY: event.clientY,
+      active: false,
+      timer: 0,
+      raf: 0,
+    };
+    card.classList.add("is-pressing");
+    sort.timer = window.setTimeout(startSort, SORT_PRESS_MS);
+  });
+
+  window.addEventListener("pointermove", (event) => {
+    if (!sort || event.pointerId !== sort.pointerId) return;
+    sort.lastY = event.clientY;
+    if (!sort.active) {
+      if (Math.hypot(event.clientX - sort.downX, event.clientY - sort.downY) > SORT_SLOP) cancelPress();
+      return;
+    }
+    event.preventDefault();
+    reorderUnderPointer();
+    placeDragged();
+  });
+
+  window.addEventListener("pointerup", (event) => {
+    if (sort && event.pointerId === sort.pointerId) finishSort();
+  });
+  window.addEventListener("pointercancel", (event) => {
+    if (sort && event.pointerId === sort.pointerId) finishSort();
+  });
+
+  // 触屏：拖动开始后拦住页面滚动；长按期间屏蔽系统菜单
+  window.addEventListener(
+    "touchmove",
+    (event) => {
+      if (sort && sort.active) event.preventDefault();
+    },
+    { passive: false },
+  );
+  app.addEventListener("contextmenu", (event) => {
+    if (sort || event.target.closest(".product-list .product-card")) event.preventDefault();
+  });
+
   window.addEventListener("hashchange", () => {
     const work = (async () => {
       if (auth.authed && readRoute().name.startsWith("order")) await loadOrders();
