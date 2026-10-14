@@ -97,7 +97,7 @@
     const id = Number(product.id);
     const image = product.image || "";
     const preset = !product.cardFace && DEFAULT_PRODUCTS.find((p) => p.id === id);
-    if (preset) {
+    if (preset && (!product.cardImage || product.cardImage === preset.cardImage)) {
       product = {
         ...product,
         cardBg: preset.cardBg,
