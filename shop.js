@@ -552,6 +552,18 @@
     runBootProgress(readNavBoot());
   }
 
+  // history.back 可能从 bfcache 恢复「还在加载」的旧页面，把卡住的黑屏进度条关掉
+  window.addEventListener("pageshow", (e) => {
+    if (!e.persisted) return;
+    try { sessionStorage.removeItem(NAV_BOOT_KEY); } catch (_) {}
+    bootHiding = false;
+    pendingNav = null;
+    const boot = document.getElementById("boot");
+    if (boot && boot.parentNode) boot.remove();
+    document.documentElement.classList.remove("is-booting", "is-splash");
+    document.documentElement.style.background = "";
+  });
+
   function goBackOr(fallback) {
     let fromHere = false;
     try {

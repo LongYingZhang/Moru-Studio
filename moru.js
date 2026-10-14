@@ -201,10 +201,7 @@
     clearTakeover();
     if (!root.classList.contains("is-takeover")) return;
     setTakeover(false);
-    const summary = takeoverSummary || "搞定啦～";
-    messages.push({ role: "assistant", content: summary });
-    setReply(summary);
-    root.classList.add("has-chat");
+    showTakeoverSummary();
   }
 
   // 页面加载条消失后再停留一下才收尾；最多等 8 秒，避免卡在接管态
@@ -248,26 +245,54 @@
     }
   }
 
-  function resumeTakeover() {
+  function showTakeoverSummary() {
+    const summary = takeoverSummary || "搞定啦～";
+    if (!messages.length || messages[messages.length - 1].content !== summary) {
+      messages.push({ role: "assistant", content: summary });
+    }
+    setReply(summary);
+    root.classList.add("has-chat");
+  }
+
+  // 用户自己返回/离开时立刻退出接管，避免 bfcache 把接管态冻在加载页上
+  function abortTakeover() {
+    let saved = null;
+    try {
+      saved = JSON.parse(sessionStorage.getItem(TAKEOVER_KEY));
+    } catch (_) {}
+    if (saved && saved.summary) takeoverSummary = String(saved.summary);
+    const was = root.classList.contains("is-takeover");
+    clearTakeover();
+    if (!was) {
+      root.classList.remove("is-thinking");
+      syncOrbVideo();
+      return;
+    }
+    setTakeover(false);
+    showTakeoverSummary();
+  }
+
+  function resumeTakeover(fromCache) {
     let saved = null;
     try {
       saved = JSON.parse(sessionStorage.getItem(TAKEOVER_KEY));
     } catch (_) {}
     const expect = saved && Array.isArray(saved.expect) ? saved.expect : [];
-    // 过期、或这一页不是 Moru 要去的那页（比如用户自己点回首页）：不接管
+    // 过期、或这一页不是 Moru 要去的那页（比如用户点上一页）：不接管
     if (
       !saved ||
       Date.now() - Number(saved.t) > TAKEOVER_TTL ||
       expect[0] !== pagePath(location.href)
     ) {
-      clearTakeover();
+      if (root.classList.contains("is-takeover") || fromCache) abortTakeover();
+      else clearTakeover();
       return;
     }
     takeoverSummary = String(saved.summary || "");
     setTakeover(true);
     const rest = expect.slice(1);
     if (rest.length) saveTakeover(rest);
-    else endTakeoverWhenLoaded(900);
+    else endTakeoverWhenLoaded(fromCache ? 400 : 900);
   }
 
   /* ---- drag ---- */
@@ -524,5 +549,8 @@
     sendMessage(text);
   });
 
-  resumeTakeover();
+  // history.back / 滑动返回会从 bfcache 恢复「还在接管」的旧页面，必须主动清掉
+  window.addEventListener("popstate", abortTakeover);
+  window.addEventListener("pageshow", (e) => resumeTakeover(!!e.persisted));
+  resumeTakeover(false);
 })();
