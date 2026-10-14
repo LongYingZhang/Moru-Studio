@@ -992,6 +992,54 @@
     return true;
   }
 
+  const PRODUCT_WORDS = ["香片", "帆布袋", "马克杯", "帆布帽", "雪梨纸"];
+  const CN_DIGITS = { 零: 0, 一: 1, 两: 2, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
+
+  function mentionedProductId(text) {
+    const list = (window.Shop && Shop.products) || [];
+    const low = text.toLowerCase();
+    const hits = list.filter((p) => {
+      const name = String(p.name || "");
+      const en = String(p.nameEn || "").toLowerCase();
+      return PRODUCT_WORDS.some((w) => text.includes(w) && name.includes(w)) || (en.length > 2 && low.includes(en));
+    });
+    return hits.length === 1 ? hits[0].id : null;
+  }
+
+  function parseCount(text) {
+    const d = text.match(/(\d+)\s*(?:个|件|份|只|顶|张|包)?/);
+    if (d) return Number(d[1]);
+    const cn = text.match(/(?:改成|改为|变成|换成|留)\s*([零一两二三四五六七八九十])/);
+    return cn ? CN_DIGITS[cn[1]] : null;
+  }
+
+  // 只认意思很明确的操作口令；其余交给大模型
+  function localIntent(text) {
+    const t = text.replace(/\s+/g, "");
+    const id = mentionedProductId(t);
+    if (/^(帮我|请|麻烦)?刷新(一下|页面)?/.test(t)) return { name: "refreshPage" };
+    if (/^(帮我)?(返回|回到)?上一页|^返回$/.test(t)) return { name: "goBack" };
+    if (/回到顶部|回顶部|到顶部/.test(t)) return { name: "scrollPage", args: { dir: "top" } };
+    if (/(滑|翻|拉)到底|到最底|最下面/.test(t)) return { name: "scrollPage", args: { dir: "bottom" } };
+    if (/^(帮我)?(往下|向下)(翻|滑|滚)/.test(t)) return { name: "scrollPage", args: { dir: "down" } };
+    if (/^(帮我)?(往上|向上)(翻|滑|滚)/.test(t)) return { name: "scrollPage", args: { dir: "up" } };
+    if (/清空(一下)?(购物袋|购物车)|(购物袋|购物车)(全部)?清空/.test(t)) return { name: "clearCart" };
+    if (/(删掉|删除|去掉|拿掉|移除|不要了)/.test(t) && /(购物袋|购物车|删|拿掉|去掉|移除)/.test(t) && id != null) {
+      return { name: "removeCartItem", args: { id } };
+    }
+    const count = parseCount(t);
+    if (/(改成|改为|变成|换成)/.test(t) && id != null && count != null && /(个|件|份|只|顶|张|包|\d)/.test(t)) {
+      return { name: "setCartQty", args: { id, qty: count } };
+    }
+    if (/(用|选|换成|改成|切换)/.test(t) && /支付宝/.test(t)) return { name: "choosePayment", args: { method: "alipay" } };
+    if (/(用|选|换成|改成|切换)/.test(t) && /微信/.test(t)) return { name: "choosePayment", args: { method: "wechat" } };
+    if (/^(打开|看看?)?(全屏)?画册|全屏(看|打开)/.test(t)) return { name: "openGallery", args: id != null ? { id } : {} };
+    if (/^(下一张|上一张)$|换(一)?张图/.test(t)) {
+      return { name: "showPhoto", args: { dir: t.includes("上一张") ? "prev" : "next" } };
+    }
+    return null;
+  }
+
   async function sendMessage(text) {
     const content = String(text || "").trim();
     if (!content || busy || root.classList.contains("is-takeover")) return;
@@ -1004,6 +1052,24 @@
     let replyEl = null;
     let stopped = false;
     chatAbort = typeof AbortController !== "undefined" ? new AbortController() : null;
+
+    // 明确的操作口令直接在前端执行，不让大模型「推脱」
+    const direct = localIntent(content);
+    if (direct) {
+      const signal = chatAbort && chatAbort.signal;
+      await wait(450);
+      if (signal && signal.aborted) {
+        if (messages.length && messages[messages.length - 1].role === "user") messages.pop();
+        return;
+      }
+      if (runClientTools([direct])) {
+        messages.push({ role: "assistant", content: takeoverSummary || "好～" });
+        busy = false;
+        chatAbort = null;
+        syncActionButton();
+        return;
+      }
+    }
 
     try {
       const res = await fetch("/api/moru/chat", {
