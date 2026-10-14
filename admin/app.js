@@ -422,6 +422,7 @@
       return { name: "edit", id: decodeURIComponent(id) };
     }
     if (name === "products") return { name: "products" };
+    if (name === "traffic") return { name: "traffic" };
     if (name === "orders" && id) {
       return { name: "order", id: decodeURIComponent(id) };
     }
@@ -430,7 +431,15 @@
 
   function setActiveNavigation(routeName) {
     const activeName =
-      routeName === "new" ? "new" : routeName.startsWith("order") ? "orders" : "products";
+      routeName === "new"
+        ? "new"
+        : routeName === "traffic"
+          ? "traffic"
+          : routeName.startsWith("order")
+            ? "orders"
+            : routeName === "products" || routeName === "edit"
+              ? "products"
+              : "orders";
     navLinks.forEach((link) => {
       if (link.dataset.nav === activeName) {
         link.setAttribute("aria-current", "page");
@@ -989,6 +998,136 @@
       </a>`;
   }
 
+  // 访问监控：先用示意数据上线界面；真实统计接上后再替换 MOCK_TRAFFIC
+  const MOCK_TRAFFIC = {
+    today: 128,
+    yesterday: 108,
+    week: 742,
+    online: 6,
+    todayDelta: 18,
+    weekDelta: -4,
+    days: [
+      { label: "三", value: 86 },
+      { label: "四", value: 102 },
+      { label: "五", value: 94 },
+      { label: "六", value: 121 },
+      { label: "日", value: 103 },
+      { label: "一", value: 108 },
+      { label: "今", value: 128, today: true },
+    ],
+    devices: [
+      { label: "手机", pct: 72 },
+      { label: "电脑", pct: 23 },
+      { label: "平板", pct: 5 },
+    ],
+    pages: [
+      { label: "首页画册", views: 312 },
+      { label: "商品详情", views: 186 },
+      { label: "购物袋", views: 64 },
+      { label: "结算页", views: 29 },
+    ],
+  };
+
+  function renderTraffic() {
+    const data = MOCK_TRAFFIC;
+    const max = Math.max(...data.days.map((d) => d.value), 1);
+    const todayLabel = new Date().toLocaleDateString("zh-CN", {
+      month: "numeric",
+      day: "numeric",
+    });
+    const bars = data.days
+      .map((day) => {
+        const height = Math.max(4, Math.round((day.value / max) * 100));
+        return `
+          <div class="traffic-bar${day.today ? " is-today" : ""}">
+            <span class="bar-val">${day.value}</span>
+            <span class="bar" style="height: ${height}%"></span>
+            <span class="bar-day">${escapeHTML(day.label)}</span>
+          </div>`;
+      })
+      .join("");
+    const devices = data.devices
+      .map(
+        (row) => `
+          <div class="split-row">
+            <span>${escapeHTML(row.label)}</span>
+            <div class="meter" aria-hidden="true"><i style="width: ${row.pct}%"></i></div>
+            <b>${row.pct}%</b>
+          </div>`,
+      )
+      .join("");
+    const pages = data.pages
+      .map(
+        (row) => `
+          <div class="page-row">
+            <span>${escapeHTML(row.label)}</span>
+            <b>${row.views}</b>
+          </div>`,
+      )
+      .join("");
+
+    document.title = "访问监控 · STUDIO-ADMIN";
+    app.innerHTML = `
+      <section class="page" aria-label="访问监控">
+        <div class="traffic-banner">当前为示意数据，真实访问统计接入后会自动替换。</div>
+        <div class="traffic-head">
+          <div>
+            <h1>访问监控</h1>
+            <p>看店铺有多少人来过 · 今天 ${escapeHTML(todayLabel)}</p>
+          </div>
+          <div class="traffic-range" role="group" aria-label="时间范围">
+            <button class="tab is-on" type="button" data-traffic-range="7">近 7 日</button>
+            <button class="tab" type="button" data-traffic-range="30">近 30 日</button>
+            <button class="tab" type="button" data-traffic-range="all">全部</button>
+          </div>
+        </div>
+        <div class="traffic-kpis">
+          <article class="kpi-card">
+            <span class="kpi-label">今日访客</span>
+            <div class="kpi-value">${data.today}</div>
+            <div class="kpi-foot">
+              <span class="kpi-delta ${data.todayDelta >= 0 ? "is-up" : "is-down"}">${data.todayDelta >= 0 ? "↑" : "↓"} ${Math.abs(data.todayDelta)}%</span>
+              <span>较昨日</span>
+            </div>
+          </article>
+          <article class="kpi-card">
+            <span class="kpi-label">昨日访客</span>
+            <div class="kpi-value">${data.yesterday}</div>
+            <div class="kpi-foot"><span>独立访客 UV</span></div>
+          </article>
+          <article class="kpi-card">
+            <span class="kpi-label">近 7 日</span>
+            <div class="kpi-value">${data.week}</div>
+            <div class="kpi-foot">
+              <span class="kpi-delta ${data.weekDelta >= 0 ? "is-up" : "is-down"}">${data.weekDelta >= 0 ? "↑" : "↓"} ${Math.abs(data.weekDelta)}%</span>
+              <span>较上周</span>
+            </div>
+          </article>
+          <article class="kpi-card">
+            <span class="kpi-label">当前在线</span>
+            <div class="kpi-value">${data.online}</div>
+            <div class="kpi-foot">
+              <span class="kpi-live"><i></i>实时</span>
+              <span>约 5 分钟内活跃</span>
+            </div>
+          </article>
+        </div>
+        <div class="traffic-grid">
+          <section class="traffic-panel" aria-label="近七日访客">
+            <h2>近 7 日访客</h2>
+            <div class="traffic-chart">${bars}</div>
+            <p class="traffic-note">柱高按当日独立访客估算，今日会随时间增长。</p>
+          </section>
+          <section class="traffic-panel" aria-label="来源与页面">
+            <h2>设备与热门页</h2>
+            <div class="split-list" style="margin-bottom: 22px">${devices}</div>
+            <div class="page-list">${pages}</div>
+            <p class="traffic-note">热门页为近 7 日浏览次数。</p>
+          </section>
+        </div>
+      </section>`;
+  }
+
   function renderOrders() {
     const counts = Object.fromEntries(
       Object.keys(ORDER_STATUS).map((key) => [key, orders.filter((order) => order.status === key).length]),
@@ -1187,6 +1326,8 @@
         window.location.hash = "#/orders";
         showToast("没有找到这个订单。", true);
       }
+    } else if (route.name === "traffic") {
+      renderTraffic();
     } else if (route.name === "new") {
       renderForm();
     } else if (route.name === "edit") {
@@ -1207,6 +1348,15 @@
   }
 
   app.addEventListener("click", (event) => {
+    const trafficRange = event.target.closest("[data-traffic-range]");
+    if (trafficRange) {
+      app.querySelectorAll("[data-traffic-range]").forEach((btn) => {
+        btn.classList.toggle("is-on", btn === trafficRange);
+      });
+      showToast("时间范围切换将在接入真实数据后生效。");
+      return;
+    }
+
     const tab = event.target.closest("[data-tab]");
     if (tab) {
       orderTab = tab.dataset.tab;
