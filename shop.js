@@ -709,10 +709,11 @@
       pull = dist;
       const resistance = Math.min(MAX_PULL, dist * 0.55);
       if (scroller) {
+        // 用内边距撑开，列表外框不动：底边圆角仍压在黑色隐私条上
         scroller.style.transition = "none";
-        // 只平移卡片列表；裁切底部，避免盖住下方的隐私协议
-        scroller.style.overflow = resistance ? "hidden" : "";
-        scroller.style.transform = resistance ? "translateY(" + resistance + "px)" : "";
+        scroller.style.paddingTop = resistance ? resistance + "px" : "";
+        scroller.style.transform = "";
+        scroller.style.overflow = "";
       }
       tip.classList.toggle("is-on", resistance > 2);
       tip.classList.toggle("is-armed", resistance > 8);
@@ -724,15 +725,13 @@
     function resetPull(animate) {
       tip.style.transition = animate ? "height .28s ease" : "";
       if (scroller) {
-        scroller.style.transition = animate ? "transform .28s ease" : "";
+        scroller.style.transition = animate ? "padding-top .28s ease" : "";
+        scroller.style.paddingTop = "";
         scroller.style.transform = "";
         scroller.style.overflow = "";
         if (animate) {
           window.setTimeout(() => {
-            if (scroller) {
-              scroller.style.transition = "";
-              scroller.style.overflow = "";
-            }
+            if (scroller) scroller.style.transition = "";
             tip.style.transition = "";
           }, 300);
         }
@@ -751,8 +750,9 @@
       tip.classList.add("is-armed", "is-on");
       icon.style.opacity = "1";
       if (scroller) {
-        scroller.style.transition = "transform .22s ease";
-        scroller.style.transform = "translateY(0px)";
+        scroller.style.transition = "padding-top .22s ease";
+        scroller.style.paddingTop = "";
+        scroller.style.transform = "";
         scroller.style.overflow = "";
       }
       tip.style.transition = "height .22s ease";

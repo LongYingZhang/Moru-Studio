@@ -1324,10 +1324,10 @@ label.field.wide { grid-column: 1 / -1; }
     overflow: auto;
     -webkit-overflow-scrolling: touch;
     padding-bottom: 8px;
-    /* 列表滚到底时，最后一张卡停在底栏上方 */
+    /* 列表滚到底时，最后一张卡停在平底黑条上方，卡片自身底圆角露出来 */
     margin-bottom: var(--rail-dock-h);
   }
-  /* 隐私协议 + 底部黑条：钉在视口底；上沿左右圆角，下拉时仍盖在列表上方保留圆角 */
+  /* 隐私协议 + 平底黑条：钉在视口底；圆角来自上方商品卡底边 */
   .rail-dock {
     position: fixed;
     left: 0;
@@ -1337,7 +1337,7 @@ label.field.wide { grid-column: 1 / -1; }
     height: var(--rail-dock-h);
     padding: 6px 0 max(var(--foot-pad), var(--safe-bottom)) 6px;
     background: #000;
-    border-radius: 15px 15px 0 0;
+    border-radius: 0;
     box-sizing: border-box;
     pointer-events: auto;
   }
