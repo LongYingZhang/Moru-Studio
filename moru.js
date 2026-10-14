@@ -679,9 +679,9 @@
   }
 
   function runClientTools(tools) {
-    if (!Array.isArray(tools) || !tools.length) return;
+    if (!Array.isArray(tools) || !tools.length) return false;
     const plan = planTools(tools);
-    if (!plan.length) return;
+    if (!plan.length) return false;
     const shop = window.Shop;
 
     const lines = plan.map((step) => summarize(step.name, step.args, step.id)).filter(Boolean);
@@ -710,12 +710,12 @@
         driveTimer = null;
         clickPortfolioCard();
       }, 500);
-      return;
+      return true;
     }
 
     if (!navigateTo) {
       driveTimer = setTimeout(endTakeover, 1600);
-      return;
+      return true;
     }
     const remaining = [pagePath(navigateTo)];
     // 详情页代购会自己再跳结算；结算才是最后一页
@@ -729,6 +729,7 @@
       if (shop && typeof shop.navigate === "function") shop.navigate(navigateTo);
       else location.href = navigateTo;
     }, 900);
+    return true;
   }
 
   async function sendMessage(text) {
@@ -803,26 +804,24 @@
       }
 
       full = full.replace(/(?:^|\n)TOOL\s+\[[\s\S]*$/m, "").trim();
-      if (!full) {
+      // 大模型偶尔只答话不出 TOOL：用户明确要看作品集时前端补上
+      if (
+        !tools.length &&
+        /作品集|珑瀛|portfolio/i.test(content) &&
+        /打开|点开|看|去|带|进|open|show/i.test(content)
+      ) {
+        tools = [{ name: "openPortfolio" }];
+      }
+      if (full) messages.push({ role: "assistant", content: full });
+      // 有操作：思考态直接切到接管态，不露出中间的回答；结束时再给总结
+      if (tools.length && runClientTools(tools)) {
+        logEl.innerHTML = "";
+      } else if (!full) {
         setReply("嗯……我这会儿没想出话，再问一次试试？");
+      } else if (replyEl) {
+        replyEl.textContent = full;
       } else {
-        if (replyEl) replyEl.textContent = full;
-        else setReply(full);
-        messages.push({ role: "assistant", content: full });
-        // 大模型偶尔只答话不出 TOOL：用户明确要看作品集时前端补上
-        if (
-          !tools.length &&
-          /作品集|珑瀛|portfolio/i.test(content) &&
-          /打开|点开|看|去|带|进|open|show/i.test(content)
-        ) {
-          tools = [{ name: "openPortfolio" }];
-        }
-        if (tools.length) {
-          toolsTimer = setTimeout(() => {
-            toolsTimer = null;
-            runClientTools(tools);
-          }, 900);
-        }
+        setReply(full);
       }
     } catch (err) {
       if (err && (err.name === "AbortError" || /abort/i.test(String(err.message || "")))) {
