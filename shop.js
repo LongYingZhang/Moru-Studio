@@ -654,6 +654,179 @@
     });
   }
 
+  // 竖屏下拉刷新：跟手下拉并转动圆箭头，松手弹回后整页刷新
+  function bindPullToRefresh() {
+    if (window.__lyPullRefreshBound) return;
+    window.__lyPullRefreshBound = true;
+
+    const isPortrait = () =>
+      window.matchMedia("(orientation: portrait)").matches && window.innerWidth <= 980;
+    const THRESHOLD = 72;
+    const MAX_PULL = 120;
+
+    const tip = document.createElement("div");
+    tip.className = "pull-refresh";
+    tip.setAttribute("aria-hidden", "true");
+    tip.innerHTML =
+      '<div class="pull-refresh-icon">' +
+      '<svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+      '<path d="M22.2 14a8.2 8.2 0 1 1-2.4-5.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>' +
+      '<path d="M21.6 5.2v4.6h-4.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>' +
+      "</svg></div>";
+    document.body.appendChild(tip);
+    const icon = tip.querySelector(".pull-refresh-icon");
+
+    let scroller = null;
+    let tracking = false;
+    let pulling = false;
+    let startY = 0;
+    let startX = 0;
+    let pull = 0;
+    let refreshing = false;
+
+    function surface() {
+      return (
+        document.querySelector(".cards") ||
+        document.querySelector(".page") ||
+        null
+      );
+    }
+
+    function blocked() {
+      if (!isPortrait() || refreshing) return true;
+      if (document.documentElement.classList.contains("is-booting")) return true;
+      if (document.querySelector(".home.is-hero")) return true;
+      if (document.querySelector(".lightbox.open")) return true;
+      if (document.querySelector(".backdrop.open")) return true;
+      if (document.querySelector(".qr-backdrop.open")) return true;
+      if (document.querySelector(".moru-root.is-takeover")) return true;
+      return false;
+    }
+
+    function atTop(el) {
+      if (!el) return (window.scrollY || document.documentElement.scrollTop || 0) <= 0;
+      return el.scrollTop <= 0;
+    }
+
+    function applyPull(dist) {
+      pull = dist;
+      const resistance = Math.min(MAX_PULL, dist * 0.55);
+      if (scroller) {
+        scroller.style.transition = "none";
+        scroller.style.transform = resistance ? "translateY(" + resistance + "px)" : "";
+      }
+      tip.classList.toggle("is-on", resistance > 2);
+      tip.classList.toggle("is-armed", resistance > 8);
+      tip.style.height = resistance + "px";
+      icon.style.opacity = String(Math.min(1, resistance / 28));
+      icon.style.transform = "rotate(" + resistance * 3 + "deg)";
+    }
+
+    function resetPull(animate) {
+      tip.style.transition = animate ? "height .28s ease" : "";
+      if (scroller) {
+        scroller.style.transition = animate ? "transform .28s ease" : "";
+        scroller.style.transform = "";
+        if (animate) {
+          window.setTimeout(() => {
+            if (scroller) scroller.style.transition = "";
+            tip.style.transition = "";
+          }, 300);
+        }
+      } else if (!animate) {
+        tip.style.transition = "";
+      }
+      tip.classList.remove("is-on", "is-armed");
+      tip.style.height = "0px";
+      icon.style.opacity = "0";
+      icon.style.transform = "rotate(0deg)";
+      pull = 0;
+    }
+
+    function doRefresh() {
+      refreshing = true;
+      tip.classList.add("is-armed", "is-on");
+      icon.style.opacity = "1";
+      if (scroller) {
+        scroller.style.transition = "transform .22s ease";
+        scroller.style.transform = "translateY(0px)";
+      }
+      tip.style.transition = "height .22s ease";
+      tip.style.height = "0px";
+      ensureBoot({ resetVideo: true, bar: 0.2, nav: true });
+      window.setTimeout(() => {
+        location.reload();
+      }, 220);
+    }
+
+    document.addEventListener(
+      "touchstart",
+      (e) => {
+        if (blocked() || e.touches.length !== 1) return;
+        if (e.target.closest("input, textarea, select, .moru-root")) return;
+        scroller = surface();
+        if (!atTop(scroller)) return;
+        tracking = true;
+        pulling = false;
+        startY = e.touches[0].clientY;
+        startX = e.touches[0].clientX;
+        pull = 0;
+      },
+      { passive: true }
+    );
+
+    document.addEventListener(
+      "touchmove",
+      (e) => {
+        if (!tracking || e.touches.length !== 1 || blocked()) return;
+        const y = e.touches[0].clientY;
+        const x = e.touches[0].clientX;
+        const dy = y - startY;
+        const dx = x - startX;
+        if (!pulling) {
+          if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)) {
+            tracking = false;
+            return;
+          }
+          if (dy < 8) return;
+          if (!atTop(scroller)) {
+            tracking = false;
+            return;
+          }
+          pulling = true;
+          tip.style.transition = "none";
+        }
+        if (dy <= 0) {
+          applyPull(0);
+          return;
+        }
+        applyPull(dy);
+        if (e.cancelable) e.preventDefault();
+      },
+      { passive: false }
+    );
+
+    function endPull() {
+      if (!tracking && !pulling) return;
+      const dist = pull;
+      tracking = false;
+      pulling = false;
+      if (dist >= THRESHOLD) doRefresh();
+      else resetPull(true);
+    }
+
+    document.addEventListener("touchend", endPull);
+    document.addEventListener("touchcancel", endPull);
+
+    window.addEventListener("pageshow", (e) => {
+      if (!e.persisted) return;
+      refreshing = false;
+      resetPull(false);
+    });
+  }
+
+  bindPullToRefresh();
+
   window.Shop = {
     goBackOr,
     bindSwipeBack,
