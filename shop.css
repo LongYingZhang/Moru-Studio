@@ -90,7 +90,7 @@ body {
   border: 0;
 }
 .app-bar .logo img {
-  width: min(248px, 68vw);
+  width: min(179px, 52vw);
 }
 button, input, textarea {
   font: inherit;
@@ -141,7 +141,7 @@ img { display: block; max-width: 100%; }
 }
 .logo img {
   display: block;
-  width: min(285px, 100%);
+  width: min(179px, 100%);
   height: auto;
 }
 .bag-link {
