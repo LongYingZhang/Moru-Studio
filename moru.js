@@ -394,8 +394,17 @@
     }
 
     const remaining = Array.isArray(saved.remaining) ? saved.remaining : [];
-    // 只有 Moru 前进队列的下一页才能接管；返回到更早的页面不算
+    // 只有队列头对得上才推进；对不上时要区分「正在等下一跳」还是「用户跑偏了」
     if (!remaining.length || remaining[0] !== here) {
+      // 刚吃掉 product、队列还剩 checkout：pageshow 会再进一次，不能当成失败封存
+      // 否则详情页 750ms 后的自动去结算会被 sealed 拦住
+      if (remaining.length && (root.classList.contains("is-takeover") || saved.summary)) {
+        if (!root.classList.contains("is-takeover")) {
+          takeoverSummary = String(saved.summary || "");
+          setTakeover(true);
+        }
+        return;
+      }
       abortTakeover();
       return;
     }
@@ -404,7 +413,7 @@
     setTakeover(true);
     const rest = remaining.slice(1);
     if (rest.length) {
-      // 还要继续前进：更新队列，等 Moru 自己再跳
+      // 还要继续前进：更新队列，等 Moru 自己再跳（如详情 → 结算）
       writeTakeover({
         t: Date.now(),
         summary: takeoverSummary,

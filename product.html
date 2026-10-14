@@ -285,12 +285,16 @@ html.is-booting, html.is-booting body { background: #000 !important; }
     if (payBtn) {
       payBtn.classList.add("is-moru-drive");
       setTimeout(() => {
-        // 用户已点停止接管：不再自动进结算
+        // 用户已点停止接管：不再自动进结算；若队列仍指向结算则继续
         try {
           const raw = sessionStorage.getItem("ly-moru-takeover");
           if (raw) {
             const st = JSON.parse(raw);
-            if (st && st.sealed) return;
+            const waitingCheckout =
+              st &&
+              Array.isArray(st.remaining) &&
+              st.remaining[0] === "checkout.html";
+            if (st && st.sealed && !waitingCheckout) return;
           }
         } catch (_) {}
         Shop.addToCart(products[cursor].id, qty);
