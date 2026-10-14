@@ -1480,14 +1480,9 @@
     }
   });
 
-  document.addEventListener("click", async (event) => {
+  document.addEventListener("click", (event) => {
     if (event.target.closest('[data-global-action="storefront"]')) {
       window.location.href = "../index.html";
-    }
-    if (event.target.closest('[data-global-action="signout"]')) {
-      await api(`${AUTH_API}/logout`, { method: "POST" }).catch(() => {});
-      orders = [];
-      lockOut();
     }
   });
 
