@@ -350,13 +350,13 @@
 
 @media (max-width: 560px) {
   .moru-root {
-    width: 42px;
-    height: 42px;
+    width: 46px;
+    height: 46px;
   }
 
   .moru-avatar {
-    width: 42px;
-    height: 42px;
+    width: 46px;
+    height: 46px;
     border-radius: 50%;
   }
 
