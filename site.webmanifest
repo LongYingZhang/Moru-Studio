@@ -1,7 +1,7 @@
 {
-  "name": "Moru",
-  "short_name": "Moru",
-  "description": "Moru 商店",
+  "name": "Moru Studio",
+  "short_name": "Moru Studio",
+  "description": "Moru Studio 商店",
   "start_url": "/index.html",
   "scope": "/",
   "display": "standalone",
