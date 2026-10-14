@@ -286,7 +286,9 @@ html.is-booting, html.is-booting body { background: #000 !important; }
       payBtn.classList.add("is-moru-drive");
       setTimeout(() => {
         Shop.addToCart(products[cursor].id, qty);
-        Shop.navigate("checkout.html");
+        // 告诉 Moru：这一跳仍是它开的；replace 掉详情页，返回时不会回到半接管页
+        if (typeof window.__moruDriveTo === "function") window.__moruDriveTo("checkout.html");
+        Shop.navigate("checkout.html", true);
       }, 750);
     }
   }

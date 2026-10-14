@@ -464,6 +464,10 @@
       else location.assign(url);
       return;
     }
+    // 用户或系统跳页前：若不是 Moru 自己在开页，先结束接管，避免加载页上还亮着白光
+    if (!window.__moruDriving && typeof window.__moruAbortTakeover === "function") {
+      window.__moruAbortTakeover();
+    }
     const startedAt = Date.now();
     pendingNav = { startedAt: startedAt, bar: 0.12, href: url };
     writeNavBoot(pendingNav);
@@ -500,6 +504,7 @@
       const anchor = event.target.closest("a[href]");
       if (!isInternalNav(anchor)) return;
       if (isSoftNav(anchor.href)) return;
+      if (typeof window.__moruAbortTakeover === "function") window.__moruAbortTakeover();
       const startedAt = Date.now();
       pendingNav = { startedAt: startedAt, bar: 0.1, href: anchor.href };
       writeNavBoot(pendingNav);
@@ -565,6 +570,8 @@
   });
 
   function goBackOr(fallback) {
+    // 离开 Moru 最后一页：立刻结束接管，返回途中的加载页不再出现接管态
+    if (typeof window.__moruAbortTakeover === "function") window.__moruAbortTakeover();
     let fromHere = false;
     try {
       fromHere = !!document.referrer && new URL(document.referrer).origin === location.origin;

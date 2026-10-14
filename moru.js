@@ -157,8 +157,9 @@
     }
   }
 
-  /* ---- 接管态：Moru 自动操作网站时，聊天框四周白光呼吸 ---- */
+  /* ---- 接管态：只在 Moru 前进打开的页面上；一离开最后一页立刻恢复正常 ---- */
   let takeoverSummary = "";
+  let moruNavigating = false; // true = 接下来这一跳是 Moru 自己开的
 
   function setTakeover(on) {
     root.classList.toggle("is-takeover", on);
@@ -181,31 +182,87 @@
     }
   }
 
+  function readTakeover() {
+    try {
+      return JSON.parse(sessionStorage.getItem(TAKEOVER_KEY));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function writeTakeover(state) {
+    try {
+      sessionStorage.setItem(TAKEOVER_KEY, JSON.stringify(state));
+    } catch (_) {}
+  }
+
   function clearTakeover() {
     try {
       sessionStorage.removeItem(TAKEOVER_KEY);
     } catch (_) {}
   }
 
-  // expect：Moru 接下来会依次打开的页面；只有落在这些页面上才延续接管态
-  function saveTakeover(expect) {
-    try {
-      sessionStorage.setItem(
-        TAKEOVER_KEY,
-        JSON.stringify({ t: Date.now(), summary: takeoverSummary, expect }),
-      );
-    } catch (_) {}
+  // remaining：Moru 还要依次打开的页面；sealed 后任何页都不再接管
+  function saveTakeover(remaining) {
+    writeTakeover({
+      t: Date.now(),
+      summary: takeoverSummary,
+      remaining: remaining || [],
+      last: (remaining && remaining.length ? remaining[remaining.length - 1] : pagePath(location.href)),
+      sealed: false,
+    });
+  }
+
+  function sealTakeover(summary) {
+    const s = summary || takeoverSummary || "";
+    takeoverSummary = s;
+    writeTakeover({ t: Date.now(), summary: s, remaining: [], last: "", sealed: true });
+  }
+
+  function showTakeoverSummary() {
+    const summary = takeoverSummary || "搞定啦～";
+    if (!messages.length || messages[messages.length - 1].content !== summary) {
+      messages.push({ role: "assistant", content: summary });
+    }
+    setReply(summary);
+    root.classList.add("has-chat");
   }
 
   function endTakeover() {
-    clearTakeover();
-    if (!root.classList.contains("is-takeover")) return;
+    sealTakeover(takeoverSummary);
+    if (!root.classList.contains("is-takeover")) {
+      root.classList.remove("is-thinking");
+      syncOrbVideo();
+      return;
+    }
     setTakeover(false);
     showTakeoverSummary();
   }
 
-  // 页面加载条消失后再停留一下才收尾；最多等 8 秒，避免卡在接管态
+  // 用户离开 Moru 路线：立刻正常态（可先出总结）
+  function abortTakeover() {
+    const saved = readTakeover();
+    if (saved && saved.summary) takeoverSummary = String(saved.summary);
+    const was = root.classList.contains("is-takeover");
+    sealTakeover(takeoverSummary);
+    if (!was) {
+      root.classList.remove("is-thinking", "is-takeover");
+      syncOrbVideo();
+      sendBtn.disabled = false;
+      input.disabled = false;
+      return;
+    }
+    setTakeover(false);
+    showTakeoverSummary();
+  }
+
+  // 页面加载条消失后再停留一下才收尾；最多等 8 秒
   function endTakeoverWhenLoaded(dwell, startedAt = Date.now()) {
+    const cur = readTakeover();
+    if (cur && cur.sealed) {
+      endTakeover();
+      return;
+    }
     const boot = document.getElementById("boot");
     const loading =
       (boot && !boot.classList.contains("is-out")) ||
@@ -245,54 +302,67 @@
     }
   }
 
-  function showTakeoverSummary() {
-    const summary = takeoverSummary || "搞定啦～";
-    if (!messages.length || messages[messages.length - 1].content !== summary) {
-      messages.push({ role: "assistant", content: summary });
-    }
-    setReply(summary);
-    root.classList.add("has-chat");
-  }
-
-  // 用户自己返回/离开时立刻退出接管，避免 bfcache 把接管态冻在加载页上
-  function abortTakeover() {
-    let saved = null;
-    try {
-      saved = JSON.parse(sessionStorage.getItem(TAKEOVER_KEY));
-    } catch (_) {}
-    if (saved && saved.summary) takeoverSummary = String(saved.summary);
-    const was = root.classList.contains("is-takeover");
-    clearTakeover();
-    if (!was) {
-      root.classList.remove("is-thinking");
-      syncOrbVideo();
-      return;
-    }
-    setTakeover(false);
-    showTakeoverSummary();
+  // Moru 自己跳下一页时调用，避免 pagehide / shop.navigate 把任务封掉
+  function markMoruNavigation(nextRemaining) {
+    moruNavigating = true;
+    window.__moruDriving = true;
+    if (Array.isArray(nextRemaining)) saveTakeover(nextRemaining);
+    setTimeout(() => {
+      window.__moruDriving = false;
+    }, 2000);
   }
 
   function resumeTakeover(fromCache) {
-    let saved = null;
-    try {
-      saved = JSON.parse(sessionStorage.getItem(TAKEOVER_KEY));
-    } catch (_) {}
-    const expect = saved && Array.isArray(saved.expect) ? saved.expect : [];
-    // 过期、或这一页不是 Moru 要去的那页（比如用户点上一页）：不接管
-    if (
-      !saved ||
-      Date.now() - Number(saved.t) > TAKEOVER_TTL ||
-      expect[0] !== pagePath(location.href)
-    ) {
-      if (root.classList.contains("is-takeover") || fromCache) abortTakeover();
-      else clearTakeover();
+    const saved = readTakeover();
+    const here = pagePath(location.href);
+
+    // 已结束 / 过期 / 用户离开过：强制正常态
+    if (!saved || saved.sealed || Date.now() - Number(saved.t) > TAKEOVER_TTL) {
+      if (root.classList.contains("is-takeover") || fromCache) {
+        if (saved && saved.summary) takeoverSummary = String(saved.summary);
+        root.classList.remove("is-takeover", "is-thinking");
+        setTakeover(false);
+        if (takeoverSummary) showTakeoverSummary();
+        else {
+          syncOrbVideo();
+          sendBtn.disabled = false;
+          input.disabled = false;
+        }
+      }
+      if (saved && (saved.sealed || Date.now() - Number(saved.t) > TAKEOVER_TTL)) clearTakeover();
       return;
     }
+
+    const remaining = Array.isArray(saved.remaining) ? saved.remaining : [];
+    // 只有 Moru 前进队列的下一页才能接管；返回到更早的页面不算
+    if (!remaining.length || remaining[0] !== here) {
+      abortTakeover();
+      return;
+    }
+
     takeoverSummary = String(saved.summary || "");
     setTakeover(true);
-    const rest = expect.slice(1);
-    if (rest.length) saveTakeover(rest);
-    else endTakeoverWhenLoaded(fromCache ? 400 : 900);
+    const rest = remaining.slice(1);
+    if (rest.length) {
+      // 还要继续前进：更新队列，等 Moru 自己再跳
+      writeTakeover({
+        t: Date.now(),
+        summary: takeoverSummary,
+        remaining: rest,
+        last: rest[rest.length - 1],
+        sealed: false,
+      });
+    } else {
+      // 已到 Moru 点开的最后一页：加载完就结束并封存
+      writeTakeover({
+        t: Date.now(),
+        summary: takeoverSummary,
+        remaining: [],
+        last: here,
+        sealed: false,
+      });
+      endTakeoverWhenLoaded(fromCache ? 400 : 900);
+    }
   }
 
   /* ---- drag ---- */
@@ -442,10 +512,10 @@
       setTimeout(endTakeover, 1600);
       return;
     }
-    const expect = [pagePath(navigateTo)];
-    // 详情页代购会自己跳去结算，接管态延续到结算页
-    if (/[?&]moruBuy=1(?:&|$)/.test(navigateTo)) expect.push("checkout.html");
-    saveTakeover(expect);
+    const remaining = [pagePath(navigateTo)];
+    // 详情页代购会自己再跳结算；结算才是最后一页
+    if (/[?&]moruBuy=1(?:&|$)/.test(navigateTo)) remaining.push("checkout.html");
+    markMoruNavigation(remaining);
     setTimeout(() => {
       if (shop && typeof shop.navigate === "function") shop.navigate(navigateTo);
       else location.href = navigateTo;
@@ -549,8 +619,30 @@
     sendMessage(text);
   });
 
-  // history.back / 滑动返回会从 bfcache 恢复「还在接管」的旧页面，必须主动清掉
+  // 用户一点返回/离开：先封存任务，离开最后一页后任何页面都不再接管
   window.addEventListener("popstate", abortTakeover);
+  window.addEventListener("pagehide", () => {
+    if (moruNavigating) {
+      moruNavigating = false;
+      return;
+    }
+    const saved = readTakeover();
+    if (root.classList.contains("is-takeover") || (saved && !saved.sealed)) {
+      abortTakeover();
+    }
+  });
   window.addEventListener("pageshow", (e) => resumeTakeover(!!e.persisted));
+
+  // 给店铺返回键 / 代购跳转用
+  window.__moruAbortTakeover = abortTakeover;
+  window.__moruDriveTo = function (nextPage) {
+    const saved = readTakeover();
+    const next = pagePath(nextPage);
+    const rest = saved && Array.isArray(saved.remaining) ? saved.remaining.slice() : [];
+    // 队列头若已是下一页就原样前进；否则补成只含下一页（最后一跳）
+    const remaining = rest[0] === next ? rest : [next];
+    markMoruNavigation(remaining);
+  };
+
   resumeTakeover(false);
 })();
