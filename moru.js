@@ -27,7 +27,8 @@
     </div>
     <button class="moru-avatar" type="button" aria-label="打开 Moru 助手" title="Moru">
       <span class="moru-orb" aria-hidden="true">
-        <video class="moru-video moru-video-idle" src="assets/moru/orb.mp4" autoplay muted loop playsinline preload="auto"></video>
+        <video class="moru-video moru-video-idle moru-video-idle-a" src="assets/moru/orb.mp4" autoplay muted playsinline preload="auto"></video>
+        <video class="moru-video moru-video-idle moru-video-idle-b" src="assets/moru/orb-idle-2.mp4" muted playsinline preload="auto"></video>
         <video class="moru-video moru-video-think" src="assets/moru/orb-thinking.mp4" muted loop playsinline preload="auto"></video>
       </span>
     </button>
@@ -40,7 +41,12 @@
   const input = root.querySelector("#moruInput");
   const sendBtn = root.querySelector("#moruSend");
   const avatar = root.querySelector(".moru-avatar");
-  const videoIdle = root.querySelector(".moru-video-idle");
+  const idleVideos = [
+    root.querySelector(".moru-video-idle-a"),
+    root.querySelector(".moru-video-idle-b"),
+  ].filter(Boolean);
+  let idleIndex = 0;
+  let videoIdle = idleVideos[0];
   const videoThink = root.querySelector(".moru-video-think");
   const shellThink = root.querySelector(".moru-shell-think");
   const thinkLabel = root.querySelector(".moru-thinking-label");
@@ -77,13 +83,42 @@
   function syncOrbVideo() {
     const thinking = root.classList.contains("is-thinking");
     if (thinking) {
-      if (videoIdle) videoIdle.pause();
+      idleVideos.forEach((v) => v.pause());
       playVideo(videoThink);
     } else {
       if (videoThink) videoThink.pause();
+      idleVideos.forEach((v) => {
+        if (v !== videoIdle) v.pause();
+      });
       playVideo(videoIdle);
     }
   }
+
+  // 两段正常态动画交替：一段播完，从头播另一段，再切换显示
+  function swapIdleVideo() {
+    if (idleVideos.length < 2) {
+      if (videoIdle) {
+        videoIdle.currentTime = 0;
+        if (!root.classList.contains("is-thinking")) playVideo(videoIdle);
+      }
+      return;
+    }
+    const prev = videoIdle;
+    idleIndex = (idleIndex + 1) % idleVideos.length;
+    videoIdle = idleVideos[idleIndex];
+    try {
+      videoIdle.currentTime = 0;
+    } catch (_) {}
+    root.classList.toggle("is-idle-b", idleIndex === 1);
+    if (!root.classList.contains("is-thinking")) playVideo(videoIdle);
+    if (prev && prev !== videoIdle) prev.pause();
+  }
+
+  idleVideos.forEach((v) => {
+    v.addEventListener("ended", () => {
+      if (v === videoIdle) swapIdleVideo();
+    });
+  });
 
   playVideo(videoIdle);
   document.addEventListener("visibilitychange", () => {

@@ -74,6 +74,21 @@
   pointer-events: none;
 }
 
+.moru-video-idle-b {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.moru-root.is-idle-b .moru-video-idle-a {
+  opacity: 0;
+}
+
+.moru-root.is-idle-b .moru-video-idle-b {
+  opacity: 1;
+}
+
 .moru-root.is-thinking .moru-video-idle {
   opacity: 0;
 }
