@@ -1327,7 +1327,7 @@ label.field.wide { grid-column: 1 / -1; }
     /* 列表滚到底时，最后一张卡停在底栏上方 */
     margin-bottom: var(--rail-dock-h);
   }
-  /* 隐私协议 + 底部安全黑边：钉在视口底，下拉刷新绝不跟着动 */
+  /* 隐私协议 + 底部黑条：钉在视口底；上沿左右圆角，下拉时仍盖在列表上方保留圆角 */
   .rail-dock {
     position: fixed;
     left: 0;
@@ -1336,7 +1336,8 @@ label.field.wide { grid-column: 1 / -1; }
     z-index: 20;
     height: var(--rail-dock-h);
     padding: 6px 0 max(var(--foot-pad), var(--safe-bottom)) 6px;
-    background: var(--bg);
+    background: #000;
+    border-radius: 15px 15px 0 0;
     box-sizing: border-box;
     pointer-events: auto;
   }
