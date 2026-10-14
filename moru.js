@@ -163,7 +163,10 @@
     if (open) {
       placeBubble();
       if (!greeted) greeted = true;
-      root.classList.toggle("has-chat", messages.length > 0);
+      // 有对话记录时保持 has-chat；不要在打开时误清掉（终止回复会因此变回问候壳）
+      if (messages.length > 0 || (logEl && logEl.textContent.trim())) {
+        root.classList.add("has-chat");
+      }
       if (focus) setTimeout(() => input.focus(), 40);
     }
   }
@@ -245,7 +248,11 @@
       messages.push({ role: "assistant", content: summary });
     }
     setReply(summary);
-    root.classList.add("has-chat");
+    root.classList.add("is-open", "has-chat");
+    root.classList.remove("is-thinking", "is-takeover");
+    try {
+      sessionStorage.setItem("ly-moru-last-reply", summary);
+    } catch (_) {}
   }
 
   function endTakeover() {
@@ -291,14 +298,19 @@
     }
     markStopped();
     const saved = readTakeover();
-    if (forcedSummary) takeoverSummary = forcedSummary;
-    else if (saved && saved.summary) takeoverSummary = String(saved.summary);
-    sealTakeover(takeoverSummary || "行动已终止");
-    root.classList.remove("is-thinking");
-    setTakeover(false);
-    setOpen(true, false);
-    root.classList.add("has-chat");
+    const text =
+      forcedSummary ||
+      (saved && saved.summary) ||
+      takeoverSummary ||
+      "已终止任务";
+    takeoverSummary = String(text);
+    sealTakeover(takeoverSummary);
+    // 先写回复再关接管态，避免中间帧回到问候壳
+    input.disabled = false;
+    root.classList.remove("is-takeover", "is-thinking");
     showTakeoverSummary();
+    syncActionButton();
+    syncOrbVideo();
     // 若 Shop 已画出跳页黑屏，立刻收掉，留在本页
     if (window.Shop && typeof Shop.hideBoot === "function") {
       try {
@@ -330,7 +342,7 @@
     // 接管中（含等待跳结算）：立刻终止，停在本页并回复
     const saved = readTakeover();
     if (root.classList.contains("is-takeover") || (saved && !saved.sealed)) {
-      abortTakeover("行动已终止");
+      abortTakeover("已终止任务");
       return;
     }
     if (busy || root.classList.contains("is-thinking")) {
@@ -399,20 +411,26 @@
     const saved = readTakeover();
     const here = pagePath(location.href);
 
-    // 已结束 / 过期 / 用户离开过：强制正常态
+    // 已结束 / 过期 / 用户离开过：强制正常态；若有终止回复则补上
     if (!saved || saved.sealed || Date.now() - Number(saved.t) > TAKEOVER_TTL) {
-      if (root.classList.contains("is-takeover") || fromCache) {
-        if (saved && saved.summary) takeoverSummary = String(saved.summary);
-        root.classList.remove("is-takeover", "is-thinking");
-        setTakeover(false);
-        if (takeoverSummary) showTakeoverSummary();
-        else {
-          syncOrbVideo();
-          syncActionButton();
-          input.disabled = false;
-        }
+      let last = "";
+      try {
+        last = sessionStorage.getItem("ly-moru-last-reply") || "";
+      } catch (_) {}
+      if (saved && saved.summary) takeoverSummary = String(saved.summary);
+      else if (last) takeoverSummary = last;
+      root.classList.remove("is-takeover", "is-thinking");
+      input.disabled = false;
+      if (takeoverSummary) {
+        showTakeoverSummary();
+      } else {
+        syncOrbVideo();
+        syncActionButton();
       }
-      if (saved && (saved.sealed || Date.now() - Number(saved.t) > TAKEOVER_TTL)) clearTakeover();
+      if (saved && (saved.sealed || Date.now() - Number(saved.t) > TAKEOVER_TTL)) {
+        // 保留 last-reply，只清接管队列
+        clearTakeover();
+      }
       return;
     }
 
