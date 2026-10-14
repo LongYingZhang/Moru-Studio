@@ -368,6 +368,18 @@
     setTimeout(endTakeover, dwell);
   }
 
+  function clickPortfolioWhenLoaded(startedAt = Date.now()) {
+    const boot = document.getElementById("boot");
+    const loading =
+      (boot && !boot.classList.contains("is-out")) ||
+      document.documentElement.classList.contains("is-booting");
+    if (loading && Date.now() - startedAt < 8000) {
+      setTimeout(() => clickPortfolioWhenLoaded(startedAt), 120);
+      return;
+    }
+    setTimeout(() => clickPortfolioCard(), 500);
+  }
+
   function productName(id) {
     const list = window.Shop && Array.isArray(Shop.products) ? Shop.products : [];
     const hit = list.find((p) => String(p.id) === String(id));
@@ -437,6 +449,12 @@
     }
 
     const remaining = Array.isArray(saved.remaining) ? saved.remaining : [];
+    // 已在 Moru 的最后一页（load 与 pageshow 会各进一次）：保持接管，等收尾
+    if (!remaining.length && saved.last === here) {
+      takeoverSummary = String(saved.summary || takeoverSummary || "");
+      if (!root.classList.contains("is-takeover")) setTakeover(true);
+      return;
+    }
     // 只有队列头对得上才推进；对不上时要区分「正在等下一跳」还是「用户跑偏了」
     if (!remaining.length || remaining[0] !== here) {
       // 刚吃掉 product、队列还剩 checkout：pageshow 会再进一次，不能当成失败封存
@@ -473,6 +491,13 @@
         last: here,
         sealed: false,
       });
+      if (location.search.includes(PORTFOLIO_FLAG)) {
+        try {
+          history.replaceState(history.state, "", location.pathname + location.hash);
+        } catch (_) {}
+        clickPortfolioWhenLoaded();
+        return;
+      }
       endTakeoverWhenLoaded(fromCache ? 400 : 900);
     }
   }
@@ -571,6 +596,39 @@
   };
 
   const PORTFOLIO_URL = "https://zhanglongying.pages.dev";
+  const PORTFOLIO_FLAG = "moruOpen=portfolio";
+
+  function portfolioCard() {
+    return document.querySelector('a.card[href*="zhanglongying"]');
+  }
+
+  function isStopped() {
+    return window.__moruStopped || sessionStorage.getItem("ly-moru-stopped") === "1";
+  }
+
+  // 接管态下滚到作品集卡片、按下它，再打开作品集
+  function clickPortfolioCard(startedAt = Date.now()) {
+    if (isStopped()) return;
+    const card = portfolioCard();
+    if (!card) {
+      if (Date.now() - startedAt < 6000) {
+        setTimeout(() => clickPortfolioCard(startedAt), 150);
+      } else {
+        openExternal(PORTFOLIO_URL);
+      }
+      return;
+    }
+    card.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+    setTimeout(() => {
+      if (isStopped()) return;
+      card.classList.add("is-moru-press");
+      setTimeout(() => {
+        card.classList.remove("is-moru-press");
+        if (isStopped()) return;
+        openExternal(card.href || PORTFOLIO_URL);
+      }, 420);
+    }, 650);
+  }
 
   // 站外页面没有 Moru：先收尾接管再打开；新标签被拦就在本页跳
   function openExternal(url) {
@@ -612,7 +670,9 @@
       } else if (PAGE_TOOLS[name]) {
         plan.push({ name, args, href: PAGE_TOOLS[name] });
       } else if (name === "openPortfolio") {
-        plan.push({ name, args, external: PORTFOLIO_URL });
+        // 本页有作品集卡片就直接点；否则先回首页再点
+        if (portfolioCard()) plan.push({ name, args, portfolio: true });
+        else plan.push({ name, args, href: "index.html?" + PORTFOLIO_FLAG });
       }
     });
     return plan;
@@ -630,26 +690,26 @@
     setTakeover(true);
 
     let navigateTo = null;
-    let external = null;
+    let portfolioHere = false;
     plan.forEach((step) => {
       if (step.name === "addToCart") {
         shop.addToCart(step.id, step.qty);
         if (typeof shop.addedNotice === "function") shop.addedNotice();
         else if (typeof shop.refreshCount === "function") shop.refreshCount();
-      } else if (step.external) {
-        external = step.external;
+      } else if (step.portfolio) {
+        portfolioHere = true;
       } else if (step.href) {
         navigateTo = step.href;
       }
     });
 
-    if (external) {
+    if (portfolioHere) {
       clearStopped();
+      saveTakeover([]);
       driveTimer = setTimeout(() => {
         driveTimer = null;
-        if (window.__moruStopped || sessionStorage.getItem("ly-moru-stopped") === "1") return;
-        openExternal(external);
-      }, 900);
+        clickPortfolioCard();
+      }, 500);
       return;
     }
 
@@ -749,6 +809,14 @@
         if (replyEl) replyEl.textContent = full;
         else setReply(full);
         messages.push({ role: "assistant", content: full });
+        // 大模型偶尔只答话不出 TOOL：用户明确要看作品集时前端补上
+        if (
+          !tools.length &&
+          /作品集|珑瀛|portfolio/i.test(content) &&
+          /打开|点开|看|去|带|进|open|show/i.test(content)
+        ) {
+          tools = [{ name: "openPortfolio" }];
+        }
         if (tools.length) {
           toolsTimer = setTimeout(() => {
             toolsTimer = null;
