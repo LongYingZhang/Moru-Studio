@@ -4,6 +4,10 @@
   window.__moruMounted = true;
 
   const POS_KEY = "ly-moru-pos";
+  const TAKEOVER_KEY = "ly-moru-takeover";
+  const TAKEOVER_TTL = 20000;
+  const THINK_LABEL = "正在思考...";
+  const TAKEOVER_LABEL = "正在接管LONGYING-STUDIO...";
   const SIZE = () => (window.matchMedia("(max-width: 560px)").matches ? 46 : 50);
   const CLICK_SLOP = 6;
   const MARGIN = 10;
@@ -39,6 +43,7 @@
   const videoIdle = root.querySelector(".moru-video-idle");
   const videoThink = root.querySelector(".moru-video-think");
   const shellThink = root.querySelector(".moru-shell-think");
+  const thinkLabel = root.querySelector(".moru-thinking-label");
 
   // 内联 SVG；思考态标题改用 HTML 扫光，去掉 SVG 里那行静态字形以免叠字
   root.querySelectorAll(".moru-shell[data-src]").forEach((el) => {
@@ -142,14 +147,63 @@
     return el;
   }
 
-  function setOpen(open) {
+  function setOpen(open, focus = true) {
     root.classList.toggle("is-open", open);
     if (open) {
       placeBubble();
       if (!greeted) greeted = true;
       root.classList.toggle("has-chat", messages.length > 0);
-      setTimeout(() => input.focus(), 40);
+      if (focus) setTimeout(() => input.focus(), 40);
     }
+  }
+
+  /* ---- 接管态：Moru 自动操作网站时，聊天框四周白光呼吸 ---- */
+  let takeoverReply = "";
+
+  function setTakeover(on) {
+    root.classList.toggle("is-takeover", on);
+    root.classList.toggle("is-thinking", on);
+    thinkLabel.textContent = on ? TAKEOVER_LABEL : THINK_LABEL;
+    sendBtn.disabled = on;
+    input.disabled = on;
+    if (on) {
+      root.classList.add("has-chat");
+      setOpen(true, false);
+    }
+    syncOrbVideo();
+  }
+
+  function saveTakeover(reply) {
+    try {
+      sessionStorage.setItem(TAKEOVER_KEY, JSON.stringify({ t: Date.now(), reply }));
+    } catch (_) {}
+  }
+
+  function endTakeover() {
+    try {
+      sessionStorage.removeItem(TAKEOVER_KEY);
+    } catch (_) {}
+    setTakeover(false);
+    if (takeoverReply) setReply(takeoverReply);
+  }
+
+  function resumeTakeover() {
+    let saved = null;
+    try {
+      saved = JSON.parse(sessionStorage.getItem(TAKEOVER_KEY));
+    } catch (_) {}
+    if (!saved || Date.now() - Number(saved.t) > TAKEOVER_TTL) {
+      try {
+        sessionStorage.removeItem(TAKEOVER_KEY);
+      } catch (_) {}
+      return;
+    }
+    takeoverReply = String(saved.reply || "");
+    setTakeover(true);
+    // 详情页代购会自己跳去结算，接管态延续到下一页
+    const params = new URLSearchParams(location.search);
+    if (params.get("moruBuy") === "1") saveTakeover(takeoverReply);
+    else setTimeout(endTakeover, 1800);
   }
 
   /* ---- drag ---- */
@@ -238,10 +292,13 @@
     return hit ? hit.id : null;
   }
 
-  function runClientTools(tools) {
+  function runClientTools(tools, reply) {
     if (!Array.isArray(tools) || !tools.length) return;
     const shop = window.Shop;
     let navigateTo = null;
+    let acted = false;
+    takeoverReply = reply || "";
+    setTakeover(true);
 
     tools.forEach((tool) => {
       const name = tool && tool.name;
@@ -251,6 +308,7 @@
         if (id == null || !shop || typeof shop.addToCart !== "function") return;
         const qty = Math.max(1, Math.min(9, Number(args.qty) || 1));
         shop.addToCart(id, qty);
+        acted = true;
         if (typeof shop.addedNotice === "function") shop.addedNotice();
         else if (typeof shop.refreshCount === "function") shop.refreshCount();
       } else if (name === "buyAndCheckout") {
@@ -277,12 +335,19 @@
       }
     });
 
-    if (navigateTo) location.href = navigateTo;
+    if (navigateTo) {
+      saveTakeover(takeoverReply);
+      setTimeout(() => {
+        location.href = navigateTo;
+      }, 900);
+    } else {
+      setTimeout(endTakeover, acted ? 1600 : 0);
+    }
   }
 
   async function sendMessage(text) {
     const content = String(text || "").trim();
-    if (!content || busy) return;
+    if (!content || busy || root.classList.contains("is-takeover")) return;
     busy = true;
     sendBtn.disabled = true;
     logEl.innerHTML = "";
@@ -356,7 +421,7 @@
         else setReply(full);
         messages.push({ role: "assistant", content: full });
         if (tools.length) {
-          setTimeout(() => runClientTools(tools), 900);
+          setTimeout(() => runClientTools(tools, full), 900);
         }
       }
     } catch (err) {
@@ -376,4 +441,6 @@
     input.value = "";
     sendMessage(text);
   });
+
+  resumeTakeover();
 })();
