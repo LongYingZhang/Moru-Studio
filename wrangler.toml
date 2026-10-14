@@ -2,6 +2,7 @@
 # Deploy via: bash scripts/deploy-cloudflare.sh
 name = "longying-studio"
 compatibility_date = "2024-11-12"
+pages_build_output_dir = ".cf-stage"
 
 [[kv_namespaces]]
 binding = "TRAFFIC"

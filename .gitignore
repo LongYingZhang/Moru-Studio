@@ -26,3 +26,5 @@ admin/stitch/
 .wrangler/
 .tmp-moru-video2/
 .tmp*/
+
+.cf-stage/
