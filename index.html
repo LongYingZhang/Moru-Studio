@@ -62,8 +62,6 @@ html.is-splash .boot-stage { visibility: hidden; }
 </style>
 <link rel="stylesheet" href="shop.css">
 <link rel="stylesheet" href="moru.css">
-<link rel="preload" href="assets/loader/moru-loop-poster.png" as="image">
-<link rel="preload" href="assets/loader/moru-sprite.webp" as="image" type="image/webp">
 <style>
 html, body { margin: 0; }
 html { background: #131313; }
@@ -80,9 +78,6 @@ html.is-booting, html.is-booting body { background: #000 !important; }
 <body>
 <div class="boot" id="boot" aria-live="polite" aria-label="加载中">
   <div class="boot-stage">
-    <div class="boot-sprite" id="bootSprite" aria-hidden="true">
-      <canvas class="boot-anim" id="bootCanvas" width="220" height="220"></canvas>
-    </div>
     <div class="boot-track"><div class="boot-bar" id="bootBar"></div></div>
   </div>
 </div>
