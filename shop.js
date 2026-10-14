@@ -458,6 +458,19 @@
 
   function navigate(url, replace) {
     if (!url) return;
+    const moruDrive = !!window.__moruDriving;
+    const moruStopped = () =>
+      !!(
+        window.__moruStopped ||
+        (typeof sessionStorage !== "undefined" &&
+          sessionStorage.getItem("ly-moru-stopped") === "1")
+      );
+    // 仅拦截 Moru 代购跳转；用户自己点链接不受影响
+    if (moruDrive && moruStopped()) {
+      window.__moruDriving = false;
+      hideBoot();
+      return;
+    }
     // 层间滑动进场（如 3→4）不走 boot，避免盖住过渡动画
     if (isSoftNav(url)) {
       if (replace) location.replace(url);
@@ -465,7 +478,7 @@
       return;
     }
     // 用户或系统跳页前：若不是 Moru 自己在开页，先结束接管，避免加载页上还亮着白光
-    if (!window.__moruDriving && typeof window.__moruAbortTakeover === "function") {
+    if (!moruDrive && typeof window.__moruAbortTakeover === "function") {
       window.__moruAbortTakeover();
     }
     const startedAt = Date.now();
@@ -473,6 +486,11 @@
     writeNavBoot(pendingNav);
     ensureBoot({ resetVideo: true, bar: 0.12, nav: true });
     requestAnimationFrame(() => {
+      if (moruDrive && moruStopped()) {
+        window.__moruDriving = false;
+        hideBoot();
+        return;
+      }
       if (replace) location.replace(url);
       else location.assign(url);
     });

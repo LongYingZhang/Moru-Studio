@@ -259,7 +259,27 @@
     showTakeoverSummary();
   }
 
-  // 用户离开 Moru 路线：立刻正常态（可先出总结）
+  function markStopped() {
+    window.__moruStopped = true;
+    window.__moruDriving = false;
+    moruNavigating = false;
+    try {
+      sessionStorage.setItem("ly-moru-stopped", "1");
+    } catch (_) {}
+    if (window.__moruBuyTimer) {
+      clearTimeout(window.__moruBuyTimer);
+      window.__moruBuyTimer = null;
+    }
+  }
+
+  function clearStopped() {
+    window.__moruStopped = false;
+    try {
+      sessionStorage.removeItem("ly-moru-stopped");
+    } catch (_) {}
+  }
+
+  // 用户离开 Moru 路线 / 点终止：立刻停在当前页并同步回复
   function abortTakeover(forcedSummary) {
     if (driveTimer) {
       clearTimeout(driveTimer);
@@ -269,22 +289,22 @@
       clearTimeout(toolsTimer);
       toolsTimer = null;
     }
-    moruNavigating = false;
-    window.__moruDriving = false;
+    markStopped();
     const saved = readTakeover();
     if (forcedSummary) takeoverSummary = forcedSummary;
     else if (saved && saved.summary) takeoverSummary = String(saved.summary);
-    const was = root.classList.contains("is-takeover");
-    sealTakeover(takeoverSummary);
-    if (!was) {
-      root.classList.remove("is-thinking", "is-takeover");
-      syncActionButton();
-      syncOrbVideo();
-      input.disabled = false;
-      return;
-    }
+    sealTakeover(takeoverSummary || "行动已终止");
+    root.classList.remove("is-thinking");
     setTakeover(false);
+    setOpen(true, false);
+    root.classList.add("has-chat");
     showTakeoverSummary();
+    // 若 Shop 已画出跳页黑屏，立刻收掉，留在本页
+    if (window.Shop && typeof Shop.hideBoot === "function") {
+      try {
+        Shop.hideBoot();
+      } catch (_) {}
+    }
   }
 
   function stopThinking() {
@@ -307,7 +327,9 @@
   }
 
   function stopAction() {
-    if (root.classList.contains("is-takeover")) {
+    // 接管中（含等待跳结算）：立刻终止，停在本页并回复
+    const saved = readTakeover();
+    if (root.classList.contains("is-takeover") || (saved && !saved.sealed)) {
       abortTakeover("行动已终止");
       return;
     }
@@ -364,6 +386,7 @@
 
   // Moru 自己跳下一页时调用，避免 pagehide / shop.navigate 把任务封掉
   function markMoruNavigation(nextRemaining) {
+    clearStopped();
     moruNavigating = true;
     window.__moruDriving = true;
     if (Array.isArray(nextRemaining)) saveTakeover(nextRemaining);
@@ -587,6 +610,7 @@
     markMoruNavigation(remaining);
     driveTimer = setTimeout(() => {
       driveTimer = null;
+      if (window.__moruStopped || sessionStorage.getItem("ly-moru-stopped") === "1") return;
       const st = readTakeover();
       if (st && st.sealed) return;
       if (shop && typeof shop.navigate === "function") shop.navigate(navigateTo);
