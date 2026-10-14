@@ -7,7 +7,7 @@
   const TAKEOVER_KEY = "ly-moru-takeover";
   const TAKEOVER_TTL = 20000;
   const THINK_LABEL = "正在思考...";
-  const TAKEOVER_LABEL = "正在接管Moru...";
+  const TAKEOVER_LABEL = "正在接管LONGYING-STUDIO...";
   const SIZE = () => (window.matchMedia("(max-width: 560px)").matches ? 46 : 50);
   const CLICK_SLOP = 6;
   const MARGIN = 10;
