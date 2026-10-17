@@ -505,7 +505,7 @@
   function renderProducts() {
     const cards = products.map(productCard).join("");
 
-    document.title = "商品管理 · STUDIO-ADMIN";
+    document.title = "商品管理 · Studio Admin";
     app.innerHTML = `
       <section class="page" aria-label="商品管理">
         ${
@@ -536,7 +536,7 @@
       image: "",
     };
 
-    document.title = `${isEditing ? "编辑商品" : "上架新商品"} · STUDIO-ADMIN`;
+    document.title = `${isEditing ? "编辑商品" : "上架新商品"} · Studio Admin`;
     app.innerHTML = `
       <section class="page form-page${isEditing ? " is-editing" : ""}" aria-label="${isEditing ? "编辑商品" : "上架新商品"}">
         <form class="product-form" id="product-form">
@@ -895,7 +895,7 @@
 
   function renderLogin() {
     const isSetup = !auth.setup;
-    document.title = `${isSetup ? "设置后台密码" : "管理员登录"} · STUDIO-ADMIN`;
+    document.title = `${isSetup ? "设置后台密码" : "管理员登录"} · Studio Admin`;
     app.innerHTML = `
       <section class="login-page" aria-label="${isSetup ? "设置后台密码" : "管理员登录"}">
         <div class="login-wrap">
@@ -1091,7 +1091,7 @@
         ? `<div class="traffic-banner">正在读取访问数据…</div>`
         : `<div class="traffic-banner">统计 Cloudflare 公网访问；本机与局域网不计。</div>`;
 
-    document.title = "访问监控 · STUDIO-ADMIN";
+    document.title = "访问监控 · Studio Admin";
     app.innerHTML = `
       <section class="page" aria-label="访问监控">
         ${banner}
@@ -1200,7 +1200,7 @@
       )
       .join("");
 
-    document.title = "订单管理 · STUDIO-ADMIN";
+    document.title = "订单管理 · Studio Admin";
     app.innerHTML = `
       <section class="page orders-page" aria-label="订单管理">
         <div class="tabs" role="group" aria-label="订单状态">${tabs}</div>
@@ -1233,7 +1233,7 @@
       )
       .join("");
 
-    document.title = `订单 ${order.no} · STUDIO-ADMIN`;
+    document.title = `订单 ${order.no} · Studio Admin`;
     app.innerHTML = `
       <section class="page order-page" aria-label="订单详情">
         <a class="back-link" href="#/orders">${icons.back}返回订单列表</a>

@@ -19,10 +19,10 @@ GitHub：`LongYingZhang/LONGYING-STUDIO`，分支 `main`（交接时最新提交
 
 ## 现在的品牌（以代码为准，不要信过期备忘）
 
-- 主屏幕名字：店铺 **Moru Studio**，后台 **Moru Admin**（`apple-mobile-web-app-title` + webmanifest）。
-- 主屏幕图标：用户给的 `LONGYING.jpg`（黑底白 Moru），已做成 `assets/` 和 `admin/assets/` 的 `apple-touch-icon.png`、`icon-192.png`、`icon-512.png`。链接带 `?v=6`。iPhone 会缓存旧图标，要删掉主屏幕图标再重新添加。
+- 主屏幕名字：店铺 **Moru Studio**，后台 **Studio Admin**（`apple-mobile-web-app-title` + webmanifest）。后台页头文字也是 STUDIO ADMIN。
+- 主屏幕图标和网址栏图标：用户给的 `STUDIO ADMIN.png`（黑底灰 Moru），店铺和后台共用 `favicon.png`、`apple-touch-icon.png`、`icon-192.png`、`icon-512.png`。链接带 `?v=7`。iPhone 会缓存旧图标，要删掉主屏幕图标再重新添加。
 - 店铺页头字标：`ZHANGLONGYING__STUDIO_7.svg`，读作 MORU STUDIO。页面里不要改回「LONGYING STUDIO」。
-- 后台页头：`admin/assets/wordmark-moru-admin.svg`（灰字 MORU ADMIN）。**没有「后台 / BACKEND」文字，也没有「退出登录」。**
+- 后台页头文字是 **STUDIO ADMIN**。没有「退出登录」。
 - 横屏顶栏一行：左字标、中导航、右「查看前台」。
 - 竖屏顶栏两行：第一行左字标、右「查看前台」；第二行导航四个入口平均铺开（订单管理、在售商品、访问监控、上新商品）。
 - 订单空状态（「暂无待确认收款订单」等）：**不要黑色底块**，文字在页面上居中。横竖一样。样式在 `admin/styles.css` 的 `.orders-page .empty-state`。
