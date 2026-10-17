@@ -813,6 +813,24 @@ def openai_stream_chat(messages):
     return urllib_request.urlopen(req, timeout=90)
 
 
+def log_moru_upstream_error(err):
+    """上游模型失败时只在服务端留痕，不把密钥或原始错误体回给浏览器。"""
+    code = getattr(err, "code", None)
+    if isinstance(err, urllib_error.HTTPError):
+        try:
+            err.read()
+        except Exception:
+            pass
+    label = type(err).__name__
+    if code is not None:
+        label += f" {code}"
+    try:
+        sys.stderr.write(f"[moru] 上游模型错误（{label}），已改走本地关键词大脑\n")
+        sys.stderr.flush()
+    except Exception:
+        pass
+
+
 def estimate_moru_tokens(prompt_text, completion_text):
     """API 未返回 usage 时的粗估（偏中文：约 1 字 ≈ 1 token）。"""
     return max(1, len(prompt_text or "") + len(completion_text or ""))
@@ -1343,7 +1361,13 @@ class ShopHandler(SimpleHTTPRequestHandler):
 
         try:
             llm_messages = [{"role": "system", "content": moru_system_prompt(page_context)}] + history
-            stream = openai_stream_chat(llm_messages)
+            try:
+                stream = openai_stream_chat(llm_messages)
+            except Exception as upstream_err:
+                # 密钥失效 / 鉴权失败 / 限流 / 网络故障：不把上游原始错误抛给聊天框，
+                # 退回本地关键词大脑，助手照常应话
+                log_moru_upstream_error(upstream_err)
+                stream = None
             if stream is None:
                 reply, tools = local_moru_reply(user_text, page_context)
                 chunk = 12
@@ -1401,14 +1425,19 @@ class ShopHandler(SimpleHTTPRequestHandler):
                 total = estimate_moru_tokens(prompt_blob, reply_text)
             moru_rate_limit.add_tokens(ip, total)
         except urllib_error.HTTPError as err:
-            detail = err.read().decode("utf-8", errors="ignore")[:300]
+            log_moru_upstream_error(err)
             try:
-                self.sse_write({"type": "error", "error": f"模型接口错误 {err.code}: {detail}"})
+                self.sse_write({"type": "error", "error": "助手服务暂时不可用，请稍后再试"})
             except BrokenPipeError:
                 pass
         except Exception as err:
             try:
-                self.sse_write({"type": "error", "error": str(err) or "chat failed"})
+                sys.stderr.write(f"[moru] 聊天中断：{type(err).__name__}\n")
+                sys.stderr.flush()
+            except Exception:
+                pass
+            try:
+                self.sse_write({"type": "error", "error": "助手服务暂时不可用，请稍后再试"})
             except BrokenPipeError:
                 pass
 
