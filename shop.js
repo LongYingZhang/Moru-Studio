@@ -135,6 +135,7 @@
   }
 
   const PRODUCTS_API = "/api/products";
+  const PORTFOLIO_URL = "https://zhanglongying.pages.dev";
   let serverSnapshot = null;
 
   function parseProducts(text) {
@@ -152,17 +153,6 @@
       localStorage.setItem(PRODUCTS_KEY, serverSnapshot);
     } catch (e) {
       try { localStorage.removeItem(PRODUCTS_KEY); } catch (_) {}
-    }
-  }
-
-  function fetchServerProducts() {
-    try {
-      const xhr = new XMLHttpRequest();
-      xhr.open("GET", PRODUCTS_API, false);
-      xhr.send();
-      return xhr.status === 200 ? parseProducts(xhr.responseText) : null;
-    } catch (e) {
-      return null;
     }
   }
 
@@ -193,11 +183,7 @@
       serverSnapshot = JSON.stringify(cached);
       return cached.map(normalizeProduct);
     }
-    const fromServer = fetchServerProducts();
-    if (fromServer) {
-      remember(fromServer);
-      return fromServer.map(normalizeProduct);
-    }
+    serverSnapshot = JSON.stringify(DEFAULT_PRODUCTS);
     return DEFAULT_PRODUCTS.map(normalizeProduct);
   }
 
@@ -675,6 +661,7 @@
   window.Shop = {
     goBackOr,
     bindSwipeBack,
+    portfolioUrl: PORTFOLIO_URL,
     products: PRODUCTS,
     allProducts: ALL_PRODUCTS,
     productsKey: PRODUCTS_KEY,
@@ -705,7 +692,7 @@
 
   // 访问打点：只统计 Cloudflare 公网；本机 / 局域网不计
   (function trackTraffic() {
-    const HIT = "/api/traffic/hit";
+    const HIT = "https://longying-studio.pages.dev/api/traffic/hit";
     const SID_KEY = "ly-traffic-sid";
     const PAGES = {
       "index.html": 1,
@@ -751,7 +738,8 @@
         let id = localStorage.getItem(SID_KEY);
         if (id && /^[A-Za-z0-9_-]{8,64}$/.test(id)) return id;
         const bytes = new Uint8Array(16);
-        (crypto.getRandomValues || (() => 0))(bytes);
+        if (crypto.getRandomValues) crypto.getRandomValues(bytes);
+        else bytes.forEach((_, i) => { bytes[i] = Math.floor(Math.random() * 256); });
         id = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
         localStorage.setItem(SID_KEY, id);
         return id;
@@ -762,7 +750,8 @@
 
     function post(body, keepalive) {
       const payload = JSON.stringify(body);
-      if (keepalive && navigator.sendBeacon) {
+      const sameOrigin = location.origin === "https://longying-studio.pages.dev";
+      if (sameOrigin && keepalive && navigator.sendBeacon) {
         try {
           const blob = new Blob([payload], { type: "application/json" });
           if (navigator.sendBeacon(HIT, blob)) return;

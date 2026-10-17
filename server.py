@@ -168,7 +168,7 @@ UPLOAD_NAME = re.compile(r"^[0-9a-f]{32}\.(?:jpg|png|webp|gif)$")
 GZIP_EXT = {".html", ".css", ".js", ".svg", ".json"}
 LONG_CACHE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".woff2", ".ico", ".mp4"}
 RANGE_EXT = {".mp4", ".webm", ".woff2", ".jpg", ".jpeg", ".png", ".webp", ".gif"}
-ASSET_REF = re.compile(rb'\b(href|src)="((?:\./)?[\w][\w./-]*\.(?:css|js))"')
+ASSET_REF = re.compile(rb'\b(href|src)="((?:\./)?[\w][\w./-]*\.(?:css|js))(?:\?[^"]*)?"')
 VERSION_QUERY = re.compile(r"(?:^|&)v=")
 # 开屏图直接嵌进 HTML，页面一到就能画出来，不用再等一次图片请求
 INLINE_SPLASH = re.compile(rb'url\("((?:\.\./)?assets/splash/[\w-]+\.webp)"\)')

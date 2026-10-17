@@ -852,7 +852,7 @@
     if (!isStopped()) endTakeover();
   }
 
-  const PORTFOLIO_URL = "https://zhanglongying.pages.dev";
+  const PORTFOLIO_URL = (window.Shop && window.Shop.portfolioUrl) || "https://zhanglongying.pages.dev";
   const PORTFOLIO_FLAG = "moruOpen=portfolio";
 
   function portfolioCard() {

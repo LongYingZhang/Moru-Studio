@@ -31,7 +31,7 @@ GitHub：`LongYingZhang/LONGYING-STUDIO`，分支 `main`（交接时最新提交
 
 - 后台 `#/traffic`。数据在 Cloudflare KV，binding 名 `TRAFFIC`，id 在 `wrangler.toml`。
 - `POST /api/traffic/hit`、`GET /api/traffic?range=7|30|all`。实现：`functions/_traffic.js`、`functions/api/traffic.js`、`functions/api/traffic/hit.js`。
-- 前台 `shop.js` 只在公网 https（含 `longying-studio.pages.dev`）打点。本机、localhost、局域网、私网 IP **不计**。访客 id 在 localStorage `ly-traffic-sid`，约 60 秒心跳；在线 = 5 分钟内活跃。
+- 前台 `shop.js` 只在公网 https（含 `longying-studio.pages.dev` 和临时隧道）打点，请求发到 `https://longying-studio.pages.dev/api/traffic/hit`。本机、localhost、局域网、私网 IP **不计**。访客 id 在 localStorage `ly-traffic-sid`，约 60 秒心跳；在线 = 5 分钟内活跃。
 - 后台 `admin/app.js` 直接请求 `https://longying-studio.pages.dev/api/traffic`，不经过 2015。
 - 2015 的 `server.py` 收到打点会故意不保存。从公网部署成功那天起才有数，没有更早的历史。
 - 改统计逻辑必须重新部署 Cloudflare，只 git pull 不够。
