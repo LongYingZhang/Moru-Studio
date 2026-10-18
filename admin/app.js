@@ -1023,6 +1023,7 @@
         { label: "平板", pct: 0 },
       ],
       pages: [],
+      regions: [],
       live: false,
     };
   }
@@ -1071,14 +1072,31 @@
     const pages = (safe.pages || []).length
       ? safe.pages
           .map(
-            (row) => `
+            (row, index) => `
           <div class="page-row">
+            <span class="page-no">${String(index + 1).padStart(2, "0")}</span>
             <span>${escapeHTML(row.label)}</span>
             <b>${row.views}</b>
           </div>`,
           )
           .join("")
-      : `<div class="page-row"><span>暂无页面数据</span><b>0</b></div>`;
+      : `<div class="page-row"><span class="page-no">—</span><span>暂无页面数据</span><b>0</b></div>`;
+    const regions = (safe.regions || []).length
+      ? safe.regions
+          .map(
+            (row) => `
+          <div class="geo-row">
+            <div class="geo-name">
+              <b>${escapeHTML(row.label)}</b>
+              ${row.detail ? `<span>${escapeHTML(row.detail)}</span>` : ""}
+            </div>
+            <div class="geo-num"><span>${row.count} 人</span><b>${row.pct}%</b></div>
+            <div class="meter" aria-hidden="true"><i style="width: ${row.pct}%"></i></div>
+          </div>`,
+          )
+          .join("")
+      : `<p class="traffic-note">地区从现在开始记。之前打开过的人没有地区。</p>`;
+    const regionLead = (safe.regions || []).slice(0, 5).map((row) => row.label).join(" · ");
     const pageNote =
       trafficRange === "30"
         ? "热门页为近 30 日浏览次数。"
@@ -1093,7 +1111,7 @@
 
     document.title = "访问监控 · Studio Admin";
     app.innerHTML = `
-      <section class="page" aria-label="访问监控">
+      <section class="page traffic-page" aria-label="访问监控">
         ${banner}
         <div class="traffic-head">
           <div>
@@ -1133,21 +1151,49 @@
             <div class="kpi-value">${safe.online}</div>
             <div class="kpi-foot">
               <span class="kpi-live"><i></i>实时</span>
-              <span>约 5 分钟内活跃</span>
+              <span>5 分钟内</span>
             </div>
           </article>
         </div>
         <div class="traffic-grid">
           <section class="traffic-panel" aria-label="近七日访客">
-            <h2>近 7 日访客</h2>
+            <div class="panel-kicker"><h2>近 7 日访客</h2><span>WEEK</span></div>
             <div class="traffic-chart">${bars}</div>
             <p class="traffic-note">柱高按当日独立访客统计，今日会随时间增长。</p>
           </section>
           <section class="traffic-panel" aria-label="来源与页面">
-            <h2>设备与热门页</h2>
-            <div class="split-list" style="margin-bottom: 22px">${devices}</div>
+            <div class="panel-kicker"><h2>设备与热门页</h2><span>DEVICES & PAGES</span></div>
+            <div class="split-list">${devices}</div>
             <div class="page-list">${pages}</div>
             <p class="traffic-note">${pageNote}</p>
+          </section>
+        </div>
+        <div class="traffic-grid">
+          <section class="traffic-panel" aria-label="访客地区">
+            <div class="panel-kicker">
+              <div>
+                <h2>访客地区</h2>
+                <p class="traffic-note" style="margin-top:4px">按 Cloudflare 边缘节点看到的城市，不保存 IP</p>
+              </div>
+              <span>GEO</span>
+            </div>
+            ${regionLead ? `<p class="geo-lead">${escapeHTML(regionLead)}</p>` : ""}
+            <div class="geo-list">${regions}</div>
+          </section>
+          <section class="traffic-panel" aria-label="Moru 用量">
+            <div class="panel-kicker">
+              <div>
+                <h2>Moru 助手用量</h2>
+                <p class="traffic-note" style="margin-top:4px">公网 Moru 用本地回答，不走付费模型</p>
+              </div>
+              <span>AI</span>
+            </div>
+            <div class="token-grid">
+              <article><span>本期总用量</span><b>0</b><small>尚未接入</small></article>
+              <article><span>单次均耗</span><b>0</b><small>无调用记录</small></article>
+              <article><span>额度成本</span><b>0</b><small>公网不扣费</small></article>
+            </div>
+            <p class="traffic-note">2015 上的 DeepSeek 用量还没有接到这块。这里不会显示示意数字。</p>
           </section>
         </div>
       </section>`;

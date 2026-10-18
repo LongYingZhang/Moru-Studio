@@ -1,4 +1,4 @@
-import { corsHeaders, json, normalizeHitBody, recordHit } from "../../_traffic.js";
+import { corsHeaders, json, normalizeHitBody, placeFromRequest, recordHit } from "../../_traffic.js";
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders() });
@@ -14,6 +14,7 @@ export async function onRequestPost(context) {
   }
   const hit = normalizeHitBody(body);
   if (!hit) return json({ error: "invalid body" }, 400);
+  hit.place = placeFromRequest(request);
   if (!env.TRAFFIC) return json({ ok: true, stored: false, reason: "no kv" });
 
   try {

@@ -2092,6 +2092,9 @@ html.is-booting body {
 
 
 /* ---- 访问监控 ---- */
+.page.traffic-page {
+  width: min(calc(100% - 48px), 1120px);
+}
 .traffic-head {
   display: flex;
   align-items: flex-end;
@@ -2112,8 +2115,14 @@ html.is-booting body {
 }
 .traffic-range {
   display: flex;
-  gap: 8px;
+  gap: 4px;
   flex-wrap: wrap;
+  padding: 4px;
+  border-radius: 999px;
+  background: #1c1b1b;
+}
+.traffic-range .tab {
+  border-radius: 999px;
 }
 .traffic-kpis {
   display: grid;
@@ -2122,10 +2131,10 @@ html.is-booting body {
   margin-bottom: 14px;
 }
 .kpi-card {
-  min-height: 118px;
-  padding: 18px 18px 16px;
-  border-radius: 15px;
-  background: var(--surface-black);
+  min-height: 148px;
+  padding: 20px 20px 18px;
+  border-radius: 16px;
+  background: #1c1b1b;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -2136,7 +2145,7 @@ html.is-booting body {
   font-size: 13px;
 }
 .kpi-card .kpi-value {
-  font-size: 34px;
+  font-size: 44px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
@@ -2145,9 +2154,15 @@ html.is-booting body {
 .kpi-card .kpi-foot {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   color: var(--subtle);
   font-size: 12px;
+}
+.kpi-live,
+.kpi-delta,
+.kpi-foot > span {
+  white-space: nowrap;
 }
 .kpi-delta.is-up { color: #b8f5c5; }
 .kpi-delta.is-down { color: var(--danger); }
@@ -2174,16 +2189,33 @@ html.is-booting body {
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
   gap: 14px;
 }
-.traffic-panel {
-  padding: 18px;
-  border-radius: 15px;
-  background: var(--surface-black);
+.traffic-grid + .traffic-grid {
+  margin-top: 14px;
 }
+.traffic-panel {
+  padding: 22px;
+  border-radius: 16px;
+  background: #1c1b1b;
+}
+.panel-kicker {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.panel-kicker h2,
 .traffic-panel h2 {
-  margin: 0 0 16px;
-  font-size: 15px;
+  margin: 0;
+  font-size: 16px;
   font-weight: 500;
-  color: #e8e8e8;
+  letter-spacing: 0.04em;
+  color: #fff;
+}
+.panel-kicker > span {
+  color: #8e9192;
+  font-size: 11px;
+  letter-spacing: 0.12em;
 }
 .traffic-chart {
   display: grid;
@@ -2204,14 +2236,13 @@ html.is-booting body {
 }
 .traffic-bar .bar {
   width: 100%;
-  max-width: 28px;
-  border-radius: 8px 8px 4px 4px;
-  background: linear-gradient(180deg, #f4f4f4 0%, #8a8a8a 100%);
+  max-width: 36px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffffff 0%, #c7c6c6 55%, #5a5a5a 100%);
   min-height: 4px;
 }
 .traffic-bar.is-today .bar {
-  background: linear-gradient(180deg, #ffffff 0%, #d0d0d0 100%);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
+  background: linear-gradient(180deg, #ffffff 0%, #e8e8e8 100%);
 }
 .traffic-bar .bar-val {
   color: var(--subtle);
@@ -2228,6 +2259,9 @@ html.is-booting body {
   flex-direction: column;
   gap: 14px;
 }
+.traffic-panel .page-list {
+  margin-top: 22px;
+}
 .split-row,
 .page-row {
   display: grid;
@@ -2236,8 +2270,61 @@ html.is-booting body {
   gap: 12px;
 }
 .page-row {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
 }
+.page-no {
+  color: #8e9192;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+.geo-lead {
+  margin: 0 0 14px;
+  color: #fff;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+.geo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.geo-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+}
+.geo-name {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.geo-name b { font-weight: 500; }
+.geo-name span,
+.geo-num span { color: var(--subtle); font-size: 12px; }
+.geo-num {
+  display: flex;
+  gap: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.geo-row .meter { grid-column: 1 / -1; height: 8px; }
+.token-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.token-grid article {
+  padding: 14px;
+  border-radius: 12px;
+  background: #131313;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.token-grid span { color: var(--subtle); font-size: 12px; }
+.token-grid b { font-size: 22px; font-weight: 500; }
+.token-grid small { color: var(--muted); font-size: 11px; }
 .split-row span,
 .page-row span {
   color: var(--muted);
@@ -2252,7 +2339,7 @@ html.is-booting body {
 .meter {
   height: 6px;
   border-radius: 99px;
-  background: #1c1b1b;
+  background: #131313;
   overflow: hidden;
 }
 .meter i {
@@ -2284,5 +2371,11 @@ html.is-booting body {
   .traffic-head {
     flex-direction: column;
     align-items: flex-start;
+  }
+  .token-grid {
+    grid-template-columns: 1fr;
+  }
+  .traffic-grid + .traffic-grid {
+    margin-top: 14px;
   }
 }

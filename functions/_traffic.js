@@ -68,7 +68,24 @@ function dayUv(row) {
   return Number(row.uv) || 0;
 }
 
-export async function recordHit(env, { sid, path, device, ping }) {
+const COUNTRY_ZH = {
+  CN: "中国", HK: "中国香港", MO: "中国澳门", TW: "中国台湾",
+  JP: "日本", KR: "韩国", SG: "新加坡", US: "美国", GB: "英国",
+  DE: "德国", FR: "法国", AU: "澳大利亚", CA: "加拿大", NL: "荷兰",
+};
+
+export function placeFromRequest(request) {
+  const cf = (request && request.cf) || {};
+  const country = String(cf.country || "").toUpperCase();
+  const city = String(cf.city || "").trim();
+  const region = String(cf.region || "").trim();
+  const countryName = COUNTRY_ZH[country] || country || "";
+  const label = city || region || countryName || "未知";
+  const detail = [region, countryName].filter((part) => part && part !== label).join(" · ");
+  return { label: label.slice(0, 40), detail: detail.slice(0, 40) };
+}
+
+export async function recordHit(env, { sid, path, device, ping, place }) {
   if (!env || !env.TRAFFIC) throw new Error("TRAFFIC KV not bound");
   const key = `d:${dayKey(0)}`;
   const now = Date.now() / 1000;
@@ -89,6 +106,21 @@ export async function recordHit(env, { sid, path, device, ping }) {
     row.pages[path] = (Number(row.pages[path]) || 0) + 1;
     if (!(device in row.devices)) device = "desktop";
     row.devices[device] = (Number(row.devices[device]) || 0) + 1;
+    const label = place && place.label ? String(place.label) : "";
+    if (label && label !== "未知") {
+      if (!row.placed) row.placed = {};
+      if (!row.placed[sid]) {
+        row.placed[sid] = 1;
+        if (!row.places) row.places = {};
+        const key = label;
+        const bucket = row.places[key] && typeof row.places[key] === "object"
+          ? row.places[key]
+          : { count: Number(row.places[key]) || 0, detail: "" };
+        bucket.count += 1;
+        if (place.detail) bucket.detail = place.detail;
+        row.places[key] = bucket;
+      }
+    }
   }
 
   const cutoff = now - ONLINE_SEC * 2;
@@ -160,15 +192,38 @@ export async function summarize(env, rangeKey = "7") {
     if (Number(ts) >= cutoff) online += 1;
   }
 
-  const deviceSum =
-    deviceTotals.mobile + deviceTotals.desktop + deviceTotals.tablet || 1;
+  const deviceSum = deviceTotals.mobile + deviceTotals.desktop + deviceTotals.tablet;
   const devices = [
-    { label: "手机", pct: Math.round((deviceTotals.mobile * 100) / deviceSum) },
-    { label: "电脑", pct: Math.round((deviceTotals.desktop * 100) / deviceSum) },
-    { label: "平板", pct: Math.round((deviceTotals.tablet * 100) / deviceSum) },
+    { label: "手机", pct: deviceSum ? Math.round((deviceTotals.mobile * 100) / deviceSum) : 0 },
+    { label: "电脑", pct: deviceSum ? Math.round((deviceTotals.desktop * 100) / deviceSum) : 0 },
+    { label: "平板", pct: deviceSum ? Math.round((deviceTotals.tablet * 100) / deviceSum) : 0 },
   ];
-  const drift = 100 - devices.reduce((s, d) => s + d.pct, 0);
-  if (devices.length) devices[0].pct = Math.max(0, devices[0].pct + drift);
+  if (deviceSum) {
+    const drift = 100 - devices.reduce((s, d) => s + d.pct, 0);
+    devices[0].pct = Math.max(0, devices[0].pct + drift);
+  }
+
+  const placeTotals = {};
+  for (let offset = 0; offset < span; offset++) {
+    const row = byKey[`d:${dayKey(offset)}`] || {};
+    for (const [label, value] of Object.entries(row.places || {})) {
+      const count = value && typeof value === "object" ? Number(value.count) || 0 : Number(value) || 0;
+      const detail = value && typeof value === "object" ? String(value.detail || "") : "";
+      if (!placeTotals[label]) placeTotals[label] = { count: 0, detail };
+      placeTotals[label].count += count;
+      if (detail) placeTotals[label].detail = detail;
+    }
+  }
+  const placeSum = Object.values(placeTotals).reduce((s, row) => s + row.count, 0) || 1;
+  const regions = Object.entries(placeTotals)
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 6)
+    .map(([label, row]) => ({
+      label,
+      detail: row.detail,
+      count: row.count,
+      pct: Math.round((row.count * 100) / placeSum),
+    }));
 
   const pages = Object.entries(pageTotals)
     .sort((a, b) => b[1] - a[1])
@@ -193,6 +248,7 @@ export async function summarize(env, rangeKey = "7") {
     days: last7,
     devices,
     pages,
+    regions,
     range: rangeKey,
     live: true,
     source: "cloudflare",
