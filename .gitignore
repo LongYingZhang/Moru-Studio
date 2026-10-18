@@ -4,6 +4,8 @@ admin/data/
 # 本机运行产生的文件
 .server.log
 .server.pid
+.auto-pull.log
+.auto-pull.lock
 .venv*/
 __pycache__/
 .DS_Store
