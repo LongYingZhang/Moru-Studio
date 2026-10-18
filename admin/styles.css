@@ -138,13 +138,7 @@ textarea:focus-visible,
 .brand-mark {
   display: block;
   width: auto;
-  height: auto;
-  color: #8e9192;
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  line-height: 1;
-  white-space: nowrap;
+  height: 16px;
 }
 
 /* 横屏 / 宽屏：字标 · 导航 · 查看前台 同一行 */
@@ -1597,8 +1591,7 @@ body.is-locked .app-shell {
   }
 
   .brand-mark {
-    font-size: 13px;
-    letter-spacing: 0.04em;
+    height: 14px;
     max-width: 100%;
   }
 
