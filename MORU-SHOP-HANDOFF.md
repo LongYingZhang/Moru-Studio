@@ -15,7 +15,7 @@ GitHub：`LongYingZhang/LONGYING-STUDIO`，分支 `main`（交接时最新提交
 - **不要在 M4 上开或测 `127.0.0.1:8787`。** M4 连不上 2015 的 SSH / SMB。用户自己在 2015 上 `git pull origin main`。改了 `server.py` 要额外提醒重启服务。只改了 `admin/` 的 HTML/CSS/JS，pull 后刷新即可。
 - Cloudflare **不部署 `admin/`**。后台只在 2015 上。公网 Functions 在 `functions/api/`。
 - **不要部署到 Netlify。**
-- 店铺改完的固定动作：英文提交说明 → `git push origin HEAD`。动到公网页或 `functions/` 时再跑 `bash scripts/deploy-cloudflare.sh`。Wrangler 若被沙箱拦住，用完整权限重跑。`wrangler.toml` 里有 KV，部署必须走这个脚本（它会生成 `.cf-stage`，这个目录是临时的，可以删）。
+- 用户要求改完**自动**提交并推远程，不要再等一句「推上去」。英文提交说明 → `git push origin HEAD`。动到公网页或 `functions/` 时再部署 Cloudflare：`NPM_CONFIG_CACHE="$HOME/.npm" script -q /dev/null bash scripts/deploy-cloudflare.sh`（完整权限；沙箱里的 npm 缓存会缺 workerd）。只改了 `admin/` 不用部署。`wrangler.toml` 里有 KV，部署必须走这个脚本（它会生成 `.cf-stage`，这个目录是临时的，可以删）。
 
 ## 现在的品牌（以代码为准，不要信过期备忘）
 

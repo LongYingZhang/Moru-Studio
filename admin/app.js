@@ -241,6 +241,11 @@
         <circle cx="9" cy="10" r="1.5"></circle>
         <path d="m5 17 4.5-4 3.2 2.8 2.1-2 4.2 3.7M17 3v5M14.5 5.5h5"></path>
       </svg>`,
+    plus: `
+      <svg viewBox="0 0 13.49 13.49" aria-hidden="true">
+        <rect x="0" y="6.045" width="13.49" height="1.4"></rect>
+        <rect x="6.045" y="0" width="1.4" height="13.49"></rect>
+      </svg>`,
     close: `
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="m6 6 12 12M18 6 6 18"></path>
@@ -675,12 +680,8 @@
       if (!shots.length) {
         shotsBox.innerHTML = `
           <label class="upload-zone">
-            <input type="file" multiple accept="${accept}" data-shot-input />
-            <div class="upload-placeholder">
-              <span class="upload-icon">${icons.upload}</span>
-              <strong>点击添加商品图</strong>
-              <small>可一次选择多张，或将图片拖放至此区域。第一张为封面，最多 ${SHOTS_MAX} 张</small>
-            </div>
+            <input type="file" multiple accept="${accept}" data-shot-input aria-label="添加商品图" />
+            <span class="upload-plus">${icons.plus}</span>
           </label>`;
         return;
       }

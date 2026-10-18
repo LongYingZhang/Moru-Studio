@@ -624,17 +624,32 @@ body.is-sorting {
 
 .upload-zone {
   position: relative;
-  width: 100%;
-  aspect-ratio: 720 / 513;
+  width: 169px;
+  height: 169px;
   display: grid;
   place-items: center;
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--surface-low);
   cursor: pointer;
   transition:
     border-color 160ms ease,
     background-color 160ms ease;
+}
+
+.upload-plus {
+  width: 13.49px;
+  height: 13.49px;
+  display: block;
+  color: var(--primary);
+  pointer-events: none;
+}
+
+.upload-plus svg {
+  display: block;
+  width: 13.49px;
+  height: 13.49px;
+  fill: currentColor;
 }
 
 .upload-zone:hover,
@@ -755,7 +770,6 @@ body.is-sorting {
   aspect-ratio: 720 / 513;
 }
 
-.form-page.is-editing .upload-zone,
 .form-page.is-editing .shot.is-cover {
   aspect-ratio: 720 / 338;
 }
