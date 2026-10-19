@@ -2137,11 +2137,12 @@ html.is-booting body {
   gap: 4px;
   flex-wrap: wrap;
   padding: 4px;
-  border-radius: 999px;
+  border-radius: 8px;
   background: #1c1b1b;
 }
-.traffic-range .tab {
-  border-radius: 999px;
+.traffic-range .tab,
+.traffic-range .tab.is-on {
+  border-radius: 5px;
 }
 .traffic-kpis {
   display: grid;
