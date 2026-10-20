@@ -17,6 +17,10 @@ GitHub：`LongYingZhang/LONGYING-STUDIO`，分支 `main`（交接时最新提交
 - **不要部署到 Netlify。**
 - 用户要求改完**自动**提交并推远程，不要再等一句「推上去」。英文提交说明 → `git push origin HEAD`。动到公网页或 `functions/` 时再部署 Cloudflare：`NPM_CONFIG_CACHE="$HOME/.npm" script -q /dev/null bash scripts/deploy-cloudflare.sh`（完整权限；沙箱里的 npm 缓存会缺 workerd）。只改了 `admin/` 不用部署。`wrangler.toml` 里有 KV，部署必须走这个脚本（它会生成 `.cf-stage`，这个目录是临时的，可以删）。
 
+## UI
+
+- 画界面时能不用线条就不用：不要用描边、分割线、细线框；用色块、留白、圆角面和背景层次分区。
+
 ## 现在的品牌（以代码为准，不要信过期备忘）
 
 - 主屏幕名字：店铺 **Moru Studio**，后台 **Studio Admin**（`apple-mobile-web-app-title` + webmanifest）。后台页头文字也是 STUDIO ADMIN。
