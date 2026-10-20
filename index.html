@@ -174,13 +174,12 @@ html.is-booting, html.is-booting body { background: #000 !important; }
         </svg>
         加入购物袋/订购
       </button>
-      <a class="btn dark" id="detailLink" href="product.html">查看商品详情 →</a>
     </div>
   </aside>
 </div>
 
 <script src="shop.js"></script>
-<script src="moru.js?v=20261017a" defer></script>
+<script src="moru.js?v=20261020a" defer></script>
 <script>
 (function () {
   const products = Shop.products;
@@ -284,7 +283,6 @@ html.is-booting, html.is-booting body { background: #000 !important; }
       document.getElementById("drawerSpecs").innerHTML = drawerSpecHtml(product);
       document.getElementById("drawerSpecs").hidden = !drawerSpecHtml(product);
       document.getElementById("drawerPrice").textContent = Shop.formatPrice(product.price);
-      document.getElementById("detailLink").href = `product.html?id=${product.id}&enter=left`;
       lbTitle.textContent = product.name;
       lbSpecs.innerHTML = specHtml(product);
     };
@@ -322,7 +320,6 @@ html.is-booting, html.is-booting body { background: #000 !important; }
   const home = document.getElementById("home");
   const hero = document.getElementById("hero");
   const drawer = document.getElementById("drawer");
-  const detailLink = document.getElementById("detailLink");
 
   function isPortraitFlow() {
     return window.matchMedia("(orientation: portrait)").matches && window.innerWidth <= 980;
@@ -579,11 +576,6 @@ html.is-booting, html.is-booting body { background: #000 !important; }
     closeDrawer();
     Shop.addedNotice();
   });
-  detailLink.addEventListener("click", (e) => {
-    e.preventDefault();
-    const id = products[index].id;
-    Shop.navigate("product.html?id=" + id + "&enter=left");
-  });
 
   window.addEventListener("keydown", (e) => {
     const light = lightbox.classList.contains("open");
@@ -606,9 +598,6 @@ html.is-booting, html.is-booting body { background: #000 !important; }
   const requested = parseInt(new URLSearchParams(location.search).get("id"), 10);
   const start = products.findIndex((p) => p.id === requested);
   show(start >= 0 ? start : 0, false);
-  if (start >= 0 && isPortraitFlow() && new URLSearchParams(location.search).get("view") === "hero") {
-    openHero();
-  }
 
   window.addEventListener("load", () => {
     products.forEach((p) => { new Image().src = p.image; });

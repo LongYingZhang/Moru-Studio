@@ -461,7 +461,7 @@
       case "openCheckout":
         return "结算页到啦，填好地址就能下单～";
       case "openProduct":
-        return `${productName(id)} 的详情在这儿啦～`;
+        return `带你去看 ${productName(id)} 啦～`;
       case "openTerms":
         return "购物须知在这儿，慢慢看～";
       case "openHome":
@@ -680,7 +680,9 @@
         };
       }
       const id = Number(new URLSearchParams(location.search).get("id"));
-      if (ctx.path === "product.html" && Number.isFinite(id)) ctx.productId = id;
+      if ((ctx.path === "index.html" || ctx.path === "product.html") && Number.isFinite(id)) {
+        ctx.productId = id;
+      }
     } catch (_) {}
     return ctx;
   }
@@ -781,14 +783,7 @@
       const prev = args.dir === "prev";
       const steps = Math.max(1, Math.min(9, Number(args.steps) || 1));
       let btn = null;
-      if (here === "product.html") {
-        const dots = document.querySelectorAll("#dots [data-shot]");
-        if (dots.length < 2) {
-          takeoverSummary = "这件目前只有一张图哦～";
-        } else {
-          btn = document.getElementById(prev ? "prev" : "next");
-        }
-      } else if (here === "index.html") {
+      if (here === "index.html") {
         const lightbox = document.getElementById("lightbox");
         if (lightbox && !lightbox.classList.contains("open")) {
           await pressEl(document.getElementById("hero"));
@@ -910,20 +905,22 @@
       const name = tool && tool.name;
       const args = (tool && tool.args) || {};
       const qty = Math.max(1, Math.min(9, Number(args.qty) || 1));
-      if (name === "addToCart") {
+      if (name === "addToCart" || name === "buyAndCheckout") {
         const id = resolveProductId(args);
         if (id == null || !shop || typeof shop.addToCart !== "function") return;
-        plan.push({ name, args, id, qty });
-      } else if (name === "buyAndCheckout") {
-        // 打开商品详情 → 自动点「确认支付」→ 结算填地址
-        const id = resolveProductId(args);
-        if (id == null) return;
-        const href =
-          "product.html?id=" + encodeURIComponent(id) + "&moruBuy=1&qty=" + encodeURIComponent(qty);
-        plan.push({ name, args, id, href });
+        const step = { name, args, id, qty };
+        if (name === "buyAndCheckout") step.href = "checkout.html";
+        plan.push(step);
       } else if (name === "openProduct") {
         const id = resolveProductId(args);
-        if (id != null) plan.push({ name, args, id, href: "product.html?id=" + encodeURIComponent(id) });
+        if (id != null) {
+          plan.push({
+            name,
+            args,
+            id,
+            href: "index.html?id=" + encodeURIComponent(id),
+          });
+        }
       } else if (PAGE_TOOLS[name]) {
         plan.push({ name, args, href: PAGE_TOOLS[name] });
       } else if (name === "openPortfolio") {
@@ -935,11 +932,11 @@
         const here = pagePath(location.href);
         let page = PAGE_ACTIONS[name];
         let href = page;
-        if (name === "showPhoto" && here !== "product.html" && here !== "index.html") {
-          // 不在能翻图的页面：有指定商品就去它的详情页
+        if (name === "showPhoto" && here !== "index.html") {
+          // 不在首页：有指定商品就回首页画册翻图
           if (id == null) return;
-          page = "product.html";
-          href = "product.html?id=" + encodeURIComponent(id);
+          page = "index.html";
+          href = "index.html?id=" + encodeURIComponent(id);
         }
         if ((name === "setCartQty" || name === "removeCartItem") && id == null) return;
         plan.push({ name, args, id, action: true, page: page && page !== here ? page : null, href });
@@ -963,10 +960,13 @@
     let portfolioHere = false;
     let actionStep = null;
     plan.forEach((step) => {
-      if (step.name === "addToCart") {
+      if (step.name === "addToCart" || step.name === "buyAndCheckout") {
         shop.addToCart(step.id, step.qty);
-        if (typeof shop.addedNotice === "function") shop.addedNotice();
-        else if (typeof shop.refreshCount === "function") shop.refreshCount();
+        if (step.name === "addToCart") {
+          if (typeof shop.addedNotice === "function") shop.addedNotice();
+          else if (typeof shop.refreshCount === "function") shop.refreshCount();
+        }
+        if (step.href) navigateTo = step.href;
       } else if (step.portfolio) {
         portfolioHere = true;
       } else if (step.action) {
@@ -1013,8 +1013,6 @@
       return true;
     }
     const remaining = [pagePath(navigateTo)];
-    // 详情页代购会自己再跳结算；结算才是最后一页
-    if (/[?&]moruBuy=1(?:&|$)/.test(navigateTo)) remaining.push("checkout.html");
     markMoruNavigation(remaining);
     driveTimer = setTimeout(() => {
       driveTimer = null;

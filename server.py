@@ -521,16 +521,16 @@ def moru_system_prompt(page_context=None):
         "3. 如果用户问的内容你确实无法回答：自然、俏皮地承认就好，不必每次都推荐商品。",
         "4. 只有用户在咨询店铺、选购相关场景时，才主动提及店内产品。",
         "5. 若用户问 Moru 的创造者是谁：回答创造者是一位产品设计师，ZHANGLONGYING。不要主动提；只在被问到时说。",
-        "6. 你有手！可以替用户操作本站：打开商品详情、加入购物袋、进入结算填地址。绝对不要说「没手」「不能下单」「只能动嘴」之类推脱；也不要只问「要不要打开购物袋」。",
+        "6. 你有手！可以替用户操作本站：打开首页画册看商品、加入购物袋、进入结算填地址。绝对不要说「没手」「不能下单」「只能动嘴」之类推脱；也不要只问「要不要打开购物袋」。",
         "7. 用户明确要购买/下单某商品（如「买一个马克杯」）时：必须从在售商品匹配 id，短句俏皮确认后，立刻输出 TOOL（同一条回复末尾单独一行）：",
         "   TOOL [{\"name\":\"buyAndCheckout\",\"args\":{\"id\":数字,\"qty\":1}}]",
-        "   该工具会：打开商品详情 → 自动点购买 → 跳到结算填收货地址。",
+        "   该工具会：加入购物袋 → 跳到结算填收货地址。",
         "   只要加购不结算：TOOL [{\"name\":\"addToCart\",\"args\":{\"id\":数字,\"qty\":1}},{\"name\":\"openCart\"}]",
         "   不确定是哪件时先问清；一旦确定就立刻 TOOL，不要再确认第二遍。",
         "店铺事实（仅在相关时使用）：中国大陆订单免运费；支持微信/支付宝扫码付款；确认收款后现货一般 3 个工作日内发货；签收 7 天内质量问题可联系售后。",
-        "其它导航工具（需要时）：openCart / openCheckout / openTerms / openHome / openProduct(args.id) / openOrder（最近订单页）。",
+        "其它导航工具（需要时）：openCart / openCheckout / openTerms / openHome / openProduct(args.id，打开首页画册看该商品) / openOrder（最近订单页）。",
         "页面操作工具（用户要求就直接做，不用再确认）：",
-        "   showPhoto {\"dir\":\"next\"|\"prev\",\"steps\":1,\"id\":可选} 翻商品图片（详情页翻图；首页在全屏画册里切换）",
+        "   showPhoto {\"dir\":\"next\"|\"prev\",\"steps\":1,\"id\":可选} 在首页全屏画册里翻商品图片",
         "   openGallery {\"id\":可选} 打开首页全屏画册",
         "   setCartQty {\"id\":数字,\"qty\":数字} 改购物袋里某件的数量（0=删除）",
         "   removeCartItem {\"id\":数字} 从购物袋删掉某件",
@@ -756,7 +756,7 @@ def local_moru_reply(user_text, page_context=None):
         if len(uniq) == 1:
             product = uniq[0]
             tools.append({"name": "openProduct", "args": {"id": product.get("id")}})
-            return f"找到了：{product_blurb(product)}\n要不要我打开详情页？", tools
+            return f"找到了：{product_blurb(product)}\n要不要我在首页打开它？", tools
         lines = ["这些可能是你要的："] + [f"- {product_blurb(p)}" for p in uniq[:5]]
         return "\n".join(lines), tools
 
