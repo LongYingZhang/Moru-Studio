@@ -13,7 +13,7 @@
   const MARGIN = 10;
 
   // 新版本公告：读取线上 manifest，跨域 script（免 CORS），站点和 .dmg 内都可用
-  const RELEASE_JS_URL = "https://moru-shop.pages.dev/assets/moru/release.js";
+  const RELEASE_JS_URL = "https://longying-studio.pages.dev/assets/moru/release.js";
   const RELEASE_SEEN_KEY = "moru.release.seen";
 
   const root = document.createElement("div");

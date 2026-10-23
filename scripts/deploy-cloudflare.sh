@@ -35,6 +35,6 @@ fi
 
 # Deploy via wrangler.toml (picks up TRAFFIC KV binding)
 npx --yes wrangler pages deploy \
-  --project-name moru-shop \
+  --project-name longying-studio \
   --branch main \
   --commit-dirty=true
