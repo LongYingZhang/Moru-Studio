@@ -12,6 +12,10 @@
   const CLICK_SLOP = 6;
   const MARGIN = 10;
 
+  // 新版本公告：读取线上 manifest，跨域 script（免 CORS），站点和 .dmg 内都可用
+  const RELEASE_JS_URL = "https://moru-shop.pages.dev/assets/moru/release.js";
+  const RELEASE_SEEN_KEY = "moru.release.seen";
+
   const root = document.createElement("div");
   root.className = "moru-root";
   root.innerHTML = `
@@ -191,6 +195,78 @@
     logEl.appendChild(el);
     logEl.scrollTop = 0;
     return el;
+  }
+
+  /* ---- 新版本公告：商店一更新，助手就提示「有新版本，点击链接去下载」 ---- */
+  function cmpVersion(a, b) {
+    const pa = String(a).split(".").map((n) => parseInt(n, 10) || 0);
+    const pb = String(b).split(".").map((n) => parseInt(n, 10) || 0);
+    const len = Math.max(pa.length, pb.length);
+    for (let i = 0; i < len; i++) {
+      const x = pa[i] || 0, y = pb[i] || 0;
+      if (x !== y) return x > y ? 1 : -1;
+    }
+    return 0;
+  }
+
+  function showUpdateBanner(rel) {
+    if (root.querySelector(".moru-update")) return;
+    const el = document.createElement("div");
+    el.className = "moru-update";
+    el.setAttribute("role", "status");
+
+    const text = document.createElement("div");
+    text.className = "moru-update-text";
+    text.textContent = `🆕 上新啦 v${rel.version}：${rel.note || "点右边下载最新版"}`;
+
+    const link = document.createElement("a");
+    link.className = "moru-update-link";
+    link.href = rel.dmgUrl || "#";
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.textContent = "下载新版";
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "moru-update-close";
+    close.setAttribute("aria-label", "关闭更新提示");
+    close.textContent = "×";
+
+    el.appendChild(text);
+    el.appendChild(link);
+    el.appendChild(close);
+
+    // 放在聊天记录上方；setReply 只清 logEl，不会误删这条公告
+    logEl.parentNode.insertBefore(el, logEl);
+    root.classList.add("is-update"); // 悬浮球上显示小红点
+
+    const dismiss = () => {
+      el.remove();
+      root.classList.remove("is-update");
+      try { localStorage.setItem(RELEASE_SEEN_KEY, rel.version); } catch (_) {}
+    };
+    link.addEventListener("click", dismiss);
+    close.addEventListener("click", dismiss);
+  }
+
+  function checkForUpdate() {
+    const s = document.createElement("script");
+    s.src = RELEASE_JS_URL + "?t=" + Date.now();
+    s.async = true;
+    s.onload = () => {
+      const rel = window.__MORU_RELEASE__;
+      if (!rel || !rel.version) return;
+      let seen = null;
+      try { seen = localStorage.getItem(RELEASE_SEEN_KEY); } catch (_) {}
+      if (!seen) {
+        // 第一次来：记下当前版本，不弹（已经是新的）
+        try { localStorage.setItem(RELEASE_SEEN_KEY, rel.version); } catch (_) {}
+        return;
+      }
+      if (cmpVersion(rel.version, seen) > 0) showUpdateBanner(rel);
+    };
+    s.onerror = () => {};
+    document.head.appendChild(s);
   }
 
   function setOpen(open, focus = true) {
@@ -1256,6 +1332,9 @@
     const remaining = rest[0] === next ? rest : [next];
     markMoruNavigation(remaining);
   };
+
+  // 打开页面时检查新版本，有更新就让助手弹出「下载新版」
+  checkForUpdate();
 
   resumeTakeover(false);
 })();
