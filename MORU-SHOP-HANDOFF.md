@@ -2,9 +2,9 @@
 
 给下一个 agent。用户是张珑瀛。回复用中文。磁盘文件名用英文（字母、数字、连字符），不要用中文文件名。
 
-仓库：`/Users/zhanglongyingdemacbookairm4/Sites/LONGYING STUDIO`  
-GitHub：`LongYingZhang/LONGYING-STUDIO`，分支 `main`（交接时最新提交 `e42746e`）。  
-公网：https://longying-studio.pages.dev/（Cloudflare Pages 项目 `longying-studio`）。
+仓库：`/Users/zhanglongyingdemacbookairm4/Sites/Moru Studio`  
+GitHub：`LongYingZhang/moru-shop`，分支 `main`（交接时最新提交 `e42746e`）。  
+公网：https://moru-shop.pages.dev/（Cloudflare Pages 项目 `moru-shop`）。
 
 作品集是另一个仓库：`/Users/zhanglongyingdemacbookairm4/Documents/Cursor/LONGYING PORTFOLIO`，GitHub `LongYingZhang/protflio`，线上 https://zhanglongying.pages.dev。不要把两个仓库的分支混在一起。
 
@@ -12,7 +12,7 @@ GitHub：`LongYingZhang/LONGYING-STUDIO`，分支 `main`（交接时最新提交
 
 - **M4**（这台）：改代码、提交、推送、部署 Cloudflare。
 - **2015**：真正跑店铺的机器。常见地址 `192.168.1.8:8787`，命令是 `python3 server.py`。DeepSeek 密钥只在 2015 的 `.env` 里（`HOST=0.0.0.0`、`PORT=8787`、`OPENAI_BASE_URL=https://api.deepseek.com/v1`、`MORU_MODEL=deepseek-chat`）。`.env` 不入库。不要把密钥写进代码或聊天。用户曾经把密钥贴进过聊天，已提醒轮换。
-- **不要在 M4 上开或测 `127.0.0.1:8787`。** 2015 已开远程登录。改完并 push 之后，用这台 M4 的钥匙执行：`ssh -o BatchMode=yes zhanglongying@192.168.1.8 'cd "/Users/zhanglongying/Sites/LONGYING STUDIO" && git pull --ff-only origin main'`。只改了 `admin/` 的 HTML/CSS/JS，让用户刷新即可。`server.py` 有变化时要在 2015 上重启 `python3 server.py`。SSH 失败就直说，不要假装已经拉取。
+- **不要在 M4 上开或测 `127.0.0.1:8787`。** 2015 已开远程登录。改完并 push 之后，用这台 M4 的钥匙执行：`ssh -o BatchMode=yes zhanglongying@192.168.1.8 'cd "/Users/zhanglongying/Sites/Moru Studio" && git pull --ff-only origin main'`。只改了 `admin/` 的 HTML/CSS/JS，让用户刷新即可。`server.py` 有变化时要在 2015 上重启 `python3 server.py`。SSH 失败就直说，不要假装已经拉取。
 - Cloudflare **不部署 `admin/`**。后台只在 2015 上。公网 Functions 在 `functions/api/`。
 - **不要部署到 Netlify。**
 - 用户要求改完**自动**提交并推远程，不要再等一句「推上去」。英文提交说明 → `git push origin HEAD`。动到公网页或 `functions/` 时再部署 Cloudflare：`NPM_CONFIG_CACHE="$HOME/.npm" script -q /dev/null bash scripts/deploy-cloudflare.sh`（完整权限；沙箱里的 npm 缓存会缺 workerd）。只改了 `admin/` 不用部署。`wrangler.toml` 里有 KV，部署必须走这个脚本（它会生成 `.cf-stage`，这个目录是临时的，可以删）。
@@ -25,7 +25,7 @@ GitHub：`LongYingZhang/LONGYING-STUDIO`，分支 `main`（交接时最新提交
 
 - 主屏幕名字：店铺 **Moru Studio**，后台 **Studio Admin**（`apple-mobile-web-app-title` + webmanifest）。后台页头文字也是 STUDIO ADMIN。
 - 主屏幕图标和网址栏图标：用户给的 `STUDIO ADMIN.png`（黑底灰 Moru），店铺和后台共用 `favicon.png`、`apple-touch-icon.png`、`icon-192.png`、`icon-512.png`。链接带 `?v=7`。iPhone 会缓存旧图标，要删掉主屏幕图标再重新添加。
-- 店铺页头字标：`ZHANGLONGYING__STUDIO_7.svg`，读作 MORU STUDIO。页面里不要改回「LONGYING STUDIO」。
+- 店铺页头字标：`ZHANGLONGYING__STUDIO_7.svg`，读作 MORU STUDIO。页面里不要改回「Moru Studio」。
 - 后台页头是 `admin/assets/wordmark-studio-admin.svg`（灰字 STUDIO ADMIN）。没有「退出登录」。
 - 横屏顶栏一行：左字标、中导航、右「查看前台」。
 - 竖屏顶栏两行：第一行左字标、右「查看前台」；第二行导航四个入口平均铺开（订单管理、在售商品、访问监控、上新商品）。
@@ -35,8 +35,8 @@ GitHub：`LongYingZhang/LONGYING-STUDIO`，分支 `main`（交接时最新提交
 
 - 后台 `#/traffic`。数据在 Cloudflare KV，binding 名 `TRAFFIC`，id 在 `wrangler.toml`。
 - `POST /api/traffic/hit`、`GET /api/traffic?range=7|30|all`。实现：`functions/_traffic.js`、`functions/api/traffic.js`、`functions/api/traffic/hit.js`。
-- 前台 `shop.js` 只在公网 https（含 `longying-studio.pages.dev` 和临时隧道）打点，请求发到 `https://longying-studio.pages.dev/api/traffic/hit`。本机、localhost、局域网、私网 IP **不计**。访客 id 在 localStorage `ly-traffic-sid`，约 60 秒心跳；在线 = 5 分钟内活跃。
-- 后台 `admin/app.js` 直接请求 `https://longying-studio.pages.dev/api/traffic`，不经过 2015。
+- 前台 `shop.js` 只在公网 https（含 `moru-shop.pages.dev` 和临时隧道）打点，请求发到 `https://moru-shop.pages.dev/api/traffic/hit`。本机、localhost、局域网、私网 IP **不计**。访客 id 在 localStorage `ly-traffic-sid`，约 60 秒心跳；在线 = 5 分钟内活跃。
+- 后台 `admin/app.js` 直接请求 `https://moru-shop.pages.dev/api/traffic`，不经过 2015。
 - 2015 的 `server.py` 收到打点会故意不保存。从公网部署成功那天起才有数，没有更早的历史。
 - 改统计逻辑必须重新部署 Cloudflare，只 git pull 不够。
 

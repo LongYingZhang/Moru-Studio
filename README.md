@@ -1,4 +1,4 @@
-# LONGYING STUDIO
+# Moru Studio
 
 前台商店和管理后台都在这个文件夹里：根目录是前台，`admin/` 是后台。
 

@@ -1,6 +1,6 @@
-# Cloudflare Pages — longying-studio
+# Cloudflare Pages — moru-shop
 # Deploy via: bash scripts/deploy-cloudflare.sh
-name = "longying-studio"
+name = "moru-shop"
 compatibility_date = "2024-11-12"
 pages_build_output_dir = ".cf-stage"
 

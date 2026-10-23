@@ -108,7 +108,7 @@
   const ORDERS_API = "/api/orders";
   const AUTH_API = "/api/auth";
   // 公网统计在 Cloudflare KV；后台从公网读，本机访问不计
-  const TRAFFIC_API = "https://longying-studio.pages.dev/api/traffic";
+  const TRAFFIC_API = "https://moru-shop.pages.dev/api/traffic";
   const SHOTS_MAX = 4;
   const ORDER_STATUS = {
     pending: { label: "待确认收款", action: "处理收款" },
