@@ -2,12 +2,13 @@
 
 给下一个 agent。用户是张珑瀛。回复用中文。磁盘文件名用英文（字母、数字、连字符），不要用中文文件名。
 
-仓库：`/Users/zhanglongyingdemacbookairm4/Sites/Moru Studio`  
-GitHub：`LongYingZhang/moru-shop`，分支 `main`（交接时最新提交 `e42746e`）。  
+仓库（M4）：`/Users/zhanglongyingdemacbookairm4/Documents/MORU系列/MORU STUDIO`
+仓库（2015，实际跑服务）：`/Users/zhanglongying/Sites/LONGYING STUDIO`
+GitHub：`LongYingZhang/Moru-Studio`，分支 `main`。
 公网：https://longying-studio.pages.dev/（Cloudflare Pages 项目 `longying-studio`）。
-（`longying-studio.pages.dev` 已于 2026-10-23 确认失效，DNS 解析失败，别再用。）
+（旧域名 `moru-shop.pages.dev` 已于 2026-10-23 确认失效，DNS 解析失败，别再用。旧仓库名 `moru-shop` / `LONGYING-STUDIO` 同上，已改名。）
 
-作品集是另一个仓库：`/Users/zhanglongyingdemacbookairm4/Documents/Cursor/LONGYING PORTFOLIO`，GitHub `LongYingZhang/protflio`，线上 https://zhanglongying.pages.dev。不要把两个仓库的分支混在一起。
+作品集是另一个仓库：`/Users/zhanglongyingdemacbookairm4/Documents/MORU系列/MORU PORTFOLIO`，GitHub `LongYingZhang/Moru-Protfoilo`，线上 https://zhanglongying.pages.dev 与 https://longying-portfolio.pages.dev。不要把两个仓库的分支混在一起。
 
 ## 两台电脑
 
