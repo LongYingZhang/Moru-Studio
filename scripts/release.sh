@@ -38,10 +38,11 @@ EOF
 echo "✓ 已写入 $MANIFEST -> v$VERSION"
 
 # 打包 .dmg（打包脚本存在就顺手打一份）
-BUILD="/tmp/build-mac-dmg.sh"
+BUILD="$PWD/scripts/build-mac-dmg.sh"
+[[ -f "$BUILD" ]] || BUILD="/tmp/build-mac-dmg.sh"
 if [[ -f "$BUILD" ]]; then
   echo "→ 打包 .dmg ..."
-  bash "$BUILD" "Moru Studio" "$PWD" "$DMG" 8787 || echo "（打包失败，可稍后手动打包）"
+  bash "$BUILD" "Moru Studio" "$PWD" "$DMG" 8799 || echo "（打包失败，可稍后手动打包）"
 else
   echo "→ 没找到打包脚本 $BUILD，跳过打包；现有 .dmg：$DMG"
 fi
