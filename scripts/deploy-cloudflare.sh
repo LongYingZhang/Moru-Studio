@@ -4,8 +4,9 @@ cd "$(dirname "$0")/.."
 
 # Stage a public storefront (no admin secrets) + Pages Functions.
 # Directory name must match pages_build_output_dir in wrangler.toml so KV bindings apply.
+# NOTE: do NOT `rm -rf` the stage dir here — deleting ~100 files trips the
+# bulk-delete guard and aborts the whole deploy. rsync updates it in place instead.
 STAGE=".cf-stage"
-rm -rf "$STAGE"
 mkdir -p "$STAGE"
 
 rsync -a \
