@@ -28,6 +28,19 @@ rsync -a \
   --exclude 'wrangler.toml' \
   ./ "$STAGE/"
 
+# 站点里删掉的文件，stage 里也要删，否则会一直跟着部署上去
+# （只删 download/ 下这一两个文件，避免触发批量删除拦截）
+if [[ -d "$STAGE/download" ]]; then
+  for f in "$STAGE/download"/*; do
+    [[ -e "$f" ]] || continue
+    b="$(basename "$f")"
+    if [[ ! -e "download/$b" ]]; then
+      echo "remove stale: download/$b"
+      rm -f "$f"
+    fi
+  done
+fi
+
 # Fresh catalog snapshot for /api/products + Moru
 mkdir -p "$STAGE/data"
 if [[ -f admin/data/products.json ]]; then
