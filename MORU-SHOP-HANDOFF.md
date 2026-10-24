@@ -4,7 +4,8 @@
 
 仓库：`/Users/zhanglongyingdemacbookairm4/Sites/Moru Studio`  
 GitHub：`LongYingZhang/moru-shop`，分支 `main`（交接时最新提交 `e42746e`）。  
-公网：https://moru-shop.pages.dev/（Cloudflare Pages 项目 `moru-shop`）。
+公网：https://longying-studio.pages.dev/（Cloudflare Pages 项目 `longying-studio`）。
+（`longying-studio.pages.dev` 已于 2026-10-23 确认失效，DNS 解析失败，别再用。）
 
 作品集是另一个仓库：`/Users/zhanglongyingdemacbookairm4/Documents/Cursor/LONGYING PORTFOLIO`，GitHub `LongYingZhang/protflio`，线上 https://zhanglongying.pages.dev。不要把两个仓库的分支混在一起。
 
@@ -35,8 +36,8 @@ GitHub：`LongYingZhang/moru-shop`，分支 `main`（交接时最新提交 `e427
 
 - 后台 `#/traffic`。数据在 Cloudflare KV，binding 名 `TRAFFIC`，id 在 `wrangler.toml`。
 - `POST /api/traffic/hit`、`GET /api/traffic?range=7|30|all`。实现：`functions/_traffic.js`、`functions/api/traffic.js`、`functions/api/traffic/hit.js`。
-- 前台 `shop.js` 只在公网 https（含 `moru-shop.pages.dev` 和临时隧道）打点，请求发到 `https://moru-shop.pages.dev/api/traffic/hit`。本机、localhost、局域网、私网 IP **不计**。访客 id 在 localStorage `ly-traffic-sid`，约 60 秒心跳；在线 = 5 分钟内活跃。
-- 后台 `admin/app.js` 直接请求 `https://moru-shop.pages.dev/api/traffic`，不经过 2015。
+- 前台 `shop.js` 只在公网 https（含 `longying-studio.pages.dev` 和临时隧道）打点，请求发到 `https://longying-studio.pages.dev/api/traffic/hit`。本机、localhost、局域网、私网 IP **不计**。访客 id 在 localStorage `ly-traffic-sid`，约 60 秒心跳；在线 = 5 分钟内活跃。
+- 后台 `admin/app.js` 直接请求 `https://longying-studio.pages.dev/api/traffic`，不经过 2015。
 - 2015 的 `server.py` 收到打点会故意不保存。从公网部署成功那天起才有数，没有更早的历史。
 - 改统计逻辑必须重新部署 Cloudflare，只 git pull 不够。
 

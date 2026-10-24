@@ -692,7 +692,7 @@
 
   // 访问打点：只统计 Cloudflare 公网；本机 / 局域网不计
   (function trackTraffic() {
-    const HIT = "https://moru-shop.pages.dev/api/traffic/hit";
+    const HIT = "https://longying-studio.pages.dev/api/traffic/hit";
     const SID_KEY = "ly-traffic-sid";
     const PAGES = {
       "index.html": 1,
@@ -709,7 +709,7 @@
       if (h.endsWith(".local")) return false;
       if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h)) return false;
       if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h)) return false;
-      if (h === "moru-shop.pages.dev" || h.endsWith(".moru-shop.pages.dev")) {
+      if (h === "longying-studio.pages.dev" || h.endsWith(".longying-studio.pages.dev")) {
         return true;
       }
       return location.protocol === "https:";
@@ -750,7 +750,7 @@
 
     function post(body, keepalive) {
       const payload = JSON.stringify(body);
-      const sameOrigin = location.origin === "https://moru-shop.pages.dev";
+      const sameOrigin = location.origin === "https://longying-studio.pages.dev";
       if (sameOrigin && keepalive && navigator.sendBeacon) {
         try {
           const blob = new Blob([payload], { type: "application/json" });
