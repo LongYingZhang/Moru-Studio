@@ -5,10 +5,10 @@
 # Usage: build-mac-app.sh "App Name" /path/to/source /path/to/out.dmg [icon.png]
 #
 # How it works:
-#   Contents/MacOS/<App>   Swift binary: NSWindow + WKWebView (scripts/app/main.swift)
-#   Contents/Resources/server.py  serves the bundled site on 127.0.0.1
+#   Contents/MacOS/<App>   Swift binary: NSWindow + WKWebView, plus a built-in
+#                          HTTP server (scripts/app/main.swift + SiteServer.swift)
 #   Contents/Resources/site/      the static site
-# The binary reads the port server.py prints, then loads it in the window.
+# Everything is self-contained: no python3, no bundled runtime, no browser.
 #
 # Note: the binary is arm64 only (Apple silicon). The Command Line Tools on
 # this machine ship no x86_64 Swift runtime, so Intel Macs can't be targeted
@@ -21,8 +21,8 @@ OUT_DMG="$3"
 ICON_PNG="${4:-$SRC/assets/icon-512.png}"
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-SWIFT_SRC="$REPO/scripts/app/main.swift"
-SERVER_SRC="$REPO/scripts/app/server.py"
+SWIFT_SRC="$REPO/scripts/app"
+SWIFT_SOURCES=("$SWIFT_SRC/main.swift" "$SWIFT_SRC/SiteServer.swift")
 APP_SAFE=$(echo "$APP_NAME" | tr ' ' '-')
 BUNDLE_ID="com.moru.$(echo "$APP_SAFE" | tr '[:upper:]' '[:lower:]' | tr '-' '.')"
 
@@ -47,7 +47,6 @@ rsync -a \
   --exclude 'MORU-SHOP-HANDOFF.md' --exclude 'README.md' \
   --exclude 'package.json' --exclude '.tmp-*.png' \
   "$SRC/" "$SITE/"
-cp "$SERVER_SRC" "$RES/server.py"
 
 # ---- icon --------------------------------------------------------------
 if [[ -f "$ICON_PNG" ]]; then
@@ -63,7 +62,7 @@ fi
 
 # ---- binary ------------------------------------------------------------
 SDK="$(xcrun --show-sdk-path)"
-swiftc -O -target arm64-apple-macos12.0 -sdk "$SDK" "$SWIFT_SRC" -o "$MACOS/$APP_NAME"
+swiftc -O -target arm64-apple-macos12.0 -sdk "$SDK" "${SWIFT_SOURCES[@]}" -o "$MACOS/$APP_NAME"
 
 cat > "$CONTENTS/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

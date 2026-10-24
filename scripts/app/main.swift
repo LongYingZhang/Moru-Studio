@@ -5,70 +5,44 @@ import Foundation
 // Moru Studio desktop wrapper.
 //
 // A real standalone window: a WKWebView pointed at the bundled copy of the
-// site, served from 127.0.0.1 by Resources/server.py. No browser chrome, no
-// tab bar, its own Dock icon — the same shape as any other Mac app.
+// site, served from 127.0.0.1 by the built-in SiteServer. No browser chrome,
+// no tab bar, its own Dock icon — and no external dependency at all (no
+// python3, no bundled runtime).
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var window: NSWindow?
-    var server: Process?
-    var port: Int = 0
+    var server: SiteServer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
 
-        guard let serverScript = Bundle.main.path(forResource: "server", ofType: "py") else {
-            fatal("Bundled server.py is missing.")
-            return
-        }
-        guard let python = pythonPath() else {
-            fatal("这台 Mac 上没有 python3，无法启动本地服务。")
+        guard let site = Bundle.main.resourceURL?.appendingPathComponent("site", isDirectory: true),
+              FileManager.default.fileExists(atPath: site.path)
+        else {
+            fatal("App 里找不到打包的站点文件。")
             return
         }
 
-        let pipe = Pipe()
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: python)
-        task.arguments = [serverScript]
-        task.standardOutput = pipe
-        do {
-            try task.run()
-        } catch {
-            fatal("无法启动本地服务：\(error.localizedDescription)")
+        let server = SiteServer(siteDirectory: site)
+        guard let port = server.start() else {
+            fatal("无法启动内置本地服务（端口都被占了）。")
             return
         }
-        server = task
+        self.server = server
 
-        // server.py prints the port it bound, then serves forever.
-        var buffer = Data()
-        let handle = pipe.fileHandleForReading
-        while true {
-            let chunk = handle.availableData
-            if chunk.isEmpty { break }
-            buffer.append(chunk)
-            if buffer.contains(0x0A) { break }
-        }
-        let line = String(data: buffer, encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        guard let p = Int(line), p > 0 else {
-            fatal("本地服务没有返回可用端口（收到：\(line)）")
-            return
-        }
-        port = p
-
-        buildWindow()
+        buildWindow(port: port)
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        server?.terminate()
+        server?.stop()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return true
     }
 
-    private func buildWindow() {
-        let config = WKWebViewConfiguration()
-        let webView = WKWebView(frame: .zero, configuration: config)
+    private func buildWindow(port: UInt16) {
+        let webView = WKWebView(frame: .zero)
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1280, height: 880),
@@ -90,14 +64,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let url = URL(string: "http://127.0.0.1:\(port)/index.html")!
         webView.load(URLRequest(url: url))
-    }
-
-    private func pythonPath() -> String? {
-        let candidates = ["/usr/bin/python3", "/usr/local/bin/python3", "/opt/homebrew/bin/python3"]
-        for c in candidates where FileManager.default.isExecutableFile(atPath: c) {
-            return c
-        }
-        return nil
     }
 
     private func fatal(_ message: String) {
