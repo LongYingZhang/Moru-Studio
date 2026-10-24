@@ -253,14 +253,28 @@
     link.addEventListener("click", dismiss);
   }
 
+  /* 线上最新版本清单（跨域 script，免 CORS）。拿到就缓存，
+     更新提示和「是不是新版」这类问答都靠它。 */
+  let latestRelease = null;
+  function loadRelease() {
+    if (latestRelease) return Promise.resolve(latestRelease);
+    return new Promise((resolve) => {
+      const s = document.createElement("script");
+      s.src = RELEASE_JS_URL + "?t=" + Date.now();
+      s.async = true;
+      s.onload = () => {
+        latestRelease = window.__MORU_RELEASE__ || null;
+        resolve(latestRelease);
+      };
+      s.onerror = () => resolve(null);
+      document.head.appendChild(s);
+    });
+  }
+
   function checkForUpdate() {
-    const s = document.createElement("script");
-    s.src = RELEASE_JS_URL + "?t=" + Date.now();
-    s.async = true;
-    s.onload = () => {
-      const rel = window.__MORU_RELEASE__;
+    loadRelease().then((rel) => {
       if (!rel || !rel.version) return;
-      // 桌面版 app 里，打包时会把「这一版自己是几点几」写进 app-version.js。
+      // 桌面版 app 里，打包时会把「这一版自己是几点几」写进 app 的 moru.js 首行。
       // 已经装上的版本 >= 清单版本，就没什么可更新的，别再提示（否则装完就弹自己）。
       const self = window.__MORU_APP_VERSION__ || null;
       if (self && cmpVersion(rel.version, self) <= 0) return;
@@ -272,9 +286,32 @@
         return;
       }
       if (cmpVersion(rel.version, seen) > 0) showUpdateBanner(rel);
-    };
-    s.onerror = () => {};
-    document.head.appendChild(s);
+    });
+  }
+
+  /* 「是不是新版 / 现在是什么版本 / 有新版吗」——这类问题本地直接答，
+     不打扰大模型，回答里带上当前版本号和是不是最新。 */
+  function isVersionQuestion(t) {
+    const s = String(t || "").replace(/\s+/g, "");
+    return /(版本|升级|新版|最新版|version)/i.test(s);
+  }
+
+  function buildVersionReply() {
+    const self = window.__MORU_APP_VERSION__ || null;
+    const rel = latestRelease;
+    const latest = rel && rel.version ? rel.version : null;
+    const url = rel && rel.dmgUrl ? rel.dmgUrl : null;
+    if (self && latest) {
+      if (cmpVersion(latest, self) <= 0) {
+        return { text: `你现在是 v${self}，已经是最新版啦～`, url: null };
+      }
+      return { text: `你现在是 v${self}，最新版是 v${latest}。`, url };
+    }
+    if (self) return { text: `你现在是 v${self}；最新版本号这会儿没查到，过一会儿再问我试试。`, url: null };
+    if (latest) {
+      return { text: `你用的是网页版，没有本地版本号；商店最新版是 v${latest}。`, url };
+    }
+    return { text: "版本信息暂时查不到，稍等一下再问我吧。", url: null };
   }
 
   function setOpen(open, focus = true) {
@@ -1186,6 +1223,46 @@
         syncActionButton();
         return;
       }
+    }
+
+    // 「是不是新版 / 现在什么版本」：本地直接答，告诉当前版本和是不是最新
+    if (isVersionQuestion(content)) {
+      const signal = chatAbort && chatAbort.signal;
+      await wait(450);
+      if (signal && signal.aborted) {
+        if (messages.length && messages[messages.length - 1].role === "user") messages.pop();
+        busy = false;
+        chatAbort = null;
+        root.classList.remove("is-thinking");
+        syncActionButton();
+        syncOrbVideo();
+        return;
+      }
+      await loadRelease();
+      const ans = buildVersionReply();
+      const el = setReply("");
+      // .moru-msg 是 -webkit-box，子元素会竖着排；套一层块级容器，
+      // 里面的文字和链接才是同一行
+      const box = document.createElement("div");
+      box.textContent = ans.text + " ";
+      if (ans.url) {
+        const a = document.createElement("a");
+        a.className = "moru-msg-link";
+        a.href = ans.url;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.textContent = "点击这里去下载";
+        box.appendChild(a);
+      }
+      el.appendChild(box);
+      messages.push({ role: "assistant", content: ans.text });
+      busy = false;
+      chatAbort = null;
+      root.classList.remove("is-thinking");
+      syncActionButton();
+      syncOrbVideo();
+      input.focus();
+      return;
     }
 
     try {

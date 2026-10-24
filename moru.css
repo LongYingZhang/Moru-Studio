@@ -450,6 +450,16 @@
 }
 .moru-update-link:hover { color: #6fb2ff; }
 
+/* 回答里的行内链接（版本问答用）：同款蓝色 + 下划线 */
+.moru-msg-link {
+  color: #4c9aff;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2.5px;
+  white-space: nowrap;
+}
+.moru-msg-link:hover { color: #6fb2ff; }
+
 /* 还没开始聊天时：藏掉问候卡，气泡就变成「一行提示 + 输入框」 */
 .moru-root.is-update:not(.has-chat):not(.is-thinking) .moru-bubble {
   height: auto;
