@@ -46,7 +46,7 @@ final class InsetHostView: NSView {
     }
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNavigationDelegate {
     var window: NSWindow?
     var server: SiteServer?
     var webView: WKWebView?
@@ -181,6 +181,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return item
     }
 
+    /* ---- 站外链接：一律交给系统浏览器 ----
+       WKWebView 默认不处理 target="_blank" / window.open（没有 UIDelegate 就完全没反应），
+       下载安装包、看作品集这类链接必须能从外壳里跳出去。 */
+    private var lastOpened: (url: String, at: Date)?
+
+    private func isExternal(_ url: URL) -> Bool {
+        guard let host = url.host else { return false }
+        return host != "127.0.0.1" && host != "localhost"
+    }
+
+    private func openInBrowser(_ url: URL) {
+        guard url.scheme == "http" || url.scheme == "https" else { return }
+        // 两个代理方法可能同时触发，同一条链接 0.8 秒内只开一次
+        if let last = lastOpened, last.url == url.absoluteString,
+           Date().timeIntervalSince(last.at) < 0.8 { return }
+        lastOpened = (url.absoluteString, Date())
+        NSWorkspace.shared.open(url)
+    }
+
+    func webView(_ webView: WKWebView,
+                 createWebViewWith configuration: WKWebViewConfiguration,
+                 for navigationAction: WKNavigationAction,
+                 windowFeatures: WKWindowFeatures) -> WKWebView? {
+        if let url = navigationAction.request.url, isExternal(url) {
+            openInBrowser(url)
+        }
+        return nil
+    }
+
+    func webView(_ webView: WKWebView,
+                 decidePolicyFor navigationAction: WKNavigationAction,
+                 decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        if let url = navigationAction.request.url, isExternal(url) {
+            openInBrowser(url)
+            decisionHandler(.cancel)
+            return
+        }
+        decisionHandler(.allow)
+    }
+
     @objc private func reloadPage() { webView?.reload() }
     @objc private func zoomIn() { setZoom((webView?.pageZoom ?? 1) + 0.1) }
     @objc private func zoomOut() { setZoom((webView?.pageZoom ?? 1) - 0.1) }
@@ -201,6 +241,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func buildWindow(port: UInt16) {
         let webView = WKWebView(frame: .zero)
+        webView.uiDelegate = self
+        webView.navigationDelegate = self
         self.webView = webView
 
         let window = NSWindow(
