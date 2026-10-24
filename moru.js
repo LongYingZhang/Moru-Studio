@@ -244,8 +244,9 @@
     el.appendChild(link);
     el.appendChild(close);
 
-    // 放在聊天记录上方；setReply 只清 logEl，不会误删这条公告
-    logEl.parentNode.insertBefore(el, logEl);
+    // 放进气泡最前面（问候卡之上）：这样它是流内元素，能把气泡实打实撑高，
+    // 不会压在问候文案和输入框上面。setReply 只清 logEl，不会误删这条公告。
+    bubble.insertBefore(el, bubble.firstChild);
     root.classList.add("is-update"); // 悬浮球上显示小红点
 
     const dismiss = () => {

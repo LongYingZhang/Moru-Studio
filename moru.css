@@ -438,7 +438,16 @@
   font-size: 12px;
   line-height: 1.3;
 }
-.moru-update-text { flex: 1 1 auto; min-width: 0; }
+.moru-update-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  /* 说明文字太长时最多两行，不把气泡撑得很高 */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
 .moru-update-link {
   flex: 0 0 auto;
   padding: 4px 11px;
@@ -468,11 +477,31 @@
 }
 .moru-update-close:hover { background: rgba(255, 255, 255, 0.4); }
 
-/* 气泡里有公告时，给公告留位置，避免挡住输入框 */
+/* 气泡里有公告时：公告条是气泡的第一个流内元素，气泡高度随之变高 */
 .moru-root.is-update .moru-bubble {
   height: auto;
   min-height: 0;
   max-height: calc(12px + var(--moru-log-max) + 44px + 46px);
+}
+
+/* 还没开始聊天时，问候卡原本用绝对定位铺满整个气泡。有公告时改成
+   流内固定 100px 高，紧跟在公告条下面，这样两者是上下排列而不是叠在一起。 */
+.moru-root.is-update:not(.has-chat):not(.is-thinking) .moru-shell-open {
+  position: relative;
+  inset: auto;
+  flex: 0 0 100px;
+  height: 100px;
+  margin-top: 2px;
+}
+
+/* 已经在聊天时，给公告条多留一行高度，避免把回答压扁 */
+.moru-root.has-chat.is-update:not(.is-thinking) .moru-bubble {
+  max-height: calc(12px + var(--moru-log-max) + 44px + 64px);
+}
+
+/* 思考态是 84px 的固定小框，放不下公告条，先收起来 */
+.moru-root.is-thinking .moru-update {
+  display: none;
 }
 
 /* 悬浮球上的新版本红点：气泡关着也能看见 */
