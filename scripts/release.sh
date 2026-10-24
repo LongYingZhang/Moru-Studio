@@ -38,13 +38,14 @@ EOF
 echo "✓ 已写入 $MANIFEST -> v$VERSION"
 
 # 打包 .dmg（打包脚本存在就顺手打一份）
-BUILD="$PWD/scripts/build-mac-dmg.sh"
-[[ -f "$BUILD" ]] || BUILD="/tmp/build-mac-dmg.sh"
+# 优先用原生窗口版（build-mac-app.sh），没有再退回浏览器版。
+BUILD="$PWD/scripts/build-mac-app.sh"
+[[ -f "$BUILD" ]] || BUILD="$PWD/scripts/build-mac-dmg.sh"
 if [[ -f "$BUILD" ]]; then
   echo "→ 打包 .dmg ..."
-  bash "$BUILD" "Moru Studio" "$PWD" "$DMG" 8799 || echo "（打包失败，可稍后手动打包）"
+  bash "$BUILD" "Moru Studio" "$PWD" "$DMG" || echo "（打包失败，可稍后手动打包）"
 else
-  echo "→ 没找到打包脚本 $BUILD，跳过打包；现有 .dmg：$DMG"
+  echo "→ 没找到打包脚本，跳过打包；现有 .dmg：$DMG"
 fi
 
 cat <<EOF
