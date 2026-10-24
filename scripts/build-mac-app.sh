@@ -85,9 +85,21 @@ cat > "$CONTENTS/Info.plist" <<PLIST
 </plist>
 PLIST
 
-# ---- sign + package ---------------------------------------------------
+# ---- sign app ---------------------------------------------------------
 codesign --force --deep --sign - "$APP" >/dev/null 2>&1 || echo "warning: codesign failed"
-hdiutil create -volname "$APP_NAME" -srcfolder "$APP" -ov -format UDZO "$OUT_DMG" >/dev/null 2>&1
+
+# ---- build a drag-to-install dmg --------------------------------------
+# The .app sits next to an "Applications" alias so the mounted window shows
+# the classic "drag the app onto Applications to install" layout. The final
+# UDZO image is built in ONE step from a staging folder: hdiutil convert
+# drops absolute symlinks that were added to a mounted (UDRW) image, so we
+# create it directly instead of going UDRW -> UDZO.
+STAGE="$BUILD/stage"
+rm -rf "$STAGE"; mkdir -p "$STAGE"
+cp -R "$APP" "$STAGE/"
+ln -s /Applications "$STAGE/Applications"
+
+hdiutil create -volname "$APP_NAME" -srcfolder "$STAGE" -ov -format UDZO "$OUT_DMG" >/dev/null 2>&1
 codesign --force --sign - "$OUT_DMG" >/dev/null 2>&1 || echo "warning: dmg codesign failed"
 xattr -dr com.apple.quarantine "$OUT_DMG" 2>/dev/null || true
 

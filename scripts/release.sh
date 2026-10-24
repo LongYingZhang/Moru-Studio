@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 
 VERSION="${1:-}"
 NOTE="${2:-焕新上线，欢迎体验}"
-DMG="${3:-$HOME/Documents/MORU系列/dist/Moru-Studio.dmg}"
+DMG="${3:-$HOME/Documents/MORU系列/dist/Moru-Studio-Mac.dmg}"
 REPO="LongYingZhang/Moru-Studio"
 MANIFEST="assets/moru/release.js"
 
@@ -29,7 +29,7 @@ cat > "$MANIFEST" <<EOF
 // Moru 助手读取这个文件判断有没有新版本（跨域 script，免 CORS）
 window.__MORU_RELEASE__ = {
   "version": "$VERSION",
-  "dmgUrl": "https://github.com/$REPO/releases/download/v$VERSION/Moru-Studio.dmg",
+  "dmgUrl": "https://github.com/$REPO/releases/download/v$VERSION/Moru-Studio-Mac.dmg",
   "note": "$NOTE",
   "publishedAt": "$(date +%Y-%m-%d)"
 };
