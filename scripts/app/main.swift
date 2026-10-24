@@ -49,6 +49,12 @@ final class InsetHostView: NSView {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var window: NSWindow?
     var server: SiteServer?
+    var webView: WKWebView?
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // 菜单栏必须在 app.run() 之前挂上，否则顶部只有应用名、没有各项菜单
+        NSApp.mainMenu = buildMainMenu()
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
@@ -78,8 +84,124 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
+    /* ---- 菜单栏：跟普通 Mac 应用一样有 编辑 / 显示 / 窗口 / 帮助 ---- */
+    private func buildMainMenu() -> NSMenu {
+        let name = "Moru Studio"
+        let main = NSMenu()
+
+        // 1) 应用菜单（Apple 标志右边那个）
+        let appItem = NSMenuItem(title: name, action: nil, keyEquivalent: "")
+        main.addItem(appItem)
+        let appMenu = NSMenu(title: name)
+        appItem.submenu = appMenu
+        appMenu.addItem(withTitle: "关于 \(name)",
+                        action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
+                        keyEquivalent: "")
+        appMenu.addItem(.separator())
+        let servicesItem = NSMenuItem(title: "服务", action: nil, keyEquivalent: "")
+        let servicesMenu = NSMenu(title: "服务")
+        servicesItem.submenu = servicesMenu
+        appMenu.addItem(servicesItem)
+        NSApp.servicesMenu = servicesMenu
+        appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: "隐藏 \(name)",
+                        action: #selector(NSApplication.hide(_:)),
+                        keyEquivalent: "h")
+        let hideOthers = appMenu.addItem(withTitle: "隐藏其他",
+                                         action: #selector(NSApplication.hideOtherApplications(_:)),
+                                         keyEquivalent: "h")
+        hideOthers.keyEquivalentModifierMask = [.command, .option]
+        appMenu.addItem(withTitle: "显示全部",
+                        action: #selector(NSApplication.unhideAllApplications(_:)),
+                        keyEquivalent: "")
+        appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: "退出 \(name)",
+                        action: #selector(NSApplication.terminate(_:)),
+                        keyEquivalent: "q")
+
+        // 2) 编辑：没有这一组，网页里的 ⌘C / ⌘V / ⌘A 是没反应的
+        let editItem = NSMenuItem(title: "编辑", action: nil, keyEquivalent: "")
+        main.addItem(editItem)
+        let edit = NSMenu(title: "编辑")
+        editItem.submenu = edit
+        edit.addItem(withTitle: "撤销", action: Selector(("undo:")), keyEquivalent: "z")
+        let redo = edit.addItem(withTitle: "重做", action: Selector(("redo:")), keyEquivalent: "z")
+        redo.keyEquivalentModifierMask = [.command, .shift]
+        edit.addItem(.separator())
+        edit.addItem(withTitle: "剪切", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        edit.addItem(withTitle: "拷贝", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        edit.addItem(withTitle: "粘贴", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        edit.addItem(withTitle: "全选", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+
+        // 3) 显示
+        let viewItem = NSMenuItem(title: "显示", action: nil, keyEquivalent: "")
+        main.addItem(viewItem)
+        let view = NSMenu(title: "显示")
+        viewItem.submenu = view
+        addItem(to: view, title: "重新载入", action: #selector(reloadPage), key: "r")
+        view.addItem(.separator())
+        addItem(to: view, title: "放大", action: #selector(zoomIn), key: "+")
+        addItem(to: view, title: "缩小", action: #selector(zoomOut), key: "-")
+        addItem(to: view, title: "实际大小", action: #selector(zoomReset), key: "0")
+        view.addItem(.separator())
+        let full = view.addItem(withTitle: "进入全屏幕",
+                                action: #selector(NSWindow.toggleFullScreen(_:)),
+                                keyEquivalent: "f")
+        full.keyEquivalentModifierMask = [.command, .control]
+
+        // 4) 窗口
+        let winItem = NSMenuItem(title: "窗口", action: nil, keyEquivalent: "")
+        main.addItem(winItem)
+        let win = NSMenu(title: "窗口")
+        winItem.submenu = win
+        win.addItem(withTitle: "最小化", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        win.addItem(withTitle: "缩放", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
+        win.addItem(.separator())
+        win.addItem(withTitle: "前置全部窗口",
+                    action: #selector(NSApplication.arrangeInFront(_:)),
+                    keyEquivalent: "")
+        NSApp.windowsMenu = win
+
+        // 5) 帮助
+        let helpItem = NSMenuItem(title: "帮助", action: nil, keyEquivalent: "")
+        main.addItem(helpItem)
+        let help = NSMenu(title: "帮助")
+        helpItem.submenu = help
+        addItem(to: help, title: "打开商店网站", action: #selector(openSite), key: "")
+        addItem(to: help, title: "检查新版本（打开下载页）", action: #selector(openDownload), key: "")
+        NSApp.helpMenu = help
+
+        return main
+    }
+
+    @discardableResult
+    private func addItem(to menu: NSMenu, title: String, action: Selector, key: String) -> NSMenuItem {
+        let item = menu.addItem(withTitle: title, action: action, keyEquivalent: key)
+        item.target = self
+        return item
+    }
+
+    @objc private func reloadPage() { webView?.reload() }
+    @objc private func zoomIn() { setZoom((webView?.pageZoom ?? 1) + 0.1) }
+    @objc private func zoomOut() { setZoom((webView?.pageZoom ?? 1) - 0.1) }
+    @objc private func zoomReset() { setZoom(1.0) }
+    private func setZoom(_ value: CGFloat) {
+        webView?.pageZoom = min(3.0, max(0.5, value))
+    }
+    @objc private func openSite() {
+        if let url = URL(string: "https://longying-studio.pages.dev") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+    @objc private func openDownload() {
+        if let url = URL(string: "https://longying-studio.pages.dev/download/Moru-Studio.dmg") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
     private func buildWindow(port: UInt16) {
         let webView = WKWebView(frame: .zero)
+        self.webView = webView
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1280, height: 880),
