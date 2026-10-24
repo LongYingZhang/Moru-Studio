@@ -49,6 +49,16 @@ rsync -a \
   --exclude 'package.json' --exclude '.tmp-*.png' \
   "$SRC/" "$SITE/"
 
+# ---- 把「这一版自己是几点几」写进内置站点 --------------------------------
+# 助手靠它判断「我已经是最新的」，否则装完新版会立刻又提示有新版本。
+APP_VERSION="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$SRC/assets/moru/release.js" 2>/dev/null | head -1)"
+if [[ -n "$APP_VERSION" && -f "$SITE/moru.js" ]]; then
+  printf 'window.__MORU_APP_VERSION__ = "%s";\n' "$APP_VERSION" > "$BUILD/ver.tmp"
+  cat "$SITE/moru.js" >> "$BUILD/ver.tmp"
+  mv "$BUILD/ver.tmp" "$SITE/moru.js"
+  echo "APP VERSION: $APP_VERSION"
+fi
+
 # ---- icon --------------------------------------------------------------
 if [[ -f "$ICON_PNG" ]]; then
   ICONSET="$BUILD/icon.iconset"

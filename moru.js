@@ -231,25 +231,19 @@
     link.href = rel.dmgUrl || "#";
     link.target = "_blank";
     link.rel = "noopener";
-    link.textContent = "点这里下载";
+    link.textContent = "点击这里";
 
-    // 就是一句普通的话：正文 + 行内链接，没有色块
-    text.textContent = `上新啦 v${rel.version}：${rel.note || "有新版本可用"} `;
+    // 就是一句普通的话：正文 + 行内蓝色链接，没有色块、没有叉、没有圆点
+    text.textContent = `Moru Studio v${rel.version}的更新已就绪，`;
     text.appendChild(link);
-
-    const close = document.createElement("button");
-    close.type = "button";
-    close.className = "moru-update-close";
-    close.setAttribute("aria-label", "关闭更新提示");
-    close.textContent = "×";
+    text.appendChild(document.createTextNode("去下载"));
 
     el.appendChild(text);
-    el.appendChild(close);
 
-    // 放进气泡最前面（问候卡之上）：这样它是流内元素，能把气泡实打实撑高，
-    // 不会压在问候文案和输入框上面。setReply 只清 logEl，不会误删这条公告。
+    // 放进气泡最前面：流内元素，把气泡实打实撑高，不压在输入框上。
+    // setReply 只清 logEl，不会误删这条提示。
     bubble.insertBefore(el, bubble.firstChild);
-    root.classList.add("is-update"); // 悬浮球上显示小红点
+    root.classList.add("is-update");
 
     const dismiss = () => {
       el.remove();
@@ -257,7 +251,6 @@
       try { localStorage.setItem(RELEASE_SEEN_KEY, rel.version); } catch (_) {}
     };
     link.addEventListener("click", dismiss);
-    close.addEventListener("click", dismiss);
   }
 
   function checkForUpdate() {
@@ -267,6 +260,10 @@
     s.onload = () => {
       const rel = window.__MORU_RELEASE__;
       if (!rel || !rel.version) return;
+      // 桌面版 app 里，打包时会把「这一版自己是几点几」写进 app-version.js。
+      // 已经装上的版本 >= 清单版本，就没什么可更新的，别再提示（否则装完就弹自己）。
+      const self = window.__MORU_APP_VERSION__ || null;
+      if (self && cmpVersion(rel.version, self) <= 0) return;
       let seen = null;
       try { seen = localStorage.getItem(RELEASE_SEEN_KEY); } catch (_) {}
       if (!seen) {

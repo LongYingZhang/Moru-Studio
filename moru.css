@@ -425,91 +425,61 @@
   }
 }
 
-/* ---- 新版本提示（就是一句话，没有色块） ---- */
+/* ---- 新版本提示：就一句话，白色正文 + 蓝色行内链接 ----
+   没有色块、没有叉号、悬浮球上也不加圆点。 */
 .moru-update {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  margin: 11px 10px 0 14px;
+  display: block;
+  margin: 13px 14px 0;
   padding: 0;
   background: none;
-  color: #b8b8b8;
-  font-size: 12.5px;
+  color: #ededed;
+  font-size: 13.5px;
   line-height: 1.5;
 }
 .moru-update-text {
-  flex: 1 1 auto;
+  display: block;
   min-width: 0;
-  /* 说明文字太长时最多三行，不把气泡撑得很高 */
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  overflow: hidden;
 }
-/* 行内链接：白色 + 下划线，跟正文同一行 */
+/* 行内链接：系统蓝 + 下划线，跟正文同一行 */
 .moru-update-link {
-  color: #fff;
-  font-weight: 600;
+  color: #4c9aff;
+  font-weight: 500;
   text-decoration: underline;
-  text-underline-offset: 2px;
+  text-underline-offset: 2.5px;
   white-space: nowrap;
 }
-.moru-update-link:hover { opacity: 0.85; }
-.moru-update-close {
-  flex: 0 0 auto;
-  width: 16px;
-  height: 16px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: #6a6a6a;
-  font-size: 15px;
-  line-height: 1;
-  cursor: pointer;
-}
-.moru-update-close:hover { color: #b8b8b8; }
+.moru-update-link:hover { color: #6fb2ff; }
 
-/* 气泡里有公告时：公告条是气泡的第一个流内元素，气泡高度随之变高 */
-.moru-root.is-update .moru-bubble {
+/* 还没开始聊天时：藏掉问候卡，气泡就变成「一行提示 + 输入框」 */
+.moru-root.is-update:not(.has-chat):not(.is-thinking) .moru-bubble {
   height: auto;
   min-height: 0;
-  max-height: calc(12px + var(--moru-log-max) + 44px + 46px);
+  /* 给绝对定位在底部的输入框留位置 */
+  padding-bottom: 52px;
 }
-
-/* 还没开始聊天时，问候卡原本用绝对定位铺满整个气泡。有公告时改成
-   流内固定 100px 高，紧跟在公告条下面，这样两者是上下排列而不是叠在一起。 */
 .moru-root.is-update:not(.has-chat):not(.is-thinking) .moru-shell-open {
-  position: relative;
-  inset: auto;
-  flex: 0 0 100px;
-  height: 100px;
-  margin-top: 2px;
-}
-
-/* 已经在聊天时，给公告条多留一行高度，避免把回答压扁 */
-.moru-root.has-chat.is-update:not(.is-thinking) .moru-bubble {
-  max-height: calc(12px + var(--moru-log-max) + 44px + 64px);
-}
-
-/* 思考态是 84px 的固定小框，放不下公告条，先收起来 */
-.moru-root.is-thinking .moru-update {
   display: none;
 }
-
-/* 悬浮球上的新版本红点：气泡关着也能看见 */
-.moru-root.is-update .moru-avatar::after {
+/* 提示和输入框之间一条极淡的分隔线（横贯整个气泡宽度） */
+.moru-root.is-update:not(.has-chat):not(.is-thinking) .moru-form::before {
   content: "";
   position: absolute;
-  top: 1px;
-  right: 1px;
-  width: 11px;
-  height: 11px;
-  border-radius: 999px;
-  background: #ff3d77;
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35);
+  left: -14px;
+  right: -12px;
+  bottom: calc(100% + 9px);
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
   pointer-events: none;
+}
+
+/* 已经在聊天时：对话区本来就在流内，提示自然排在它上面，只把最大高度抬高一行 */
+.moru-root.has-chat.is-update:not(.is-thinking) .moru-bubble {
+  height: auto;
+  min-height: 0;
+  max-height: calc(12px + var(--moru-log-max) + 44px + 54px);
+}
+
+/* 思考态是 84px 的固定小框，放不下提示，先收起来 */
+.moru-root.is-thinking .moru-update {
+  display: none;
 }
