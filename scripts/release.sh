@@ -29,7 +29,7 @@ cat > "$MANIFEST" <<EOF
 // Moru 助手读取这个文件判断有没有新版本（跨域 script，免 CORS）
 window.__MORU_RELEASE__ = {
   "version": "$VERSION",
-  "dmgUrl": "https://github.com/$REPO/releases/download/v$VERSION/Moru-Studio-Mac.dmg",
+  "dmgUrl": "https://longying-studio.pages.dev/download/Moru-Studio-Mac.dmg",
   "note": "$NOTE",
   "publishedAt": "$(date +%Y-%m-%d)"
 };
@@ -51,12 +51,14 @@ fi
 cat <<EOF
 
 下一步（按顺序做完，助手才会弹出下载提示）：
-  1. 提交并推送 manifest：
-     git add "$MANIFEST" && git commit -m "release: v$VERSION" && git push origin HEAD
-  2. 部署到 Cloudflare Pages（manifest 要线上生效）：
+  1. 把新 dmg 放到站点下载目录（installer 跟着站点一起部署，国内访问比 GitHub Releases 稳）：
+     mkdir -p download && cp "$DMG" download/Moru-Studio-Mac.dmg
+  2. 提交并推送 manifest：
+     git add "$MANIFEST" .gitignore && git commit -m "release: v$VERSION" && git push origin HEAD
+  3. 部署到 Cloudflare Pages（manifest 和 dmg 都要线上生效）：
      NPM_CONFIG_CACHE="\$HOME/.npm" script -q /dev/null bash scripts/deploy-cloudflare.sh
-  3. 上传 .dmg 到 GitHub Releases（下载链接指向这里）：
-     gh release create v$VERSION "$DMG" --repo "$REPO" --title "Moru Studio v$VERSION" --notes "$NOTE"
+  4. 验证下载链接可访问（应返回 200 和 5MB 左右）：
+     curl -sI https://longying-studio.pages.dev/download/Moru-Studio-Mac.dmg | head -3
 
 之后打开 Moru Studio，助手会自动说「上新啦 v$VERSION」，点「下载新版」即可下载 .dmg。
 EOF

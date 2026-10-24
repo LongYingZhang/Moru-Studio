@@ -31,6 +31,9 @@ admin/stitch/
 
 .cf-stage/
 
+# 安装包：只在本机放一份给 rsync 上传，不进 git 历史（避免仓库越来越胖）
+/download/
+
 .cursor/
 
 .workbuddy/

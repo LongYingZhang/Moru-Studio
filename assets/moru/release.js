@@ -2,7 +2,7 @@
 // Moru 助手读取这个文件判断有没有新版本（跨域 script，免 CORS）
 window.__MORU_RELEASE__ = {
   "version": "1.0.0",
-  "dmgUrl": "https://github.com/LongYingZhang/Moru-Studio/releases/download/v1.0.0/Moru-Studio-Mac.dmg",
+  "dmgUrl": "https://longying-studio.pages.dev/download/Moru-Studio-Mac.dmg",
   "note": "焕新上线，欢迎体验",
   "publishedAt": "2026-10-23"
 };
