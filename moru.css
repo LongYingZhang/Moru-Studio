@@ -425,57 +425,53 @@
   }
 }
 
-/* ---- 新版本公告条（商店一更新，Moru 就提示下载新版） ---- */
+/* ---- 新版本提示（就是一句话，没有色块） ---- */
 .moru-update {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 8px 8px 0;
-  padding: 7px 9px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #ff7a45, #ff3d77);
-  color: #fff;
-  font-size: 12px;
-  line-height: 1.3;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 11px 10px 0 14px;
+  padding: 0;
+  background: none;
+  color: #b8b8b8;
+  font-size: 12.5px;
+  line-height: 1.5;
 }
 .moru-update-text {
   flex: 1 1 auto;
   min-width: 0;
-  /* 说明文字太长时最多两行，不把气泡撑得很高 */
+  /* 说明文字太长时最多三行，不把气泡撑得很高 */
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
   overflow: hidden;
 }
+/* 行内链接：白色 + 下划线，跟正文同一行 */
 .moru-update-link {
-  flex: 0 0 auto;
-  padding: 4px 11px;
-  border-radius: 999px;
-  background: #fff;
-  color: #ff2d6f;
-  font-weight: 700;
-  text-decoration: none;
+  color: #fff;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
   white-space: nowrap;
 }
-.moru-update-link:hover { opacity: 0.92; }
-.moru-update-link:active { transform: translateY(1px); }
+.moru-update-link:hover { opacity: 0.85; }
 .moru-update-close {
   flex: 0 0 auto;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   display: grid;
   place-items: center;
   padding: 0;
   border: 0;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.22);
-  color: #fff;
-  font-size: 14px;
+  background: transparent;
+  color: #6a6a6a;
+  font-size: 15px;
   line-height: 1;
   cursor: pointer;
 }
-.moru-update-close:hover { background: rgba(255, 255, 255, 0.4); }
+.moru-update-close:hover { color: #b8b8b8; }
 
 /* 气泡里有公告时：公告条是气泡的第一个流内元素，气泡高度随之变高 */
 .moru-root.is-update .moru-bubble {

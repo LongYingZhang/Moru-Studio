@@ -225,14 +225,17 @@
 
     const text = document.createElement("div");
     text.className = "moru-update-text";
-    text.textContent = `🆕 上新啦 v${rel.version}：${rel.note || "点右边下载最新版"}`;
 
     const link = document.createElement("a");
     link.className = "moru-update-link";
     link.href = rel.dmgUrl || "#";
     link.target = "_blank";
     link.rel = "noopener";
-    link.textContent = "下载新版";
+    link.textContent = "点这里下载";
+
+    // 就是一句普通的话：正文 + 行内链接，没有色块
+    text.textContent = `上新啦 v${rel.version}：${rel.note || "有新版本可用"} `;
+    text.appendChild(link);
 
     const close = document.createElement("button");
     close.type = "button";
@@ -241,7 +244,6 @@
     close.textContent = "×";
 
     el.appendChild(text);
-    el.appendChild(link);
     el.appendChild(close);
 
     // 放进气泡最前面（问候卡之上）：这样它是流内元素，能把气泡实打实撑高，
