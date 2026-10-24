@@ -253,40 +253,44 @@
     link.addEventListener("click", dismiss);
   }
 
-  /* 线上最新版本清单（跨域 script，免 CORS）。拿到就缓存，
-     更新提示和「是不是新版」这类问答都靠它。 */
+  /* 线上最新版本清单（跨域 script，免 CORS）。
+     force = true 时无视缓存重新拉——问「是不是最新版」必须拿最新的，
+     否则 app 一直开着，答案还是启动那一刻的旧数据。 */
   let latestRelease = null;
-  function loadRelease() {
-    if (latestRelease) return Promise.resolve(latestRelease);
+  function loadRelease(force) {
+    if (latestRelease && !force) return Promise.resolve(latestRelease);
     return new Promise((resolve) => {
       const s = document.createElement("script");
-      s.src = RELEASE_JS_URL + "?t=" + Date.now();
+      s.src = RELEASE_JS_URL + "?t=" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
       s.async = true;
       s.onload = () => {
-        latestRelease = window.__MORU_RELEASE__ || null;
+        latestRelease = window.__MORU_RELEASE__ || latestRelease;
         resolve(latestRelease);
       };
-      s.onerror = () => resolve(null);
+      s.onerror = () => resolve(latestRelease);
       document.head.appendChild(s);
     });
   }
 
-  function checkForUpdate() {
-    loadRelease().then((rel) => {
-      if (!rel || !rel.version) return;
-      // 桌面版 app 里，打包时会把「这一版自己是几点几」写进 app 的 moru.js 首行。
-      // 已经装上的版本 >= 清单版本，就没什么可更新的，别再提示（否则装完就弹自己）。
-      const self = window.__MORU_APP_VERSION__ || null;
-      if (self && cmpVersion(rel.version, self) <= 0) return;
-      let seen = null;
-      try { seen = localStorage.getItem(RELEASE_SEEN_KEY); } catch (_) {}
-      if (!seen) {
-        // 第一次来：记下当前版本，不弹（已经是新的）
-        try { localStorage.setItem(RELEASE_SEEN_KEY, rel.version); } catch (_) {}
-        return;
-      }
-      if (cmpVersion(rel.version, seen) > 0) showUpdateBanner(rel);
-    });
+  function maybeShowUpdate(rel) {
+    if (!rel || !rel.version) return;
+    // 桌面版 app 里，打包时会把「这一版自己是几点几」写进 app 的 moru.js 首行。
+    // 已经装上的版本 >= 清单版本，就没什么可更新的，别再提示（否则装完就弹自己）。
+    const self = window.__MORU_APP_VERSION__ || null;
+    if (self && cmpVersion(rel.version, self) <= 0) return;
+    let seen = null;
+    try { seen = localStorage.getItem(RELEASE_SEEN_KEY); } catch (_) {}
+    if (!seen) {
+      // 第一次来：记下当前版本，不弹（已经是新的）
+      try { localStorage.setItem(RELEASE_SEEN_KEY, rel.version); } catch (_) {}
+      return;
+    }
+    if (cmpVersion(rel.version, seen) > 0) showUpdateBanner(rel);
+  }
+
+  // force=false：用缓存（启动那一次）；force=true：重新拉最新
+  function checkForUpdate(force) {
+    loadRelease(force).then(maybeShowUpdate);
   }
 
   /* 「是不是新版 / 现在是什么版本 / 有新版吗」——这类问题本地直接答，
@@ -1238,7 +1242,8 @@
         syncOrbVideo();
         return;
       }
-      await loadRelease();
+      // 必须强制重新拉清单：app 开着的时候线上可能已经发新版了
+      await loadRelease(true);
       const ans = buildVersionReply();
       const el = setReply("");
       // .moru-msg 是 -webkit-box，子元素会竖着排；套一层块级容器，
@@ -1420,6 +1425,10 @@
 
   // 打开页面时检查新版本，有更新就让助手弹出「下载新版」
   checkForUpdate();
+
+  // 桌面版 app 会一开一整天，所以每隔 15 分钟再查一次（强制拉最新），
+  // 不用关掉重开也能收到更新提示。
+  setInterval(() => checkForUpdate(true), 15 * 60 * 1000);
 
   resumeTakeover(false);
 })();
