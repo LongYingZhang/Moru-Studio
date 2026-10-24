@@ -12,28 +12,37 @@ import Foundation
 // 窗口内容视图：给页面顶部留一条「安全区」，
 // 让红黄绿三个窗口按钮不再压在站点 logo 上。
 // 底色跟站点 body 一样（#131313），所以看起来就是页面自己多了一圈留白，不是一条标题栏。
+//
+// 注意：这里不用 layout() 回调（窗口首次显示不一定会走那次 layout），
+// 改成「显式设一次 frame + autoresizingMask」，这样任何时候都是确定的。
 final class InsetHostView: NSView {
-    private let webView: NSView
-    private let topInset: CGFloat
+    static let pageColor = NSColor(srgbRed: 19.0 / 255.0, green: 19.0 / 255.0, blue: 19.0 / 255.0, alpha: 1)
 
-    init(webView: NSView, topInset: CGFloat) {
-        self.webView = webView
+    private let topInset: CGFloat
+    private var web: NSView?
+
+    init(topInset: CGFloat) {
         self.topInset = topInset
-        super.init(frame: .zero)
+        super.init(frame: NSRect(x: 0, y: 0, width: 1280, height: 880))
         wantsLayer = true
         layer?.backgroundColor = InsetHostView.pageColor.cgColor
-        addSubview(webView)
+        autoresizesSubviews = true
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
-    static let pageColor = NSColor(srgbRed: 19.0 / 255.0, green: 19.0 / 255.0, blue: 19.0 / 255.0, alpha: 1)
+    func attach(_ view: NSView) {
+        web = view
+        addSubview(view)
+        // 宽高跟随窗口变化，上下边距固定 → 顶部 32pt 永远留着
+        view.autoresizingMask = [.width, .height]
+        reposition()
+    }
 
-    override func layout() {
-        super.layout()
-        // 非翻转坐标系，y=0 是底部；顶部让出 topInset
-        let height = max(0, bounds.height - topInset)
-        webView.frame = NSRect(x: 0, y: 0, width: bounds.width, height: height)
+    func reposition() {
+        guard let view = web else { return }
+        // 非翻转坐标系，y=0 是底部；高度减去 topInset，顶部就空出一条带子
+        view.frame = NSRect(x: 0, y: 0, width: bounds.width, height: max(0, bounds.height - topInset))
     }
 }
 
@@ -86,7 +95,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 页面本身是深色，窗口用深色外观，红黄绿按钮在深色上更清楚
         window.appearance = NSAppearance(named: .darkAqua)
         window.minSize = NSSize(width: 720, height: 560)
-        window.contentView = InsetHostView(webView: webView, topInset: 32)
+        let host = InsetHostView(topInset: 32)
+        host.attach(webView)
+        window.contentView = host
+        // contentView 赋值时窗口会把 host 调成内容区大小，这里再对一次，确保网页已经缩进安全区
+        host.reposition()
         window.center()
         window.makeKeyAndOrderFront(nil)
 
