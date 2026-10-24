@@ -9,6 +9,34 @@ import Foundation
 // no tab bar, its own Dock icon — and no external dependency at all (no
 // python3, no bundled runtime).
 
+// 窗口内容视图：给页面顶部留一条「安全区」，
+// 让红黄绿三个窗口按钮不再压在站点 logo 上。
+// 底色跟站点 body 一样（#131313），所以看起来就是页面自己多了一圈留白，不是一条标题栏。
+final class InsetHostView: NSView {
+    private let webView: NSView
+    private let topInset: CGFloat
+
+    init(webView: NSView, topInset: CGFloat) {
+        self.webView = webView
+        self.topInset = topInset
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.backgroundColor = InsetHostView.pageColor.cgColor
+        addSubview(webView)
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    static let pageColor = NSColor(srgbRed: 19.0 / 255.0, green: 19.0 / 255.0, blue: 19.0 / 255.0, alpha: 1)
+
+    override func layout() {
+        super.layout()
+        // 非翻转坐标系，y=0 是底部；顶部让出 topInset
+        let height = max(0, bounds.height - topInset)
+        webView.frame = NSRect(x: 0, y: 0, width: bounds.width, height: height)
+    }
+}
+
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var window: NSWindow?
     var server: SiteServer?
@@ -51,11 +79,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             defer: false
         )
         window.title = "Moru Studio"
+        window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
-        window.backgroundColor = NSColor.windowBackgroundColor
+        window.backgroundColor = InsetHostView.pageColor
+        // 页面本身是深色，窗口用深色外观，红黄绿按钮在深色上更清楚
+        window.appearance = NSAppearance(named: .darkAqua)
         window.minSize = NSSize(width: 720, height: 560)
-        window.contentView = webView
+        window.contentView = InsetHostView(webView: webView, topInset: 32)
         window.center()
         window.makeKeyAndOrderFront(nil)
 
