@@ -134,7 +134,12 @@
     };
   }
 
-  const PRODUCTS_API = "/api/products";
+  // 桌面版 app 用内置服务跑在 127.0.0.1（没有后端），商品接口改走线上站点
+  const IS_LOCAL_SHELL =
+    location.protocol === "file:" ||
+    /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  const PRODUCTS_API =
+    (IS_LOCAL_SHELL ? "https://longying-studio.pages.dev" : "") + "/api/products";
   const PORTFOLIO_URL = "https://zhanglongying.pages.dev";
   let serverSnapshot = null;
 

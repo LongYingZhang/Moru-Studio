@@ -43,6 +43,7 @@ rsync -a \
   --exclude 'server.py' --exclude 'server.mjs' --exclude 'node_modules' \
   --exclude '.env' --exclude '.env.*' --exclude 'wrangler.toml' --exclude 'wrangler.json' \
   --exclude '__pycache__' --exclude '.DS_Store' --exclude '*.command' \
+  --exclude 'download' --exclude '*.dmg' \
   --exclude 'name_en.py' --exclude 'HANDOVER.md' --exclude 'DEPLOY.md' \
   --exclude 'MORU-SHOP-HANDOFF.md' --exclude 'README.md' \
   --exclude 'package.json' --exclude '.tmp-*.png' \

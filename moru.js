@@ -16,6 +16,14 @@
   const RELEASE_JS_URL = "https://longying-studio.pages.dev/assets/moru/release.js";
   const RELEASE_SEEN_KEY = "moru.release.seen";
 
+  // 接口根地址：桌面版 app 用内置静态服务跑在 127.0.0.1（没有后端），
+  // 直接打 /api/* 会 404，所以本地运行时改走线上站点。
+  const PUBLIC_ORIGIN = "https://longying-studio.pages.dev";
+  const IS_LOCAL_SHELL =
+    location.protocol === "file:" ||
+    /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  const API_BASE = IS_LOCAL_SHELL ? PUBLIC_ORIGIN : "";
+
   const root = document.createElement("div");
   root.className = "moru-root";
   root.innerHTML = `
@@ -1181,7 +1189,7 @@
     }
 
     try {
-      const res = await fetch("/api/moru/chat", {
+      const res = await fetch(API_BASE + "/api/moru/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
