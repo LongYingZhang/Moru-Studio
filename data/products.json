@@ -20,9 +20,9 @@
     "heroPosition": "center 20%",
     "updatedAt": "2026-10-10T08:38:01.623Z",
     "gallery": [
-      "/uploads/2659829e459b59dbf47d5e05f11c1e5f.jpg",
-      "/uploads/2659829e459b59dbf47d5e05f11c1e5f.jpg",
-      "/uploads/2659829e459b59dbf47d5e05f11c1e5f.jpg"
+      "/assets/sachet.jpg",
+      "/assets/sachet.jpg",
+      "/assets/sachet.jpg"
     ]
   },
   {
@@ -93,9 +93,9 @@
     "dimension": "90x90cm",
     "material": "木浆",
     "status": "active",
-    "image": "/uploads/8650086451309133edad601d7cc9820a.jpg",
+    "image": "/assets/tissue.jpg",
     "cardBg": "#141414",
-    "cardImage": "/uploads/8650086451309133edad601d7cc9820a.jpg",
+    "cardImage": "assets/cards/05.jpg",
     "cardFace": "",
     "cardPhoto": "left:0%;top:0%;width:100%;height:100%;background-size:cover",
     "heroPosition": "center center",
