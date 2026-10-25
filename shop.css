@@ -323,16 +323,15 @@ img { display: block; max-width: 100%; }
   background-position: center 20%;
   background-repeat: no-repeat;
   opacity: .92;
-  /* 基础放大留给 hero-parallax.js 做位移余量；transform 由脚本逐帧接管，
-     所以这里不再给 transform 加过渡，否则会拖影 */
-  transform: scale(1.055);
+  /* 商品大图保持原样：不放大、不跟鼠标（动效只留给默认态的形象图） */
+  transform: scale(1);
   transition: opacity .7s ease;
-  will-change: transform;
 }
 .hero-photo.is-dim { opacity: .3; }
 
 /* 默认态（还没点任何商品）：右侧只有 Moru 形象图，跟着鼠标动，
-   没有标题 / 参数 / 检视档案 / 全屏提示。图边缘是纯黑，铺在 #000 上不会有接缝 */
+   没有标题 / 参数 / 检视档案 / 全屏提示。图已裁到角色本体边界（几乎正方形），
+   contain 让它在任何画幅里都以最大尺寸完整居中；图边缘是纯黑，铺在 #000 上无接缝 */
 .hero.is-idle {
   background: #000;
   cursor: default;
@@ -341,6 +340,8 @@ img { display: block; max-width: 100%; }
   background-size: contain;
   background-position: center center;
   opacity: 1;
+  transform: scale(1.055); /* 无 JS 时的兜底；有 JS 由脚本按尺寸算 */
+  will-change: transform;
 }
 .hero.is-idle .hero-shade,
 .hero.is-idle .hero-center,

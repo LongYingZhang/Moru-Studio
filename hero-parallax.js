@@ -1,8 +1,10 @@
 /* 右侧主图跟随鼠标（作品集同款视差）
+   - 只作用在「默认态」的形象图（#hero.is-idle）：还没选商品时它跟着鼠标轻微移动
+   - 选了商品之后商品大图必须静止，脚本会把位移/放大缓动回原位
    - 指针在整个窗口追踪，映射到 hero 自身范围，缓动跟随，手感与作品集一致
    - 放大倍数按区域尺寸动态算，保证位移到极限也不露边
    - 悬浮时轻微再推近（替代原来 CSS 的 :hover scale）
-   - 触摸设备 / 关闭动态效果偏好：直接不启用，退回静态轻微放大 */
+   - 触摸设备 / 关闭动态效果偏好：直接不启用 */
 (function () {
   var MAX_X = 18;            // 水平最大位移 px
   var MAX_Y = 12;            // 垂直最大位移 px
@@ -63,19 +65,30 @@
     if (!hero || !photo) return;
     var rect = hero.getBoundingClientRect();
     if (rect.width < 2 || rect.height < 2) return;
-    baseScale = computeBaseScale(rect);
-    var cx = rect.left + rect.width * 0.5;
-    var cy = rect.top + rect.height * 0.5;
-    var nx = clamp((pointer.x - cx) / (rect.width * 0.5), -1, 1);
-    var ny = clamp((pointer.y - cy) / (rect.height * 0.5), -1, 1);
-    var tx = nx * MAX_X;
-    var ty = ny * MAX_Y;
-    var ts = hovering ? baseScale + HOVER_BONUS : baseScale;
+
+    /* 只有默认态（.is-idle，还没选商品）的形象图跟鼠标动；
+       选了商品之后商品大图要静止，这里缓动回原位 */
+    var tx = 0;
+    var ty = 0;
+    var ts = 1;
+    var idle = hero.classList.contains("is-idle");
+    if (idle) {
+      baseScale = computeBaseScale(rect);
+      var cx = rect.left + rect.width * 0.5;
+      var cy = rect.top + rect.height * 0.5;
+      var nx = clamp((pointer.x - cx) / (rect.width * 0.5), -1, 1);
+      var ny = clamp((pointer.y - cy) / (rect.height * 0.5), -1, 1);
+      tx = nx * MAX_X;
+      ty = ny * MAX_Y;
+      ts = hovering ? baseScale + HOVER_BONUS : baseScale;
+    }
+
     var moved = false;
     if (Math.abs(tx - pos.x) > EPS) { pos.x += (tx - pos.x) * EASE; moved = true; }
     if (Math.abs(ty - pos.y) > EPS) { pos.y += (ty - pos.y) * EASE; moved = true; }
     if (Math.abs(ts - scale) > 0.0004) { scale += (ts - scale) * EASE; moved = true; }
     if (moved) paint();
+    else if (!idle && photo.style.transform) photo.style.transform = ""; // 商品图归位后交还给 CSS
   }
 
   function stop() {
@@ -112,13 +125,15 @@
     if (!hero || !photo) return;
     if (mq("(prefers-reduced-motion: reduce)") || !mq("(hover: hover)")) return;
 
-    var r = hero.getBoundingClientRect();
-    if (r.width > 2 && r.height > 2) {
-      baseScale = computeBaseScale(r);
-      scale = baseScale;
-    }
     centerPointer();
-    paint();
+    if (hero.classList.contains("is-idle")) {
+      var r = hero.getBoundingClientRect();
+      if (r.width > 2 && r.height > 2) {
+        baseScale = computeBaseScale(r);
+        scale = baseScale;
+      }
+      paint();
+    }
 
     window.addEventListener("pointermove", onPointer, { passive: true });
     document.documentElement.addEventListener("pointerleave", onLeave, { passive: true });
