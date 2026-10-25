@@ -168,7 +168,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
         let help = NSMenu(title: "帮助")
         helpItem.submenu = help
         addItem(to: help, title: "打开商店网站", action: #selector(openSite), key: "")
-        addItem(to: help, title: "检查新版本（打开下载页）", action: #selector(openDownload), key: "")
+        addItem(to: help, title: "检查并安装更新", action: #selector(checkForUpdates), key: "")
         NSApp.helpMenu = help
 
         return main
@@ -204,8 +204,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
                  createWebViewWith configuration: WKWebViewConfiguration,
                  for navigationAction: WKNavigationAction,
                  windowFeatures: WKWindowFeatures) -> WKWebView? {
-        if let url = navigationAction.request.url, isExternal(url) {
-            openInBrowser(url)
+        if let url = navigationAction.request.url {
+            if url.scheme == "moru" {
+                handleUpdateURL(url)
+                return nil
+            }
+            if isExternal(url) {
+                openInBrowser(url)
+            }
         }
         return nil
     }
@@ -213,10 +219,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
     func webView(_ webView: WKWebView,
                  decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-        if let url = navigationAction.request.url, isExternal(url) {
-            openInBrowser(url)
-            decisionHandler(.cancel)
-            return
+        if let url = navigationAction.request.url {
+            // moru://update?... —— 页面里点「更新」走 app 内自更新，不开浏览器
+            if url.scheme == "moru" {
+                handleUpdateURL(url)
+                decisionHandler(.cancel)
+                return
+            }
+            if isExternal(url) {
+                openInBrowser(url)
+                decisionHandler(.cancel)
+                return
+            }
         }
         decisionHandler(.allow)
     }
@@ -233,10 +247,78 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNaviga
             NSWorkspace.shared.open(url)
         }
     }
-    @objc private func openDownload() {
-        if let url = URL(string: "https://longying-studio.pages.dev/download/Moru-Studio.dmg") {
-            NSWorkspace.shared.open(url)
+
+    /* ---- 自更新：菜单项 + 页面里 moru://update 链接都走这里 ---- */
+    private let releaseManifestURL = "https://longying-studio.pages.dev/assets/moru/release.js"
+
+    @objc private func checkForUpdates() {
+        let current = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
+        fetchManifest { [weak self] manifest in
+            guard let self else { return }
+            guard let manifest,
+                  let version = manifest["version"] as? String,
+                  let urlString = manifest["dmgUrl"] as? String,
+                  let dl = URL(string: urlString)
+            else {
+                self.alert("查不到线上版本信息，稍后再试。")
+                return
+            }
+            if AppDelegate.compareVersion(version, current) <= 0 {
+                self.alert("已经是最新版本（v\(current)）。")
+                return
+            }
+            Updater.shared.begin(downloadURL: dl, sha256: manifest["sha256"] as? String)
         }
+    }
+
+    private func fetchManifest(_ done: @escaping ([String: Any]?) -> Void) {
+        let stamp = Int(Date().timeIntervalSince1970)
+        guard let url = URL(string: "\(releaseManifestURL)?t=\(stamp)") else { done(nil); return }
+        var request = URLRequest(url: url)
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            var parsed: [String: Any]?
+            if let data,
+               let text = String(data: data, encoding: .utf8),
+               let start = text.firstIndex(of: "{"),
+               let end = text.lastIndex(of: "}") {
+                let json = String(text[start...end])
+                parsed = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any]
+            }
+            DispatchQueue.main.async { done(parsed) }
+        }.resume()
+    }
+
+    /// 页面里的 moru://update?u=<dmg 地址>&s=<sha256>&v=<版本>
+    private func handleUpdateURL(_ url: URL) {
+        guard let comps = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
+        let items = comps.queryItems ?? []
+        let raw = items.first(where: { $0.name == "u" })?.value ?? ""
+        let sha = items.first(where: { $0.name == "s" })?.value ?? ""
+        guard let dl = URL(string: raw) else {
+            alert("更新链接无效，稍后再试。")
+            return
+        }
+        Updater.shared.begin(downloadURL: dl, sha256: sha.isEmpty ? nil : sha)
+    }
+
+    private func alert(_ message: String) {
+        let a = NSAlert()
+        a.messageText = "Moru Studio"
+        a.informativeText = message
+        a.addButton(withTitle: "好")
+        a.runModal()
+    }
+
+    static func compareVersion(_ a: String, _ b: String) -> Int {
+        let pa = a.split(separator: ".").map { Int($0) ?? 0 }
+        let pb = b.split(separator: ".").map { Int($0) ?? 0 }
+        for i in 0..<max(pa.count, pb.count) {
+            let x = i < pa.count ? pa[i] : 0
+            let y = i < pb.count ? pb[i] : 0
+            if x != y { return x > y ? 1 : -1 }
+        }
+        return 0
     }
 
     private func buildWindow(port: UInt16) {

@@ -22,7 +22,7 @@ ICON_PNG="${4:-$SRC/assets/icon-512.png}"
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 SWIFT_SRC="$REPO/scripts/app"
-SWIFT_SOURCES=("$SWIFT_SRC/main.swift" "$SWIFT_SRC/SiteServer.swift")
+SWIFT_SOURCES=("$SWIFT_SRC/main.swift" "$SWIFT_SRC/SiteServer.swift" "$SWIFT_SRC/Updater.swift")
 APP_SAFE=$(echo "$APP_NAME" | tr ' ' '-')
 BUNDLE_ID="com.moru.$(echo "$APP_SAFE" | tr '[:upper:]' '[:lower:]' | tr '-' '.')"
 

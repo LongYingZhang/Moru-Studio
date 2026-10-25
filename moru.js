@@ -217,6 +217,22 @@
     return 0;
   }
 
+  /* 桌面版 app 里点「更新」不走浏览器：交回 app 自己下载安装。
+     这样下下来的包没有 com.apple.quarantine 隔离标记，装完重启不会再弹
+     「无法验证开发者」。网页版仍然是普通下载链接。 */
+  function inDesktopApp() {
+    return !!window.__MORU_APP_VERSION__;
+  }
+
+  function updateHref(rel) {
+    if (!rel) return "#";
+    if (!inDesktopApp()) return rel.dmgUrl || "#";
+    const q = "u=" + encodeURIComponent(rel.dmgUrl || "") +
+              "&s=" + encodeURIComponent(rel.sha256 || "") +
+              "&v=" + encodeURIComponent(rel.version || "");
+    return "moru://update?" + q;
+  }
+
   function showUpdateBanner(rel) {
     if (root.querySelector(".moru-update")) return;
     const el = document.createElement("div");
@@ -228,15 +244,17 @@
 
     const link = document.createElement("a");
     link.className = "moru-update-link";
-    link.href = rel.dmgUrl || "#";
-    link.target = "_blank";
-    link.rel = "noopener";
+    link.href = updateHref(rel);
+    if (!inDesktopApp()) {
+      link.target = "_blank";
+      link.rel = "noopener";
+    }
     link.textContent = "点击这里";
 
     // 就是一句普通的话：正文 + 行内蓝色链接，没有色块、没有叉、没有圆点
     text.textContent = `Moru Studio v${rel.version}的更新已就绪，`;
     text.appendChild(link);
-    text.appendChild(document.createTextNode("去下载"));
+    text.appendChild(document.createTextNode(inDesktopApp() ? "更新" : "去下载"));
 
     el.appendChild(text);
 
@@ -304,7 +322,7 @@
     const self = window.__MORU_APP_VERSION__ || null;
     const rel = latestRelease;
     const latest = rel && rel.version ? rel.version : null;
-    const url = rel && rel.dmgUrl ? rel.dmgUrl : null;
+    const url = rel && rel.dmgUrl ? updateHref(rel) : null;
     if (self && latest) {
       if (cmpVersion(latest, self) <= 0) {
         return { text: `你现在是 v${self}，已经是最新版啦～`, url: null };
@@ -1365,9 +1383,11 @@
         const a = document.createElement("a");
         a.className = "moru-msg-link";
         a.href = ans.url;
-        a.target = "_blank";
-        a.rel = "noopener";
-        a.textContent = "点击这里去下载";
+        if (!inDesktopApp()) {
+          a.target = "_blank";
+          a.rel = "noopener";
+        }
+        a.textContent = inDesktopApp() ? "点击这里更新" : "点击这里去下载";
         box.appendChild(a);
       }
       el.appendChild(box);
