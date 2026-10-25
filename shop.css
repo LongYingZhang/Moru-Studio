@@ -323,10 +323,12 @@ img { display: block; max-width: 100%; }
   background-position: center 20%;
   background-repeat: no-repeat;
   opacity: .92;
-  transform: scale(1);
-  transition: opacity .7s ease, transform .7s ease;
+  /* 基础放大留给 hero-parallax.js 做位移余量；transform 由脚本逐帧接管，
+     所以这里不再给 transform 加过渡，否则会拖影 */
+  transform: scale(1.055);
+  transition: opacity .7s ease;
+  will-change: transform;
 }
-.hero:hover .hero-photo { transform: scale(1.02); }
 .hero-photo.is-dim { opacity: .3; }
 .hero-shade {
   position: absolute;
@@ -1467,7 +1469,8 @@ label.field.wide { grid-column: 1 / -1; }
     align-self: flex-end;
     margin-bottom: 2px;
   }
-  .hero:hover .hero-photo { transform: none; }
+  /* 触摸端不启用鼠标视差（hero-parallax.js 会在 hover:none 时自行退出），
+     这里不再把 transform 清掉，避免点按后 :hover 残留导致图片突然缩回去 */
 
   /* 2：全屏画册 — 大图按剩余高度收缩，避免短屏压住标题 */
   .lightbox,
