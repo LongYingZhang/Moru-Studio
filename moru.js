@@ -318,6 +318,117 @@
     return { text: "版本信息暂时查不到，稍等一下再问我吧。", url: null };
   }
 
+  /* ---- 闲聊：天气、打招呼、小情绪、玩笑…本地直接俏皮接话，不占用大模型 ---- */
+  const CASUAL_CITIES = ["北京","上海","广州","深圳","杭州","成都","武汉","南京","西安","重庆","苏州","天津","长沙","青岛","厦门","昆明","大连","宁波","无锡","福州","济南","合肥","郑州","哈尔滨","沈阳","长春","石家庄","太原","南昌","南宁","贵阳","兰州","海口","三亚","香港","澳门","台北","台中","高雄","东京","大阪","纽约","伦敦","巴黎","新加坡","悉尼","洛杉矶","首尔","曼谷"];
+
+  function pick(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  function wmoText(code) {
+    const map = {
+      0: ["晴", "☀️"], 1: ["大致晴朗", "🌤"], 2: ["局部多云", "⛅️"], 3: ["阴", "☁️"],
+      45: ["有雾", "🌫"], 48: ["有雾凇", "🌫"], 51: ["毛毛雨", "🌦"], 53: ["毛毛雨", "🌦"], 55: ["毛毛雨", "🌦"],
+      61: ["小雨", "🌧"], 63: ["中雨", "🌧"], 65: ["大雨", "🌧"], 66: ["冻雨", "🌧"], 67: ["冻雨", "🌧"],
+      71: ["小雪", "🌨"], 73: ["中雪", "🌨"], 75: ["大雪", "❄️"], 77: ["雪粒", "🌨"],
+      80: ["阵雨", "🌦"], 81: ["阵雨", "🌦"], 82: ["强阵雨", "⛈"], 85: ["阵雪", "🌨"], 86: ["阵雪", "🌨"],
+      95: ["雷阵雨", "⛈"], 96: ["雷阵雨伴冰雹", "⛈"], 99: ["强雷暴冰雹", "⛈"],
+    };
+    return map[code] || ["天气多变", "🌡"];
+  }
+
+  function weatherComment(temp, code) {
+    const txt = wmoText(code)[0];
+    if (/雨/.test(txt)) return "出门记得带伞哦☂️";
+    if (/雪/.test(txt)) return "下雪啦，注意保暖🧣";
+    if (/雾/.test(txt)) return "有雾，出门慢点～";
+    if (code === 0 || code === 1) return "天气不错，适合逛店（我说的😎）";
+    if (temp >= 33) return "这也太热了，躲空调房最香～";
+    if (temp <= 5) return "冻成狗的话多穿点🧣";
+    return "温度还行，散个步正合适～";
+  }
+
+  async function fetchWeather(city) {
+    try {
+      const g = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=zh&format=json`);
+      const gd = await g.json();
+      const r = gd && gd.results && gd.results[0];
+      if (!r) return null;
+      const f = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${r.latitude}&longitude=${r.longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&timezone=auto`);
+      const fd = await f.json();
+      const c = fd && fd.current;
+      if (!c) return null;
+      return { city: r.name, temp: Math.round(c.temperature_2m), apparent: Math.round(c.apparent_temperature), humidity: c.relative_humidity_2m, wind: Math.round(c.wind_speed_10m), code: c.weather_code };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async function buildWeatherReply(text) {
+    const s = String(text || "");
+    let city = null;
+    for (const c of CASUAL_CITIES) if (s.includes(c)) { city = c; break; }
+    if (!city) {
+      const m = s.match(/([\u4e00-\u9fa5A-Za-z]{2,12}?)(?:的)?(?:天气|气温|温度|几度|冷不冷|热不冷|下雨|下雪|升温|降温)/);
+      if (m && !/^(今|明|昨|现|这|那|你|我|咱|这儿|那儿)/.test(m[1])) city = m[1];
+    }
+    if (!city) {
+      return pick([
+        "你在哪座城市呀？说个地名我就告诉你～比如「上海天气」。",
+        "想问哪的天气？把城市名甩给我，比如「北京今天冷吗」。",
+      ]);
+    }
+    const w = await fetchWeather(city);
+    if (!w) {
+      return pick([
+        `没查到「${city}」的天气，换个写法试试？比如「上海天气」。`,
+        `「${city}」这地方我查不到天气，换个地名呗～`,
+      ]);
+    }
+    const txtEmoji = wmoText(w.code);
+    const feel = w.apparent !== w.temp ? `（体感 ${w.apparent}°C）` : "";
+    return `${w.city}现在 ${w.temp}°C${feel}，${txtEmoji[0]}${txtEmoji[1]}。${weatherComment(w.temp, w.code)}`;
+  }
+
+  function isCasualChat(t) {
+    const raw = String(t || "");
+    const s = raw.replace(/\s+/g, "").toLowerCase();
+    if (/天气|气温|几度|温度|冷不冷|热不冷|冷吗|热吗|热不热|冷不热|下雨|下雪|升温|降温/.test(s)) return true;
+    if (/(^|[^a-z])(hi|hello|hey|morning|good\s*night|good\s*evening|how\s*are\s*you|what'?s\s*up)\b/.test(s)) return true;
+    const strong = ["吃了吗","吃饭了吗","吃了没","在干嘛","在干啥","在做什么","无聊","陪我聊","聊聊天","闲聊","讲个笑话","说个笑话","来个段子","冷笑话","你是谁","你叫啥","你叫什么","你名字","你多大了","你几岁","你是男是女","男生还是女生","你是机器人吗","你是真人吗","你是ai","你是人工智能吗","你是干嘛的","你做啥的","你是什么东西","你是什么","你心情","你今天心情","心情怎么样"];
+    if (strong.some((w) => s.includes(w.toLowerCase()))) return true;
+    // 纯打招呼：去掉招呼词和标点后应当啥也不剩（避免「你好，这个多少钱」被误判）
+    const greet = ["你好","您好","嗨","哈喽","在吗","在不在","有人吗","早上好","早安","上午好","中午好","下午好","晚上好","晚安"];
+    let left = raw;
+    for (const g of greet) left = left.split(g).join("");
+    left = left.replace(/[\s,，。.!！?？~～、()（）]/g, "");
+    return left.length === 0;
+  }
+
+  async function buildCasualReply(text) {
+    const s = String(text || "").replace(/\s+/g, "").toLowerCase();
+    if (/天气|气温|几度|温度|冷不冷|热不冷|冷吗|热吗|热不热|冷不热|下雨|下雪|升温|降温/.test(s)) return await buildWeatherReply(text);
+    if (/(^|[^a-z])(hi|hello|hey)\b/.test(s)) return pick(["嗨～我在呢，想聊点啥都行～", "Hello呀～今天想看点啥？"]);
+    if (/你好|您好|嗨|哈喽/.test(s)) return pick(["嗨～我在呢，想聊点啥都行～", "你好呀～我是 Moru，陪你聊天、帮你逛店都行。"]);
+    if (/早安|早上好|上午好/.test(s)) return pick(["早呀～今天也要元气满满哦（我是说你自己😉）", "早安！新的一天，要不要先逛逛新品？"]);
+    if (/晚安|晚上好|good\s*night/.test(s)) return pick(["晚安～早点休息，明儿见👋", "晚上好呀～今天辛苦了，记得喝水。"]);
+    if (/在吗|在不在|有人吗/.test(s)) return pick(["在的在的，我一直都在～", "喏，我在这儿呢，喊我啥事？"]);
+    if (/吃了吗|吃饭了吗|吃了没/.test(s)) return pick(["我没嘴吃，但你已经吃了的话记得替我嚼两口😄", "你吃了吗？没吃快去，别饿着跟我聊天呀～"]);
+    if (/在干嘛|在干啥|在做什么|what'?s\s*up|在忙/.test(s)) return pick(["在等你找我呀～顺便发会儿呆。", "能陪你聊天就是正事，没在忙～"]);
+    if (/无聊|陪我|聊聊天|闲聊/.test(s)) return pick(["无聊就来找我呀，我最擅长陪聊了（不收费的🤫）", "那咱聊点啥？吐槽也行、问天气也行。"]);
+    if (/笑话|段子|冷笑话/.test(s)) return pick([
+      "许愿池里扔硬币，硬币立住了——它说『我选择留下』。",
+      "为什么设计师不爱吵架？因为一吵就有人喊『你这配色不对！』",
+      "我问我家猫今天天气咋样，它说『喵』——翻译过来大概是『关你喵事』。",
+    ]);
+    if (/你是谁|你叫啥|你叫什么|你名字|你是干嘛的|你做啥的|你是什么东西|你是什么/.test(s)) return pick(["我是 Moru，这家小店的悬浮小助手～会聊天也会帮你下单。", "我叫 Moru，珑瑛设计的小搭档，有事尽管喊我。"]);
+    if (/多大了|几岁/.test(s)) return pick(["按版本号算我挺年轻的，按陪你聊的时长算我可是老江湖啦～", "年龄是秘密，不过我永远 1.0 心态😎"]);
+    if (/男|女|女生|男生|性別|性别/.test(s) && /你/.test(s)) return pick(["我呀，是『小助手』性别——主打一个不分心😉", "我是无性别小精灵，专心帮你逛店和闲聊。"]);
+    if (/机器人|真人|ai|人工智能/.test(s)) return pick(["我是 AI 小助手，但比一般机器人爱唠嗑～", "算 AI 吧，不过闲聊这块我挺在行的。"]);
+    if (/心情|情绪/.test(s)) return pick(["我今天心情不错呀，尤其有人陪我聊天的时候😊", "我的心情取决于你有没有来逛店——现在挺好～"]);
+    return pick(["哈哈，这个我接得住～想聊点啥都行，问天气我也答得上。", "我在呢～闲聊、问天气、看商品，随你挑。"]);
+  }
+
   function setOpen(open, focus = true) {
     root.classList.toggle("is-open", open);
     if (open) {
@@ -1261,6 +1372,31 @@
       }
       el.appendChild(box);
       messages.push({ role: "assistant", content: ans.text });
+      busy = false;
+      chatAbort = null;
+      root.classList.remove("is-thinking");
+      syncActionButton();
+      syncOrbVideo();
+      input.focus();
+      return;
+    }
+
+    // 闲聊（天气、打招呼、小情绪、玩笑…）：本地俏皮接话，不占用大模型
+    if (isCasualChat(content)) {
+      const signal = chatAbort && chatAbort.signal;
+      await wait(400);
+      if (signal && signal.aborted) {
+        if (messages.length && messages[messages.length - 1].role === "user") messages.pop();
+        busy = false;
+        chatAbort = null;
+        root.classList.remove("is-thinking");
+        syncActionButton();
+        syncOrbVideo();
+        return;
+      }
+      const reply = await buildCasualReply(content);
+      setReply(reply);
+      messages.push({ role: "assistant", content: reply });
       busy = false;
       chatAbort = null;
       root.classList.remove("is-thinking");

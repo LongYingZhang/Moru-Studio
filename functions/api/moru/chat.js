@@ -38,6 +38,17 @@ export async function onRequestPost(context) {
       const send = (obj) => controller.enqueue(enc.encode(`data: ${JSON.stringify(obj)}\n\n`));
       try {
         const apiKey = env.OPENAI_API_KEY || env.MORU_API_KEY;
+        const lastText = history[history.length - 1].content;
+        // 闲聊 / 天气：本地直接俏皮接话（天气带真实数据），不占用大模型；
+        // 放在最前，桌面版 app 无需重装即可生效
+        const casual = await localCasualReply(lastText, request);
+        if (casual) {
+          const chunk = 12;
+          for (let i = 0; i < casual.length; i += chunk) send({ type: "text", text: casual.slice(i, i + chunk) });
+          send({ type: "done" });
+          controller.enqueue(enc.encode("data: [DONE]\n\n"));
+          return;
+        }
         if (apiKey) {
           await streamOpenAI({
             apiKey,
@@ -47,7 +58,7 @@ export async function onRequestPost(context) {
             send,
           });
         } else {
-          const { reply, tools } = localMoruReply(history[history.length - 1].content, catalog, pageContext);
+          const { reply, tools } = await localMoruReply(history[history.length - 1].content, catalog, pageContext, request);
           const chunk = 12;
           for (let i = 0; i < reply.length; i += chunk) {
             send({ type: "text", text: reply.slice(i, i + chunk) });
@@ -110,7 +121,7 @@ function systemPrompt(catalog, pageContext) {
     "你是 Moru，电商网站的悬浮助手。默认中文。",
     "说话风格：俏皮、轻松、有点小机灵；像会吐槽又会帮忙的小搭档。句子短，口语化，可以偶尔用语气词（呀、哦、嘿嘿、呐），但不要堆砌表情和网络烂梗，也不要油腻卖萌。不要输出大段文字。",
     "1. 用户咨询商品、订单、发货、售后、店铺相关问题：认真解答店铺业务，语气仍保持俏皮，别变成客服公文。",
-    "2. 用户闲聊、问无关话题：可以正常聊天、接话、开一点点无伤大雅的玩笑；不要强行推销，不要生硬把话题拽回香片、帆布袋等商品。",
+    "2. 用户闲聊、问无关话题：可以正常聊天、接话、开一点点无伤大雅的玩笑；不要强行推销，不要生硬把话题拽回香片、帆布袋等商品。闲聊回答控制在 2 句以内，俏皮即可，不要长篇大论。",
     "3. 如果用户问的内容你确实无法回答：自然、俏皮地承认就好，不必每次都推荐商品。",
     "4. 只有用户在咨询店铺、选购相关场景时，才主动提及店内产品。",
     "5. 若用户问 Moru 的创造者是谁：回答创造者是一位产品设计师，ZHANGLONGYING。不要主动提；只在被问到时说。",
@@ -271,10 +282,122 @@ function pageActionReply(text, catalog, ctx) {
   return null;
 }
 
-function localMoruReply(userText, catalog, ctx) {
+const CASUAL_CITY_LIST = ["北京","上海","广州","深圳","杭州","成都","武汉","南京","西安","重庆","苏州","天津","长沙","青岛","厦门","昆明","大连","宁波","无锡","福州","济南","合肥","郑州","哈尔滨","沈阳","长春","石家庄","太原","南昌","南宁","贵阳","兰州","海口","三亚","香港","澳门","台北","台中","高雄","东京","大阪","纽约","伦敦","巴黎","新加坡","悉尼","洛杉矶","首尔","曼谷"];
+
+function wmoText(code) {
+  const map = {
+    0: ["晴", "☀️"], 1: ["大致晴朗", "🌤"], 2: ["局部多云", "⛅️"], 3: ["阴", "☁️"],
+    45: ["有雾", "🌫"], 48: ["有雾凇", "🌫"], 51: ["毛毛雨", "🌦"], 53: ["毛毛雨", "🌦"], 55: ["毛毛雨", "🌦"],
+    61: ["小雨", "🌧"], 63: ["中雨", "🌧"], 65: ["大雨", "🌧"], 66: ["冻雨", "🌧"], 67: ["冻雨", "🌧"],
+    71: ["小雪", "🌨"], 73: ["中雪", "🌨"], 75: ["大雪", "❄️"], 77: ["雪粒", "🌨"],
+    80: ["阵雨", "🌦"], 81: ["阵雨", "🌦"], 82: ["强阵雨", "⛈"], 85: ["阵雪", "🌨"], 86: ["阵雪", "🌨"],
+    95: ["雷阵雨", "⛈"], 96: ["雷阵雨伴冰雹", "⛈"], 99: ["强雷暴冰雹", "⛈"],
+  };
+  return map[code] || ["天气多变", "🌡"];
+}
+
+function weatherComment(temp, code) {
+  const txt = wmoText(code)[0];
+  if (/雨/.test(txt)) return "出门记得带伞哦☂️";
+  if (/雪/.test(txt)) return "下雪啦，注意保暖🧣";
+  if (/雾/.test(txt)) return "有雾，出门慢点～";
+  if (code === 0 || code === 1) return "天气不错，适合逛店（我说的😎）";
+  if (temp >= 33) return "这也太热了，躲空调房最香～";
+  if (temp <= 5) return "冻成狗的话多穿点🧣";
+  return "温度还行，散个步正合适～";
+}
+
+function detectCity(text) {
+  for (const c of CASUAL_CITY_LIST) if (text.includes(c)) return c;
+  const m = text.match(/([\u4e00-\u9fa5A-Za-z]{2,12}?)(?:的)?(?:天气|气温|温度|几度|冷不冷|热不冷|下雨|下雪|升温|降温)/);
+  if (m && !/^(今|明|昨|现|这|那|你|我|咱|这儿|那儿)/.test(m[1])) return m[1];
+  return null;
+}
+
+function hereLocation(request) {
+  const cf = request && request.cf;
+  if (cf && typeof cf.latitude === "number" && typeof cf.longitude === "number") {
+    return { lat: cf.latitude, lon: cf.longitude, city: cf.city || "你附近" };
+  }
+  return { ask: "你在哪座城市呀？说个地名我就告诉你～比如「上海天气」。" };
+}
+
+async function fetchWeather(where) {
+  try {
+    let lat, lon, city;
+    if (typeof where.lat === "number") {
+      lat = where.lat; lon = where.lon; city = where.city || "你附近";
+    } else {
+      const g = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(where)}&count=1&language=zh&format=json`);
+      const gd = await g.json();
+      const r = gd && gd.results && gd.results[0];
+      if (!r) return null;
+      lat = r.latitude; lon = r.longitude; city = r.name;
+    }
+    const f = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&timezone=auto`);
+    const fd = await f.json();
+    const c = fd && fd.current;
+    if (!c) return null;
+    return { city, temp: Math.round(c.temperature_2m), apparent: Math.round(c.apparent_temperature), humidity: c.relative_humidity_2m, wind: Math.round(c.wind_speed_10m), code: c.weather_code };
+  } catch (_) {
+    return null;
+  }
+}
+
+async function localCasualReply(userText, request) {
+  const raw = String(userText || "");
+  const s = raw.replace(/\s+/g, "").toLowerCase();
+  if (/天气|气温|几度|温度|冷不冷|热不冷|冷吗|热吗|热不热|冷不热|下雨|下雪|升温|降温/.test(s)) {
+    const city = detectCity(s);
+    const where = city || hereLocation(request);
+    if (where && where.ask) return where.ask;
+    const w = where ? await fetchWeather(where) : null;
+    if (!w) return "没查到这地方的天气，换个写法试试？比如「上海天气」。";
+    const we = wmoText(w.code);
+    const feel = w.apparent !== w.temp ? `（体感 ${w.apparent}°C）` : "";
+    return `${w.city}现在 ${w.temp}°C${feel}，${we[0]}${we[1]}。${weatherComment(w.temp, w.code)}`;
+  }
+  if (/(^|[^a-z])(hi|hello|hey|morning|good\s*night|good\s*evening|how\s*are\s*you|what'?s\s*up)\b/.test(s)) {
+    return pickGreeting();
+  }
+  if (/笑话|段子|冷笑话/.test(s)) return pickJoke();
+  const strong = ["吃了吗","吃饭了吗","吃了没","在干嘛","在干啥","在做什么","无聊","陪我聊","聊聊天","闲聊","讲个笑话","说个笑话","来个段子","冷笑话","你是谁","你叫啥","你叫什么","你名字","你多大了","你几岁","你是男是女","男生还是女生","你是机器人吗","你是真人吗","你是ai","你是人工智能吗","你是干嘛的","你做啥的","你是什么东西","你是什么","你心情","你今天心情","心情怎么样"];
+  if (strong.some((w) => s.includes(w.toLowerCase()))) return pickGreeting();
+  // 纯打招呼：去掉招呼词和标点后应当啥也不剩（避免「你好，这个多少钱」被误判）
+  const greet = ["你好","您好","嗨","哈喽","在吗","在不在","有人吗","早上好","早安","上午好","中午好","下午好","晚上好","晚安"];
+  let left = raw;
+  for (const g of greet) left = left.split(g).join("");
+  left = left.replace(/[\s,，。.!！?？~～、()（）]/g, "");
+  if (left.length === 0) return pickGreeting();
+  return null;
+}
+
+function pickGreeting() {
+  const lines = [
+    "我在呢～想聊点啥都行，问天气我也答得上。",
+    "哈哈，这个我接得住～闲聊、看商品，随你挑。",
+    "嗨，我是 Moru～陪你聊天、帮你逛店都行。",
+  ];
+  return lines[Math.floor(Math.random() * lines.length)];
+}
+
+function pickJoke() {
+  const lines = [
+    "许愿池里扔硬币，硬币立住了——它说『我选择留下』。",
+    "为什么设计师不爱吵架？因为一吵就有人喊『你这配色不对！』",
+    "我问我家猫今天天气咋样，它说『喵』——翻译过来大概是『关你喵事』。",
+  ];
+  return lines[Math.floor(Math.random() * lines.length)];
+}
+
+async function localMoruReply(userText, catalog, ctx, request) {
   const text = String(userText || "").trim();
   const low = text.toLowerCase();
   const tools = [];
+
+  // 闲聊 / 天气：本地俏皮接话，不占大模型（仅无 OPENAI 密钥时走这里）
+  const casual = await localCasualReply(userText, request);
+  if (casual) return { reply: casual, tools };
 
   if (["作品集", "珑瀛"].some((k) => text.includes(k)) || low.includes("portfolio")) {
     tools.push({ name: "openPortfolio" });
