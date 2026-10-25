@@ -186,6 +186,9 @@ html.is-booting, html.is-booting body { background: #000 !important; }
   const products = Shop.products;
   const esc = Shop.escapeHtml;
   let index = 0;
+  // 默认态：还没点任何商品，右侧只放 Moru 形象图（跟着鼠标动，没有任何控件）
+  const IDLE_IMAGE = "assets/hero-default.jpg";
+  let selected = false;
   const cards = document.getElementById("cards");
   const heroPhoto = document.getElementById("heroPhoto");
   const heroTitle = document.getElementById("heroTitle");
@@ -259,10 +262,23 @@ html.is-booting, html.is-booting body { background: #000 !important; }
   thumbs.innerHTML = products.map((p) => `
     <button class="thumb" type="button" data-id="${p.id}" style="background-image:url('${p.image}')" aria-label="${esc(p.name)}"></button>`).join("");
 
+  function showIdle() {
+    selected = false;
+    document.getElementById("hero").classList.add("is-idle");
+    document.querySelectorAll(".card").forEach((card) => card.classList.remove("is-on"));
+    document.querySelectorAll(".thumb").forEach((thumb) => thumb.classList.remove("is-on"));
+    heroPhoto.style.backgroundImage = `url('${IDLE_IMAGE}')`;
+    heroPhoto.style.backgroundPosition = "center center";
+    heroTitle.textContent = "";
+    heroSpecs.innerHTML = "";
+  }
+
   function show(next, fade) {
     if (next < 0) next = products.length - 1;
     if (next >= products.length) next = 0;
     index = next;
+    selected = true;
+    document.getElementById("hero").classList.remove("is-idle");
     const product = products[index];
     document.querySelectorAll(".card").forEach((card) => {
       card.classList.toggle("is-on", Number(card.dataset.id) === product.id);
@@ -355,6 +371,8 @@ html.is-booting, html.is-booting body { background: #000 !important; }
   });
 
   document.getElementById("hero").addEventListener("click", (e) => {
+    // 默认态只是一张会跟着鼠标动的图，点了不该展开画册
+    if (!selected) return;
     if (e.target.closest("#inspectBtn")) return;
     openLightbox();
   });
@@ -587,6 +605,7 @@ html.is-booting, html.is-booting body { background: #000 !important; }
       return;
     }
     if (!light && backdrop.classList.contains("open")) return;
+    if (!selected) return; // 默认态没有"当前商品"，左右键不该翻页
     if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
       e.preventDefault();
       show(index - 1, true);
@@ -596,9 +615,11 @@ html.is-booting, html.is-booting body { background: #000 !important; }
     }
   });
 
+  // 只有带 ?id=xx 直接进某件商品时才预选；否则停在默认态（Moru 形象图）
   const requested = parseInt(new URLSearchParams(location.search).get("id"), 10);
   const start = products.findIndex((p) => p.id === requested);
-  show(start >= 0 ? start : 0, false);
+  if (start >= 0) show(start, false);
+  else showIdle();
 
   window.addEventListener("load", () => {
     products.forEach((p) => { new Image().src = p.image; });

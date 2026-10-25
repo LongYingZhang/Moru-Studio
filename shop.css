@@ -330,6 +330,23 @@ img { display: block; max-width: 100%; }
   will-change: transform;
 }
 .hero-photo.is-dim { opacity: .3; }
+
+/* 默认态（还没点任何商品）：右侧只有 Moru 形象图，跟着鼠标动，
+   没有标题 / 参数 / 检视档案 / 全屏提示。图边缘是纯黑，铺在 #000 上不会有接缝 */
+.hero.is-idle {
+  background: #000;
+  cursor: default;
+}
+.hero.is-idle .hero-photo {
+  background-size: contain;
+  background-position: center center;
+  opacity: 1;
+}
+.hero.is-idle .hero-shade,
+.hero.is-idle .hero-center,
+.hero.is-idle .hero-foot {
+  display: none;
+}
 .hero-shade {
   position: absolute;
   inset: 0;
