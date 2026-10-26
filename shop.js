@@ -826,7 +826,8 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
+      // ?v= 换 URL 才能强制已有的 SW 立刻更新为新版（Safari 对同 URL 的更新检查很懒）
+      navigator.serviceWorker.register("/sw.js?v=20261026a").catch(() => {});
     });
   }
 })();
