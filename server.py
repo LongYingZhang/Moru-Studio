@@ -1280,7 +1280,14 @@ class ShopHandler(SimpleHTTPRequestHandler):
         if image_failure:
             note = f"{note}；{image_failure}" if note else image_failure
         self.send_json(
-            200, {"ok": True, "cloud": synced, "images": images, "message": note}
+            200,
+            {
+                "ok": True,
+                "cloud": synced,
+                "images": images,
+                "imageError": image_failure,
+                "message": note,
+            },
         )
 
     def do_POST(self):

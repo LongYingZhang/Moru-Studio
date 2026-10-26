@@ -391,6 +391,9 @@
             "本机已保存，但没同步到线上：" + (result.message || "请检查网络后重点一次"),
             true,
           );
+        } else if (result && result.imageError) {
+          // 商品数据上去了、图没上去，前台会是灰块，必须说清楚
+          showToast("商品已保存，但图片没上线：" + result.imageError, true);
         }
       })
       .catch((error) => {
