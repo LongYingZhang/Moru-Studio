@@ -2359,7 +2359,7 @@ html.is-booting body {
   width: 100%;
   max-width: 44px;
   min-height: 10px;
-  border-radius: 14px;
+  border-radius: 8px;
   background: #ffffff;
 }
 .traffic-bar .bar-val {
