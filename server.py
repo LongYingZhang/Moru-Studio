@@ -301,6 +301,97 @@ def push_catalog_via_wrangler(path):
     return True, "已同步到线上"
 
 
+# ---- 上传图片同步到线上 KV ------------------------------------------------
+# 图片以前是静态资源，后台传完只落在本机 admin/data/uploads/，必须再跑一次
+# deploy-cloudflare.sh 才会真正上线（用户看到的是旧图或灰块）。
+# 现在保存商品时把「本次用到、但还没推过的图」PUT 到 /api/uploads/<文件名>，
+# 线上 /uploads/<文件名> 会优先从 KV 取，于是传完即生效。
+#
+# 已推过的记在 admin/data/uploads/.pushed.json（admin/data 不入库，不会污染仓库）。
+# 没配口令时整个跳过——历史图继续走静态资源，行为与以前一致。
+UPLOADS_PUSHED_FILE = os.path.join(UPLOADS_DIR, ".pushed.json")
+UPLOAD_REF = re.compile(r"^(?:https://[^/]+)?/uploads/([A-Za-z0-9][A-Za-z0-9._-]{2,79})$")
+
+
+def collect_upload_names(value, found=None):
+    """递归找出商品数据里引用到的所有 /uploads/<文件名>。"""
+    if found is None:
+        found = set()
+    if isinstance(value, list):
+        for item in value:
+            collect_upload_names(item, found)
+    elif isinstance(value, dict):
+        for item in value.values():
+            collect_upload_names(item, found)
+    elif isinstance(value, str):
+        match = UPLOAD_REF.match(value.strip())
+        if match:
+            found.add(match.group(1))
+    return found
+
+
+def push_uploads_to_kv(products):
+    """把新用到的上传图写进线上 KV。返回 (成功张数, 失败提示)。"""
+    if not CATALOG_TOKEN:
+        return 0, ""
+    names = collect_upload_names(products)
+    if not names:
+        return 0, ""
+    pushed = read_json(UPLOADS_PUSHED_FILE, [])
+    pushed = set(pushed) if isinstance(pushed, list) else set()
+    pending = sorted(
+        name
+        for name in names
+        if name not in pushed and os.path.isfile(os.path.join(UPLOADS_DIR, name))
+    )
+    if not pending:
+        return 0, ""
+
+    done = 0
+    failure = ""
+    for name in pending:
+        try:
+            with open(os.path.join(UPLOADS_DIR, name), "rb") as file:
+                raw = file.read()
+        except OSError as exc:
+            failure = f"读不到 {name}：{exc}"
+            continue
+        req = urllib_request.Request(
+            SITE_ORIGIN + "/api/uploads/" + name,
+            data=raw,
+            method="PUT",
+            headers={
+                "Content-Type": "application/octet-stream",
+                "X-Catalog-Token": CATALOG_TOKEN,
+                "User-Agent": "moru-shop/1.0",
+            },
+        )
+        try:
+            with urllib_request.urlopen(req, timeout=KV_SYNC_TIMEOUT) as resp:
+                ok = json.loads(resp.read().decode("utf-8") or "{}").get("ok")
+        except urllib_error.HTTPError as exc:
+            detail = ""
+            try:
+                detail = json.loads(exc.read().decode("utf-8")).get("error", "")
+            except Exception:  # noqa: BLE001 - 解析失败不影响错误码判断
+                pass
+            failure = f"图片 {name} 上传失败：HTTP {exc.code} {detail}".strip()
+            continue
+        except Exception as exc:  # noqa: BLE001 - 网络失败不该打断保存
+            failure = f"图片 {name} 上传失败：{exc}"
+            continue
+        if ok:
+            done += 1
+            pushed.add(name)
+
+    if done:
+        try:
+            write_json(UPLOADS_PUSHED_FILE, sorted(pushed))
+        except OSError:
+            pass  # 记不住就下次再推一遍，不影响正确性
+    return done, failure
+
+
 def traffic_today():
     return datetime.now().astimezone().date()
 
@@ -1180,9 +1271,17 @@ class ShopHandler(SimpleHTTPRequestHandler):
             previous = read_json(DATA_FILE, [])
         name_en.apply(products, previous if isinstance(previous, list) else [])
         with data_lock:
-            write_json(DATA_FILE, store_images(products))
+            stored = store_images(products)
+            write_json(DATA_FILE, stored)
         synced, note = push_catalog_to_kv(DATA_FILE)
-        self.send_json(200, {"ok": True, "cloud": synced, "message": note})
+        images, image_failure = push_uploads_to_kv(stored)
+        if images:
+            note = f"{note}，{images} 张新图已上线"
+        if image_failure:
+            note = f"{note}；{image_failure}" if note else image_failure
+        self.send_json(
+            200, {"ok": True, "cloud": synced, "images": images, "message": note}
+        )
 
     def do_POST(self):
         path = self.route()
