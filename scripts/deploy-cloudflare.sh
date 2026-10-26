@@ -9,6 +9,34 @@ cd "$(dirname "$0")/.."
 STAGE=".cf-stage"
 mkdir -p "$STAGE"
 
+# 商品数据与后台上传图，以「真正跑后台的那台机器」为准。
+# 后台跑在 2015（用户就是在那台的 admin 里改商品、传实拍图的），
+# 而部署在 M4 上跑；如果直接用 M4 自己的 admin/data，就会把过期数据和
+# 缺图带上线——2026-10-26 就是这么踩的：后台换了图，线上几个月都是旧图。
+# 所以部署前先把 2015 那份拉过来，连不上才退回本机，并且明确提示。
+SHOP_HOST="${MORU_SHOP_HOST:-zhanglongying@zhanglongyingdeMacBook-Air-2015.local}"
+SHOP_REMOTE_DIR="${MORU_SHOP_DIR:-/Users/zhanglongying/Sites/LONGYING STUDIO}"
+if ssh -o BatchMode=yes -o ConnectTimeout=6 "$SHOP_HOST" true 2>/dev/null; then
+  mkdir -p admin/data/uploads
+  if ssh -o BatchMode=yes "$SHOP_HOST" "cat '$SHOP_REMOTE_DIR/admin/data/products.json'" \
+      > admin/data/products.json.pull 2>/dev/null && [[ -s admin/data/products.json.pull ]]; then
+    mv admin/data/products.json.pull admin/data/products.json
+    echo "商品数据：已从 $SHOP_HOST 取回"
+  else
+    rm -f admin/data/products.json.pull
+    echo "⚠️  取回商品数据失败，沿用本机这份"
+  fi
+  if ssh -o BatchMode=yes "$SHOP_HOST" \
+      "cd '$SHOP_REMOTE_DIR/admin/data/uploads' && tar cf - ." 2>/dev/null \
+      | tar xf - -C admin/data/uploads 2>/dev/null; then
+    echo "上传图：已从 $SHOP_HOST 取回，本机共 $(find admin/data/uploads -type f | wc -l | tr -d ' ') 个"
+  else
+    echo "⚠️  取回上传图失败，沿用本机这份"
+  fi
+else
+  echo "⚠️  连不上 $SHOP_HOST，商品数据与图片用本机这份（可能不是最新的）"
+fi
+
 rsync -a \
   --exclude '.git' \
   --exclude '.cursor' \
