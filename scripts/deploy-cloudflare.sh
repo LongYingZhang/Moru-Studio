@@ -56,6 +56,40 @@ if [[ -d admin/data/uploads ]]; then
   echo "uploads: $(find "$STAGE/uploads" -type f | wc -l | tr -d ' ') 个文件"
 fi
 
+# 线上商品数据里的 /uploads/ 一律补成绝对地址。
+# 原因：网页版有 shop.js 的 assetUrl() 兜底，但**已经装好的旧版 app**里没有这段代码，
+# 相对路径会去请求 127.0.0.1 上不存在的文件，商品图直接空掉。
+# 改成绝对地址后，老版本 app 也能立刻看到后台上传的新图，不必重发 dmg。
+if [[ -f "$STAGE/data/products.json" ]]; then
+  /usr/bin/python3 - "$STAGE/data/products.json" <<'PY'
+import json, sys, pathlib
+
+path = pathlib.Path(sys.argv[1])
+BASE = "https://longying-studio.pages.dev"
+items = json.loads(path.read_text(encoding="utf-8"))
+
+
+def absolute(value):
+    if isinstance(value, str) and value.startswith("/uploads/"):
+        return BASE + value
+    return value
+
+
+for item in items:
+    if not isinstance(item, dict):
+        continue
+    for key in ("image", "cardImage"):
+        if key in item:
+            item[key] = absolute(item[key])
+    for key in ("gallery", "images"):
+        if isinstance(item.get(key), list):
+            item[key] = [absolute(v) for v in item[key]]
+
+path.write_text(json.dumps(items, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+print("商品图路径已补成绝对地址")
+PY
+fi
+
 # Deploy via wrangler.toml (picks up TRAFFIC KV binding)
 npx --yes wrangler pages deploy \
   --project-name longying-studio \
