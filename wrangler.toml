@@ -7,3 +7,8 @@ pages_build_output_dir = ".cf-stage"
 [[kv_namespaces]]
 binding = "TRAFFIC"
 id = "60ad9ef69eae4bc48d1e625cce93737a"
+
+# 线上订单存储（functions/api/orders.js）
+[[kv_namespaces]]
+binding = "MORU_ORDERS"
+id = "970c2287310e4218a5eb8397dfe5f58e"
