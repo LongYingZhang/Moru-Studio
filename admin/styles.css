@@ -353,13 +353,52 @@ body.is-sorting {
 
 .product-copy h2 {
   margin: 0 0 2px;
-  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   color: var(--primary);
   font-size: 16px;
   font-weight: 400;
   line-height: 22px;
+}
+
+.product-name {
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 库存小标签：点一下就在现货/缺货之间切 */
+.stock-chip {
+  flex: none;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 5px;
+  background: var(--surface-high);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 20px;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.stock-chip:hover {
+  background: var(--surface-highest);
+  color: var(--primary);
+}
+
+.stock-chip.is-out {
+  background: #2b2117;
+  color: #d9a45e;
+}
+
+.stock-chip.is-out:hover {
+  background: #3a2c1e;
+  color: #efbe7c;
 }
 
 .product-meta,
@@ -586,6 +625,61 @@ body.is-sorting {
 .field textarea:focus {
   border-color: rgba(255, 255, 255, 0.08);
   background: var(--surface);
+}
+
+/* 库存开关：和输入框同一套色，靠选中态区分 */
+.stock-switch {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 11px;
+  background: var(--surface-low);
+}
+
+.stock-option {
+  flex: 1;
+  height: 34px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.stock-option:hover {
+  background: var(--surface-high);
+  color: var(--primary);
+}
+
+.stock-option.is-on {
+  background: var(--primary);
+  color: #000;
+}
+
+.stock-option.is-on:hover {
+  background: #dedede;
+  color: #000;
+}
+
+.stock-option[data-stock="pre-order"].is-on {
+  background: #2b2117;
+  color: #e8b878;
+}
+
+.stock-option[data-stock="pre-order"].is-on:hover {
+  background: #3a2c1e;
+  color: #f3c98f;
+}
+
+.field-note {
+  margin: 2px 0 0;
+  color: var(--subtle);
+  font-size: 11px;
+  line-height: 1.55;
 }
 
 .field input::placeholder,

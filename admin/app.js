@@ -464,6 +464,7 @@
 
   function productCard(product) {
     const isActive = product.status === "active";
+    const isPreorder = product.stock === "pre-order";
     const id = escapeHTML(product.id);
     const description = product.desc || product.description;
     const descriptionMarkup = description
@@ -479,7 +480,13 @@
             alt="${escapeHTML(product.name)}"
           />
           <div class="product-copy">
-            <h2>${escapeHTML(product.name)}</h2>
+            <h2><span class="product-name">${escapeHTML(product.name)}</span><button
+              class="stock-chip${isPreorder ? " is-out" : ""}"
+              type="button"
+              data-action="stock"
+              data-id="${id}"
+              title="${isPreorder ? "点一下改回现货" : "点一下标记为缺货（顾客仍可下单，按预付款处理）"}"
+            >${isPreorder ? "缺货" : "现货"}</button></h2>
             <p class="product-meta">${escapeHTML(product.dimension || product.dimensions || "未填写尺寸")}${product.material ? ` · ${escapeHTML(product.material)}` : ""}</p>
             ${descriptionMarkup}
             <p class="price">¥${formatPrice(product.price)}</p>
@@ -624,6 +631,15 @@
                 placeholder="输入商品简介，简明叙述设计与工艺"
               >${escapeHTML(product.desc || product.description || "")}</textarea>
             </div>
+
+            <div class="field">
+              <span class="field-label">库存状态</span>
+              <div class="stock-switch" id="stock-switch" role="radiogroup" aria-label="库存状态">
+                <button type="button" class="stock-option" data-stock="in-stock" role="radio" aria-checked="false">现货</button>
+                <button type="button" class="stock-option" data-stock="pre-order" role="radio" aria-checked="false">缺货 · 可预付</button>
+              </div>
+              <p class="field-note">标成缺货后顾客照样能下单，结账时会看到「这是预付款，到货立刻发出」的提示。</p>
+            </div>
           </div>
 
           <button class="primary-button" id="submit-product" type="submit">
@@ -645,8 +661,26 @@
       .filter(Boolean)
       .slice(0, SHOTS_MAX);
     const status = existingProduct?.status === "inactive" ? "inactive" : "active";
+    let stock = existingProduct?.stock === "pre-order" ? "pre-order" : "in-stock";
     let processingImage = false;
     const accept = "image/png,image/jpeg,image/webp,image/gif";
+
+    const stockSwitch = document.getElementById("stock-switch");
+    const stockOptions = [...stockSwitch.querySelectorAll("[data-stock]")];
+    function paintStock() {
+      stockOptions.forEach((button) => {
+        const on = button.dataset.stock === stock;
+        button.classList.toggle("is-on", on);
+        button.setAttribute("aria-checked", on ? "true" : "false");
+      });
+    }
+    stockSwitch.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-stock]");
+      if (!button) return;
+      stock = button.dataset.stock;
+      paintStock();
+    });
+    paintStock();
 
     const nameInput = document.getElementById("product-name");
     const savedName = existingProduct?.name || "";
@@ -821,6 +855,7 @@
         material: String(formData.get("material") || "").trim(),
         desc: String(formData.get("desc") || "").trim(),
         status,
+        stock,
         image,
         gallery,
         updatedAt: new Date().toISOString(),
@@ -1561,6 +1596,29 @@
       if (commitProducts(nextProducts)) {
         renderProducts();
         showToast(nextStatus === "active" ? "商品已上架。" : "商品已下架。");
+      }
+      return;
+    }
+
+    if (actionButton.dataset.action === "stock") {
+      const goingOut = product.stock !== "pre-order";
+      const nextProducts = products.map((candidate) =>
+        candidate.id === product.id
+          ? {
+              ...candidate,
+              stock: goingOut ? "pre-order" : "in-stock",
+              updatedAt: new Date().toISOString(),
+            }
+          : candidate,
+      );
+
+      if (commitProducts(nextProducts)) {
+        renderProducts();
+        showToast(
+          goingOut
+            ? "已标记缺货，顾客下单时按预付款处理。"
+            : "已改回现货。",
+        );
       }
     }
   });

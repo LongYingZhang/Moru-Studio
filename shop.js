@@ -118,6 +118,9 @@
       dimension: product.dimension || product.dimensions || "",
       material: product.material || "",
       status: product.status === "inactive" ? "inactive" : "active",
+      // stock 只管「有没有现货」，和 status（上架/下架）是两件事：
+      // 缺货的商品照样能下单，只是要告诉顾客这是预付款。
+      stock: product.stock === "pre-order" ? "pre-order" : "in-stock",
       image: assetUrl(image),
       images: [image]
         .concat(Array.isArray(product.gallery) ? product.gallery : [])
@@ -283,6 +286,20 @@
 
   function lineSpec(product) {
     return product.lineSpec || product.material || product.nameEn || "";
+  }
+
+  // 缺货 = 可以下单但要预付，不是「不能买」，所以只有文案差异，没有拦截
+  function isPreorder(product) {
+    return !!product && product.stock === "pre-order";
+  }
+
+  function stockLabel(product) {
+    return isPreorder(product) ? "缺货 · 预付款" : "现货";
+  }
+
+  // 订单里有没有需要等货的商品
+  function hasPreorder(lines) {
+    return (lines || []).some((line) => isPreorder(line && line.product));
   }
 
   function escapeHtml(text) {
@@ -695,6 +712,9 @@
     refreshCount,
     addedNotice,
     lineSpec,
+    isPreorder,
+    stockLabel,
+    hasPreorder,
     escapeHtml,
     contact: CONTACT,
     saveLastOrder,

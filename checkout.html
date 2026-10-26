@@ -60,7 +60,7 @@ html.is-splash .boot { position: fixed; inset: 0; z-index: 9999; background: #00
 @media (orientation: portrait) { html.is-splash .boot { background-image: url("assets/splash/phone.webp"); } }
 html.is-splash .boot-stage { visibility: hidden; }
 </style>
-<link rel="stylesheet" href="shop.css?v=20261025b">
+<link rel="stylesheet" href="shop.css?v=20261026a">
 <link rel="stylesheet" href="moru.css?v=20261024h">
 <style>
 html, body { margin: 0; }
@@ -162,6 +162,19 @@ document.documentElement.classList.add("is-booting");
       <button class="btn light" id="qrPaid" type="button">我已支付 <span>→</span></button>
       <button class="btn dark" id="qrCancel" type="button">取消</button>
     </div>
+  </div>
+</div>
+
+<div class="backdrop pre-backdrop" id="preBackdrop" aria-hidden="true">
+  <div class="pre-sheet" role="dialog" aria-modal="true" aria-labelledby="preTitle">
+    <div class="pre-head">
+      <span class="pre-kicker">预付款订单</span>
+      <b id="preAmount"></b>
+    </div>
+    <h2 class="pre-title" id="preTitle">这批货要等一等</h2>
+    <p class="pre-body" id="preBody"></p>
+    <p class="pre-note">现货的部分会先发。缺货商品一到货，我们立刻打包，火速送到您手中。</p>
+    <button class="btn light" id="preOk" type="button">我知道了 <span>→</span></button>
   </div>
 </div>
 
@@ -321,8 +334,13 @@ document.documentElement.classList.add("is-booting");
       phone: form.elements.phone.value.trim(),
       address: form.elements.address.value.trim(),
       items: lines.map(({ product, qty }) => ({
-        name: product.name, image: product.image, price: product.price, qty
-      }))
+        name: product.name,
+        image: product.image,
+        price: product.price,
+        qty,
+        stock: product.stock === "pre-order" ? "pre-order" : "in-stock"
+      })),
+      preorder: lines.some(({ product }) => Shop.isPreorder(product))
     });
     return result;
   }
@@ -331,6 +349,32 @@ document.documentElement.classList.add("is-booting");
     qrBackdrop.classList.remove("open");
     qrBackdrop.setAttribute("aria-hidden", "true");
   }
+
+  // 缺货商品的预付款提示：订单已经建好，只是要把「要等货」这件事说清楚
+  const preBackdrop = document.getElementById("preBackdrop");
+  const preBody = document.getElementById("preBody");
+  const preOk = document.getElementById("preOk");
+
+  function showPreorder(waiting) {
+    const names = waiting
+      .map(({ product, qty }) => `<b>${esc(product.name)} ×${qty}</b>`)
+      .join("、");
+    preBody.innerHTML = `订单里的 ${names} 目前缺货，你付的是预付款。`;
+    document.getElementById("preAmount").textContent = Shop.formatPrice(total, true);
+    preBackdrop.classList.add("open");
+    preBackdrop.setAttribute("aria-hidden", "false");
+    setTimeout(() => preOk.focus(), 60);
+  }
+
+  preOk.addEventListener("click", () => {
+    preBackdrop.classList.remove("open");
+    preBackdrop.setAttribute("aria-hidden", "true");
+    finish("已提交", "预付款订单 " + currentNo + " 已记录，到货后立刻发出");
+  });
+
+  preBackdrop.addEventListener("click", (e) => {
+    if (e.target === preBackdrop) preOk.click();
+  });
 
   function finish(doneLabel, doneText) {
     submit.disabled = true;
@@ -350,7 +394,11 @@ document.documentElement.classList.add("is-booting");
 
   document.getElementById("qrCancel").addEventListener("click", closeQr);
   qrBackdrop.addEventListener("click", (e) => { if (e.target === qrBackdrop) closeQr(); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeQr(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (preBackdrop.classList.contains("open")) preOk.click();
+    else closeQr();
+  });
   const qrPaid = document.getElementById("qrPaid");
   qrPaid.addEventListener("click", async () => {
     qrPaid.disabled = true;
@@ -359,7 +407,12 @@ document.documentElement.classList.add("is-booting");
     try {
       await placeOrder(currentNo);
       closeQr();
-      finish("已提交", "订单 " + currentNo + " 已提交，确认收款后会尽快发货");
+      const waiting = lines.filter(({ product }) => Shop.isPreorder(product));
+      if (waiting.length) {
+        showPreorder(waiting);
+      } else {
+        finish("已提交", "订单 " + currentNo + " 已提交，确认收款后会尽快发货");
+      }
     } catch (err) {
       qrStatus.textContent = err.message;
       qrStatus.classList.add("bad");

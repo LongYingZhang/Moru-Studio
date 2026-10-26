@@ -81,6 +81,8 @@ export async function onRequestPost(context) {
       price: Number(product.price) || 0,
       qty,
       image: image.startsWith("data:") ? "" : image,
+      // 快照建单那一刻的库存状态：以后商品补货了，这单仍然是预付款单
+      stock: product.stock === "pre-order" ? "pre-order" : "in-stock",
     });
   }
   if (lines.length === 0) return json({ error: "购物袋是空的" }, 400);
@@ -97,6 +99,8 @@ export async function onRequestPost(context) {
     name,
     phone,
     address,
+    // 有缺货商品 = 预付款单，发货时要等货
+    preorder: lines.some((line) => line.stock === "pre-order"),
   };
 
   // 先写单条，再维护索引；索引挂了也能靠 prefix list 兜底，所以不追求原子
@@ -193,13 +197,17 @@ async function indexAdd(env, no) {
 
 function orderRow(o, token) {
   const items = (o.items || [])
-    .map((l) => `${esc(l.name)} ×${esc(l.qty)}`)
+    .map((l) => {
+      const tag = l.stock === "pre-order" ? "<b class='wait'>预付</b>" : "";
+      return `${esc(l.name)} ×${esc(l.qty)}${tag}`;
+    })
     .join("、");
   const status = { pending: "待收款", paid: "已收款", shipped: "已发货" }[o.status] || o.status;
   const method = { wechat: "微信", alipay: "支付宝", card: "银行卡" }[o.method] || o.method;
   const when = String(o.createdAt || "").replace("T", " ").slice(0, 16);
+  const flag = o.preorder ? "<br><span class='tag-wait'>含缺货 · 预付款</span>" : "";
   return `<tr>
-    <td class="no">${esc(o.no)}</td>
+    <td class="no">${esc(o.no)}${flag}</td>
     <td>${esc(when)}</td>
     <td>${esc(status)}</td>
     <td>${esc(method)}</td>
@@ -230,6 +238,10 @@ function page(title, body) {
   .no { font-variant-numeric:tabular-nums; font-weight:600; white-space:nowrap; }
   .money { font-variant-numeric:tabular-nums; white-space:nowrap; }
   .muted { color:#8a8a86; }
+  .wait { display:inline-block; margin-left:4px; padding:0 4px; border-radius:3px;
+          background:#f3e3c9; color:#8a5a12; font-size:11px; font-weight:500; }
+  .tag-wait { display:inline-block; margin-top:5px; padding:1px 6px; border-radius:4px;
+              background:#f3e3c9; color:#8a5a12; font-size:11px; font-weight:500; }
   code { background:#eee; padding:1px 5px; border-radius:4px; }
   @media (max-width:640px) {
     body { padding:18px 12px 40px; }

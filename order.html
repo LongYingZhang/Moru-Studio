@@ -60,7 +60,7 @@ html.is-splash .boot { position: fixed; inset: 0; z-index: 9999; background: #00
 @media (orientation: portrait) { html.is-splash .boot { background-image: url("assets/splash/phone.webp"); } }
 html.is-splash .boot-stage { visibility: hidden; }
 </style>
-<link rel="stylesheet" href="shop.css?v=20261025b">
+<link rel="stylesheet" href="shop.css?v=20261026a">
 <link rel="stylesheet" href="moru.css?v=20261024h">
 <style>
 html, body { margin: 0; }
@@ -103,6 +103,13 @@ document.documentElement.classList.add("is-booting");
         </span>
         <h2>订单已提交</h2>
         <p>我们确认收款后会尽快为你发货</p>
+      </section>
+
+      <section class="receipt-panel preorder-panel" id="preorderPanel" hidden>
+        <div class="panel-head">
+          <span class="block-label preorder-label">预付款说明</span>
+        </div>
+        <p class="preorder-text">这单里有缺货商品，你付的是预付款。商品一到货我们立刻打包，火速送到您手中；现货部分会先发出。</p>
       </section>
 
       <section class="receipt-panel">
@@ -171,11 +178,15 @@ document.documentElement.classList.add("is-booting");
     <div class="order-line">
       <img alt="${esc(item.name)}" src="${esc(item.image || "")}">
       <div>
-        <p>${esc(item.name)}</p>
+        <p>${esc(item.name)}${item.stock === "pre-order" ? '<span class="stock-tag is-out">缺货 · 预付款</span>' : ""}</p>
         <small>${Shop.formatPrice(item.price)} × ${item.qty}</small>
       </div>
       <b>${Shop.formatPrice(item.price * item.qty)}</b>
     </div>`).join("");
+
+  if (order.preorder || items.some((item) => item.stock === "pre-order")) {
+    document.getElementById("preorderPanel").hidden = false;
+  }
 
   const toast = document.getElementById("addedToast");
   let toastTimer = 0;

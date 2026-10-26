@@ -60,7 +60,7 @@ html.is-splash .boot { position: fixed; inset: 0; z-index: 9999; background: #00
 @media (orientation: portrait) { html.is-splash .boot { background-image: url("assets/splash/phone.webp"); } }
 html.is-splash .boot-stage { visibility: hidden; }
 </style>
-<link rel="stylesheet" href="shop.css?v=20261025b">
+<link rel="stylesheet" href="shop.css?v=20261026a">
 <link rel="stylesheet" href="moru.css?v=20261024h">
 <style>
 html, body { margin: 0; }
@@ -130,7 +130,7 @@ document.documentElement.classList.add("is-booting");
       return `<article class="line">
         <div class="line-photo"><img alt="${esc(product.name)}" src="${product.image}"></div>
         <div>
-          <h2>${esc(product.name)}</h2>
+          <h2>${esc(product.name)}<span class="stock-tag ${Shop.isPreorder(product) ? "is-out" : "is-in"}">${Shop.stockLabel(product)}</span></h2>
           ${spec ? `<p>规格：${esc(spec)}</p>` : ""}
           <p>单价：${Shop.formatPrice(product.price)}</p>
         </div>
