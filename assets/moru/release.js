@@ -2,9 +2,9 @@
 // Moru 助手读取这个文件判断有没有新版本（跨域 script，免 CORS）；
 // 桌面版自更新也读它：dmgUrl 是下载地址，sha256 用来校验下到的包。
 window.__MORU_RELEASE__ = {
-  "version": "1.0.10",
+  "version": "1.0.11",
   "dmgUrl": "https://longying-studio.pages.dev/download/Moru-Studio.dmg",
-  "sha256": "472ff4c5777029fe10c3e80c91fce3a9515587622ea2398db33f5ef97cd98030",
-  "note": "主屏幕图标换成纯黑白，更干净",
+  "sha256": "31ea7788f22d7c025264801543d23917b118cf28f10cfde137ba025ae7add6ed",
+  "note": "缺货商品标注与预付款提示",
   "publishedAt": "2026-10-26"
 };
