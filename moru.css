@@ -440,25 +440,25 @@
   display: block;
   min-width: 0;
 }
-/* 行内链接：系统蓝 + 下划线，跟正文同一行 */
+/* 行内链接：纯白 + 下划线，跟正文同一行（不用系统蓝，跟整体中性色统一） */
 .moru-update-link {
-  color: #4c9aff;
+  color: #ffffff;
   font-weight: 500;
   text-decoration: underline;
   text-underline-offset: 2.5px;
   white-space: nowrap;
 }
-.moru-update-link:hover { color: #6fb2ff; }
+.moru-update-link:hover { color: #bfbfbf; }
 
-/* 回答里的行内链接（版本问答用）：同款蓝色 + 下划线 */
+/* 回答里的行内链接（版本问答用）：同款纯白 + 下划线 */
 .moru-msg-link {
-  color: #4c9aff;
+  color: #ffffff;
   font-weight: 500;
   text-decoration: underline;
   text-underline-offset: 2.5px;
   white-space: nowrap;
 }
-.moru-msg-link:hover { color: #6fb2ff; }
+.moru-msg-link:hover { color: #bfbfbf; }
 
 /* 还没开始聊天时：藏掉问候卡，气泡就变成「一行提示 + 输入框」 */
 .moru-root.is-update:not(.has-chat):not(.is-thinking) .moru-bubble {
