@@ -316,7 +316,10 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(nextProducts),
     });
-    if (response.status === 401) return lockOut();
+    if (response.status === 401) {
+      lockOut();
+      throw new Error("登录已过期，请重新登录。");
+    }
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
   }
 
@@ -372,10 +375,17 @@
   }
 
   function commitProducts(nextProducts) {
+    // 先改界面再存盘的话，一旦 PUT 失败，后台会显示「已改」但服务端还是旧数据，
+    // 前台和 app 当然不会变。所以失败必须回滚，别让人误以为存上了。
+    const previous = products;
     products = nextProducts;
     saveLocal(nextProducts);
-    pushToServer(nextProducts).catch(() => {
-      showToast("同步到前台失败，请确认网站服务正在运行。", true);
+    pushToServer(nextProducts).catch((error) => {
+      products = previous;
+      saveLocal(previous);
+      renderProducts();
+      const reason = error && error.message ? error.message : "请确认网站服务正在运行。";
+      showToast("保存失败，改动已撤回：" + reason, true);
     });
     return true;
   }
