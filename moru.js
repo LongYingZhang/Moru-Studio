@@ -271,6 +271,39 @@
     link.addEventListener("click", dismiss);
   }
 
+  /* 网页版专属：每次进来都在聊天框提示下载桌面端。
+     桌面 app 用户自己就是软件版，不需要这条；且链接带 target=_blank，
+     shop.js 不会把它当站内跳转拦截，点一下开新标签直接下 dmg。
+     不写 localStorage「已读」，所以每次访问都弹。 */
+  function showDownloadCta(rel) {
+    if (root.querySelector(".moru-download-cta")) return;
+    const ver = (rel && rel.version) || "1.0.11";
+    const dmg = (rel && rel.dmgUrl) || "https://longying-studio.pages.dev/download/Moru-Studio.dmg";
+    const el = document.createElement("div");
+    el.className = "moru-update moru-download-cta";
+    el.setAttribute("role", "status");
+    const text = document.createElement("div");
+    text.className = "moru-update-text";
+    // 桌面版目前只支持 macOS（Apple 芯片）。Windows 访客只告知现状，不再给下载链接，
+    // 否则会下到一个用不了的 .dmg。
+    const isWindows = /Windows\sNT/.test(navigator.userAgent || "");
+    if (isWindows) {
+      text.textContent = "Moru Studio 桌面版目前仅支持 macOS（Apple 芯片），Windows 版敬请期待。";
+    } else {
+      text.textContent = `Moru Studio v${ver} 桌面端已就绪，`;
+      const link = document.createElement("a");
+      link.className = "moru-update-link";
+      link.href = dmg;
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.textContent = "点击这里去下载";
+      text.appendChild(link);
+    }
+    el.appendChild(text);
+    bubble.insertBefore(el, bubble.firstChild);
+    root.classList.add("is-update");
+  }
+
   /* 线上最新版本清单（跨域 script，免 CORS）。
      force = true 时无视缓存重新拉——问「是不是最新版」必须拿最新的，
      否则 app 一直开着，答案还是启动那一刻的旧数据。 */
@@ -292,6 +325,8 @@
 
   function maybeShowUpdate(rel) {
     if (!rel || !rel.version) return;
+    // 网页版：每次进来都提示下载桌面端（桌面 app 自己就是软件版，无需此提示）
+    if (!inDesktopApp()) { showDownloadCta(rel); return; }
     // 桌面版 app 里，打包时会把「这一版自己是几点几」写进 app 的 moru.js 首行。
     // 已经装上的版本 >= 清单版本，就没什么可更新的，别再提示（否则装完就弹自己）。
     const self = window.__MORU_APP_VERSION__ || null;

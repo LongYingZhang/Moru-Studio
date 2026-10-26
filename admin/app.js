@@ -133,6 +133,10 @@
   let trafficRange = "7";
   let trafficCache = null;
   let trafficPoll = 0;
+  let aiUsageCache = null;
+  let aiUsageAt = 0;
+  let aiUsageLoading = false;
+  let aiUsageError = false;
   let auth = { setup: true, authed: false };
   let toastTimer = 0;
   let orderPoll = 0;
@@ -1290,19 +1294,66 @@
             <div class="panel-kicker">
               <div>
                 <h2>Moru 助手用量</h2>
-                <p class="traffic-note" style="margin-top:4px">公网 Moru 用本地回答，不走付费模型</p>
+                <p class="traffic-note" style="margin-top:4px">2015 上真正调 DeepSeek 的消耗</p>
               </div>
               <span>AI</span>
             </div>
-            <div class="token-grid">
-              <article><span>本期总用量</span><b>0</b><small>尚未接入</small></article>
-              <article><span>单次均耗</span><b>0</b><small>无调用记录</small></article>
-              <article><span>额度成本</span><b>0</b><small>公网不扣费</small></article>
-            </div>
-            <p class="traffic-note">2015 上的 DeepSeek 用量还没有接到这块。这里不会显示示意数字。</p>
+            <div data-ai-body>${aiUsageCardHTML()}</div>
           </section>
         </div>
       </section>`;
+    refreshAiUsage();
+  }
+
+  function aiUsageCardHTML() {
+    const d = aiUsageCache;
+    const fmt = (n) => Number(n || 0).toLocaleString("zh-CN");
+    if (!d) {
+      const note = aiUsageError
+        ? "读不到用量：确认 2015 后台服务在运行（python3 server.py）。"
+        : "正在读取 2015 上的 DeepSeek 用量…";
+      return `
+        <div class="token-grid">
+          <article><span>本期总用量</span><b>—</b><small>${aiUsageError ? "读取失败" : "读取中…"}</small></article>
+          <article><span>单次均耗</span><b>—</b><small>${aiUsageError ? "读取失败" : "读取中…"}</small></article>
+          <article><span>额度成本</span><b>—</b><small>${aiUsageError ? "读取失败" : "读取中…"}</small></article>
+        </div>
+        <p class="traffic-note">${note}</p>`;
+    }
+    const calls = Number(d.calls || 0);
+    const cost = Number(d.cost || 0);
+    const costText = cost >= 0.01 ? `¥${cost.toFixed(2)}` : `¥${cost.toFixed(4)}`;
+    return `
+      <div class="token-grid">
+        <article><span>本期总用量</span><b>${fmt(d.total_tokens)}</b><small>${calls ? `本月 ${fmt(calls)} 次调用` : "本月还没有调用"}</small></article>
+        <article><span>单次均耗</span><b>${calls ? fmt(Math.round(d.avg_tokens)) : "—"}</b><small>tokens / 次</small></article>
+        <article><span>额度成本</span><b>${costText}</b><small>按 ¥${d.price_in}/M 入 · ¥${d.price_out}/M 出</small></article>
+      </div>
+      <p class="traffic-note">${d.since ? `统计自 ${escapeHTML(d.since)} 起` : "实时统计"}，只计 2015 上真正调 DeepSeek 的次数。</p>`;
+  }
+
+  function paintAiUsage() {
+    const body = app.querySelector("[data-ai-body]");
+    if (body) body.innerHTML = aiUsageCardHTML();
+  }
+
+  async function refreshAiUsage(force = false) {
+    if (aiUsageLoading) return;
+    if (!force && Date.now() - aiUsageAt < 15000) return;
+    aiUsageLoading = true;
+    try {
+      const response = await fetch("/api/ai-usage", { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      aiUsageCache = await response.json();
+      aiUsageError = false;
+    } catch (error) {
+      aiUsageCache = null;
+      aiUsageError = true;
+    } finally {
+      aiUsageAt = Date.now();
+      aiUsageLoading = false;
+      paintAiUsage();
+    }
   }
 
   function stopTrafficPoll() {

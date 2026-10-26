@@ -34,6 +34,7 @@ ORDERS_FILE = os.path.join(DATA_DIR, "orders.json")
 AUTH_FILE = os.path.join(DATA_DIR, "auth.json")
 SESSIONS_FILE = os.path.join(DATA_DIR, "sessions.json")
 TRAFFIC_FILE = os.path.join(DATA_DIR, "traffic.json")
+AI_USAGE_FILE = os.path.join(DATA_DIR, "ai-usage.json")
 UPLOADS_DIR = os.path.join(DATA_DIR, "uploads")
 ENV_FILE = os.path.join(SHOP_DIR, ".env")
 PORT = int(os.environ.get("PORT", "8787"))
@@ -44,8 +45,10 @@ API_PATH = "/api/products"
 MORU_CHAT_PATH = "/api/moru/chat"
 TRAFFIC_HIT_PATH = "/api/traffic/hit"
 TRAFFIC_PATH = "/api/traffic"
+AI_USAGE_PATH = "/api/ai-usage"
 TRAFFIC_ONLINE_SEC = 5 * 60
 TRAFFIC_KEEP_DAYS = 90
+AI_USAGE_KEEP_DAYS = 120
 TRAFFIC_SID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
 TRAFFIC_PAGES = {
     "index.html": "首页画册",
@@ -1022,6 +1025,48 @@ def estimate_moru_tokens(prompt_text, completion_text):
     return max(1, len(prompt_text or "") + len(completion_text or ""))
 
 
+def record_ai_usage(prompt_tokens, completion_tokens, total_tokens):
+    """每次真正调用 DeepSeek 成功后累加全局用量（线程安全、原子落盘）。
+
+    只保留最近 AI_USAGE_KEEP_DAYS 天，文件不会无限长。
+    公网（Cloudflare）的 Moru 走本地回答、不调模型，所以这里只统计 2015 本机这份。
+    """
+    p = max(0, int(prompt_tokens or 0))
+    c = max(0, int(completion_tokens or 0))
+    t = max(0, int(total_tokens or 0))
+    if t <= 0:
+        t = p + c
+    if t <= 0:
+        return
+    day = datetime.now().astimezone().date().isoformat()
+    with data_lock:
+        data = read_json(AI_USAGE_FILE, {})
+        if not isinstance(data, dict):
+            data = {}
+        for key in ("calls", "prompt_tokens", "completion_tokens", "total_tokens"):
+            data[key] = int(data.get(key) or 0)
+        data["calls"] += 1
+        data["prompt_tokens"] += p
+        data["completion_tokens"] += c
+        data["total_tokens"] += t
+        data.setdefault("since", day)
+        days = data.get("days")
+        if not isinstance(days, dict):
+            days = {}
+        bucket = days.get(day)
+        if not isinstance(bucket, dict):
+            bucket = {"calls": 0, "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        bucket["calls"] = int(bucket.get("calls") or 0) + 1
+        bucket["prompt_tokens"] = int(bucket.get("prompt_tokens") or 0) + p
+        bucket["completion_tokens"] = int(bucket.get("completion_tokens") or 0) + c
+        bucket["total_tokens"] = int(bucket.get("total_tokens") or 0) + t
+        days[day] = bucket
+        keep = sorted(days.keys())[-AI_USAGE_KEEP_DAYS:]
+        data["days"] = {key: days[key] for key in keep}
+        data["updated"] = datetime.now().astimezone().isoformat(timespec="seconds")
+        write_json(AI_USAGE_FILE, data)
+
+
 class ShopHandler(SimpleHTTPRequestHandler):
     extensions_map = {
         **SimpleHTTPRequestHandler.extensions_map,
@@ -1255,6 +1300,8 @@ class ShopHandler(SimpleHTTPRequestHandler):
             return self.send_json(200, orders)
         if path == TRAFFIC_PATH:
             return self.get_traffic()
+        if path == AI_USAGE_PATH:
+            return self.get_ai_usage()
         return super().do_GET()
 
     def do_PUT(self):
@@ -1502,6 +1549,59 @@ class ShopHandler(SimpleHTTPRequestHandler):
         ]
         self.send_json(200, empty)
 
+    def get_ai_usage(self):
+        """Moru 助手（DeepSeek）累计用量，供后台「访问监控」页显示。"""
+        if not self.require_auth():
+            return
+        with data_lock:
+            data = read_json(AI_USAGE_FILE, {})
+        if not isinstance(data, dict):
+            data = {}
+        days = data.get("days") if isinstance(data.get("days"), dict) else {}
+
+        # 本期 = 当前自然月
+        month_prefix = datetime.now().astimezone().strftime("%Y-%m")
+        period = {"calls": 0, "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        for key, bucket in days.items():
+            if isinstance(bucket, dict) and str(key).startswith(month_prefix):
+                for field in period:
+                    period[field] += int(bucket.get(field) or 0)
+        # 本月还没按天记录、但历史有量：退化为累计值，至少不误显示 0
+        if period["calls"] == 0 and int(data.get("calls") or 0) > 0:
+            for field in period:
+                period[field] = int(data.get(field) or 0)
+
+        try:
+            price_in = float(os.environ.get("MORU_PRICE_IN") or 2.0)
+        except (TypeError, ValueError):
+            price_in = 2.0
+        try:
+            price_out = float(os.environ.get("MORU_PRICE_OUT") or 3.0)
+        except (TypeError, ValueError):
+            price_out = 3.0
+        cost = (
+            period["prompt_tokens"] / 1_000_000 * price_in
+            + period["completion_tokens"] / 1_000_000 * price_out
+        )
+        avg = (period["total_tokens"] / period["calls"]) if period["calls"] else 0
+
+        self.send_json(200, {
+            "ok": True,
+            "connected": int(data.get("calls") or 0) > 0,
+            "period": "month",
+            "calls": period["calls"],
+            "prompt_tokens": period["prompt_tokens"],
+            "completion_tokens": period["completion_tokens"],
+            "total_tokens": period["total_tokens"],
+            "avg_tokens": round(avg, 1),
+            "cost": round(cost, 4),
+            "currency": "CNY",
+            "price_in": price_in,
+            "price_out": price_out,
+            "since": data.get("since") or "",
+            "updated": data.get("updated") or "",
+        })
+
     def traffic_hit(self):
         # 本机 / 局域网不计；公网打点走 Cloudflare Pages Function + KV
         body = self.read_body(MAX_SMALL_BODY)
@@ -1619,13 +1719,25 @@ class ShopHandler(SimpleHTTPRequestHandler):
 
             # DeepSeek 成功后累加本次 input+output token
             if usage:
+                prompt_tok = int(usage.get("prompt_tokens") or 0)
+                completion_tok = int(usage.get("completion_tokens") or 0)
                 total = int(usage.get("total_tokens") or 0)
                 if total <= 0:
-                    total = int(usage.get("prompt_tokens") or 0) + int(usage.get("completion_tokens") or 0)
+                    total = prompt_tok + completion_tok
             else:
                 prompt_blob = "\n".join(m.get("content") or "" for m in llm_messages)
+                prompt_tok = len(prompt_blob)
+                completion_tok = len(reply_text)
                 total = estimate_moru_tokens(prompt_blob, reply_text)
             moru_rate_limit.add_tokens(ip, total)
+            try:
+                record_ai_usage(prompt_tok, completion_tok, total)
+            except Exception as usage_err:
+                try:
+                    sys.stderr.write(f"[moru] 记录用量失败：{type(usage_err).__name__}\n")
+                    sys.stderr.flush()
+                except Exception:
+                    pass
         except urllib_error.HTTPError as err:
             log_moru_upstream_error(err)
             try:

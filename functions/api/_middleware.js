@@ -15,7 +15,12 @@ function isAllowedOrigin(origin) {
   if (!origin) return false;
   if (ALLOWED.test(origin)) return true;
   // 本机：任意端口都算（app 的端口是随机的）
-  return /^http:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(origin);
+  if (/^http:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(origin)) return true;
+  // 局域网后台：2015 那台固定在 192.168.x.x:8787，或从本机用 *.local 访问。
+  // 仅放开私有网段，数据仍由 ADMIN_TOKEN 口令保护，不会裸奔。
+  if (/^http:\/\/192\.168\.\d+\.\d+(:\d+)?$/.test(origin)) return true;
+  if (/^http:\/\/[\w-]+\.local(:\d+)?$/.test(origin)) return true;
+  return false;
 }
 
 export async function onRequest(context) {
