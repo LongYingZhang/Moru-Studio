@@ -47,6 +47,15 @@ if [[ -f admin/data/products.json ]]; then
   cp admin/data/products.json "$STAGE/data/products.json"
 fi
 
+# 后台上传的商品图：server.py 存到 admin/data/uploads/，商品数据里的路径是
+# /uploads/<hash>.jpg。admin/ 整体被 exclude，所以要单独同步到站点根的 uploads/，
+# 否则线上命中不了，Pages 会 SPA fallback 返回 index.html（200 但 text/html）。
+if [[ -d admin/data/uploads ]]; then
+  mkdir -p "$STAGE/uploads"
+  rsync -a admin/data/uploads/ "$STAGE/uploads/"
+  echo "uploads: $(find "$STAGE/uploads" -type f | wc -l | tr -d ' ') 个文件"
+fi
+
 # Deploy via wrangler.toml (picks up TRAFFIC KV binding)
 npx --yes wrangler pages deploy \
   --project-name longying-studio \

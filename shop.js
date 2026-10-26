@@ -118,14 +118,15 @@
       dimension: product.dimension || product.dimensions || "",
       material: product.material || "",
       status: product.status === "inactive" ? "inactive" : "active",
-      image,
+      image: assetUrl(image),
       images: [image]
         .concat(Array.isArray(product.gallery) ? product.gallery : [])
+        .map(assetUrl)
         .filter((src) => typeof src === "string" && src)
         .slice(0, 4),
       cardBg: product.cardBg || "#F3F3F1",
       cardInk: product.cardInk === "light" || product.cardInk === "dark" ? product.cardInk : "",
-      cardImage: product.cardImage || image,
+      cardImage: assetUrl(product.cardImage || image),
       cardFace: product.cardFace || "",
       cardPhoto:
         product.cardPhoto ||
@@ -134,13 +135,21 @@
     };
   }
 
-  // 桌面版 app 用内置服务跑在 127.0.0.1（没有后端），商品接口改走线上站点
+  // 桌面版 app 用内置服务跑在 127.0.0.1（没有后端），接口和上传图改走线上站点
   const IS_LOCAL_SHELL =
     location.protocol === "file:" ||
     /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
-  const PRODUCTS_API =
-    (IS_LOCAL_SHELL ? "https://longying-studio.pages.dev" : "") + "/api/products";
+  const SITE_ORIGIN = "https://longying-studio.pages.dev";
+  const PRODUCTS_API = (IS_LOCAL_SHELL ? SITE_ORIGIN : "") + "/api/products";
   const PORTFOLIO_URL = "https://zhanglongying.pages.dev";
+
+  // 后台上传的商品图落在站点 /uploads/ 下（/assets/ 那些是仓库里自带的）。
+  // app 包里从不含 uploads，所以本地壳里把它改写成线上绝对地址，
+  // 否则会去请求 127.0.0.1 上不存在的文件，图直接空掉。
+  function assetUrl(src) {
+    const s = String(src == null ? "" : src);
+    return IS_LOCAL_SHELL && s.indexOf("/uploads/") === 0 ? SITE_ORIGIN + s : s;
+  }
   let serverSnapshot = null;
 
   function parseProducts(text) {
