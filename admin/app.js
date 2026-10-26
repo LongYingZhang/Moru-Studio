@@ -1160,11 +1160,11 @@
     });
     const bars = safe.days
       .map((day) => {
-        const height = Math.max(4, Math.round((day.value / max) * 100));
+        const height = day.value > 0 ? Math.max(8, Math.round((day.value / max) * 100)) : 0;
         return `
           <div class="traffic-bar${day.today ? " is-today" : ""}">
             <span class="bar-val">${day.value}</span>
-            <span class="bar" style="height: ${height}%"></span>
+            <div class="bar-track"><span class="bar" style="height: ${height}%"></span></div>
             <span class="bar-day">${escapeHTML(day.label)}</span>
           </div>`;
       })
