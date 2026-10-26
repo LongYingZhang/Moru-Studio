@@ -309,7 +309,7 @@ def push_catalog_via_wrangler(path):
 #
 # 已推过的记在 admin/data/uploads/.pushed.json（admin/data 不入库，不会污染仓库）。
 # 没配口令时整个跳过——历史图继续走静态资源，行为与以前一致。
-UPLOADS_PUSHED_FILE = os.path.join(UPLOADS_DIR, ".pushed.json")
+UPLOADS_PUSHED_FILE = os.path.join(DATA_DIR, "uploads-pushed.json")
 UPLOAD_REF = re.compile(r"^(?:https://[^/]+)?/uploads/([A-Za-z0-9][A-Za-z0-9._-]{2,79})$")
 
 

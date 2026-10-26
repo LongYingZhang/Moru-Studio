@@ -80,7 +80,7 @@ fi
 # 否则线上命中不了，Pages 会 SPA fallback 返回 index.html（200 但 text/html）。
 if [[ -d admin/data/uploads ]]; then
   mkdir -p "$STAGE/uploads"
-  rsync -a admin/data/uploads/ "$STAGE/uploads/"
+  rsync -a --exclude='.*' admin/data/uploads/ "$STAGE/uploads/"
   echo "uploads: $(find "$STAGE/uploads" -type f | wc -l | tr -d ' ') 个文件"
 fi
 
