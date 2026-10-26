@@ -274,8 +274,18 @@
   /* 网页版专属：每次进来都在聊天框提示下载桌面端。
      桌面 app 用户自己就是软件版，不需要这条；且链接带 target=_blank，
      shop.js 不会把它当站内跳转拦截，点一下开新标签直接下 dmg。
-     不写 localStorage「已读」，所以每次访问都弹。 */
+     不写 localStorage「已读」，所以每次访问都弹。
+     但用户一旦开口问别的问题，这条就让位（见 clearDownloadCta）——
+     本次访问不再回来，下次进来重新弹。 */
+  let ctaDismissed = false;
+  function clearDownloadCta() {
+    const cta = bubble.querySelector(".moru-download-cta");
+    if (cta) cta.remove();
+    if (!bubble.querySelector(".moru-update")) root.classList.remove("is-update");
+    ctaDismissed = true;
+  }
   function showDownloadCta(rel) {
+    if (ctaDismissed) return;
     if (root.querySelector(".moru-download-cta")) return;
     const ver = (rel && rel.version) || "1.0.11";
     const dmg = (rel && rel.dmgUrl) || "https://longying-studio.pages.dev/download/Moru-Studio.dmg";
@@ -1365,6 +1375,8 @@
   async function sendMessage(text) {
     const content = String(text || "").trim();
     if (!content || busy || root.classList.contains("is-takeover")) return;
+    // 用户开始问别的了：把「下载桌面版」那条提示撤掉，别跟对话答案挤在一起
+    clearDownloadCta();
     busy = true;
     logEl.innerHTML = "";
     root.classList.add("has-chat", "is-thinking");
