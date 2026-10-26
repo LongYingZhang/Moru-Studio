@@ -107,8 +107,10 @@
 
   const ORDERS_API = "/api/orders";
   const AUTH_API = "/api/auth";
-  // 公网统计在 Cloudflare KV；后台从公网读，本机访问不计
+  // 公网统计在 Cloudflare KV；后台从公网读，本机访问不计。
+  // 这个接口要口令（Pages 环境变量 ADMIN_TOKEN），口令只存在本机 localStorage。
   const TRAFFIC_API = "https://longying-studio.pages.dev/api/traffic";
+  const TRAFFIC_TOKEN_KEY = "ly-admin-traffic-token";
   const SHOTS_MAX = 4;
   const ORDER_STATUS = {
     pending: { label: "待确认收款", action: "处理收款" },
@@ -1029,10 +1031,46 @@
     };
   }
 
-  async function loadTraffic(range = trafficRange) {
-    const response = await fetch(`${TRAFFIC_API}?range=${encodeURIComponent(range)}`, {
+  /**
+   * 取访问统计的口令。第一次用会弹一次输入框，之后存在本机。
+   * 传 force=true 表示把已存的清掉重新问（口令换了或输错时用）。
+   */
+  function trafficToken(force = false) {
+    let token = "";
+    try {
+      if (force) localStorage.removeItem(TRAFFIC_TOKEN_KEY);
+      else token = localStorage.getItem(TRAFFIC_TOKEN_KEY) || "";
+    } catch (_) {
+      token = "";
+    }
+    if (token) return token;
+
+    const input = window.prompt(
+      "访问监控需要后台口令（填一次就存在本机，不用每次填）。\n口令就是设置 Cloudflare ADMIN_TOKEN 时用的那串。"
+    );
+    token = String(input || "").trim();
+    if (token) {
+      try {
+        localStorage.setItem(TRAFFIC_TOKEN_KEY, token);
+      } catch (_) {}
+    }
+    return token;
+  }
+
+  async function loadTraffic(range = trafficRange, allowRetry = true) {
+    const token = trafficToken(false);
+    if (!token) {
+      throw new Error("需要后台口令才能看访问数据。退出这一页再进来会重新问你一次。");
+    }
+    const qs = new URLSearchParams({ range, token });
+    const response = await fetch(`${TRAFFIC_API}?${qs}`, {
       cache: "no-store",
     });
+    if (response.status === 401 && allowRetry) {
+      // 口令不对：清掉本地存的，重问一次
+      trafficToken(true);
+      return loadTraffic(range, false);
+    }
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(data.error || `HTTP ${response.status}`);

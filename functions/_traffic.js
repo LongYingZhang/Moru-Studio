@@ -20,8 +20,11 @@ const SH_FMT = new Intl.DateTimeFormat("en-CA", {
 });
 
 export function corsHeaders(extra = {}) {
+  // 不要在这里写 Access-Control-Allow-Origin: * ——
+  // 那会让任何网站都能用 JS 跨域读走流量数据。
+  // 跨域放行统一由 functions/api/_middleware.js 按白名单处理
+  // （自己的域名 + 本机回环地址），没命中就一个头都不给。
   return {
-    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Cache-Control": "no-store",
