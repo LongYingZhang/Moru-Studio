@@ -852,12 +852,14 @@ img { display: block; max-width: 100%; }
 .line h2 { margin: 0 0 6px; font-size: 16px; font-weight: 500; }
 .line p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
 
-/* 库存标签：现货压低存在感，缺货用暖色块提示「可以买但要等货」 */
+/* 库存标签：只有缺货才出现，现货不加任何标记 */
 .stock-tag {
   display: inline-block;
   margin-left: 7px;
   padding: 3px 6px;
   border-radius: 5px;
+  background: #242424;
+  color: #a3a3a3;
   font-size: 11px;
   font-weight: 400;
   line-height: 1.15;
@@ -865,11 +867,9 @@ img { display: block; max-width: 100%; }
   white-space: nowrap;
   vertical-align: 1px;
 }
-.stock-tag.is-in { background: #1a1a1a; color: #7d7d7d; }
-.stock-tag.is-out { background: #2b2117; color: #d9a45e; }
 
 /* 订单页的预付款说明块 */
-.preorder-label { color: #d9a45e; }
+.preorder-label { color: #c9c9c9; }
 .preorder-text {
   margin: 0;
   color: #b7b7b7;
@@ -1087,7 +1087,7 @@ label.field.wide { grid-column: 1 / -1; }
   letter-spacing: 0.02em;
 }
 .pre-kicker {
-  color: #d9a45e;
+  color: #8d8d8d;
   font-size: 12px;
   letter-spacing: 0.08em;
 }
@@ -1111,7 +1111,12 @@ label.field.wide { grid-column: 1 / -1; }
   font-size: 13px;
   line-height: 1.65;
 }
-.pre-sheet .btn { margin-top: 6px; }
+.pre-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
 .qr-head {
   display: flex;
   align-items: baseline;

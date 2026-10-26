@@ -642,9 +642,9 @@
               <span class="field-label">库存状态</span>
               <div class="stock-switch" id="stock-switch" role="radiogroup" aria-label="库存状态">
                 <button type="button" class="stock-option" data-stock="in-stock" role="radio" aria-checked="false">现货</button>
-                <button type="button" class="stock-option" data-stock="pre-order" role="radio" aria-checked="false">缺货 · 可预付</button>
+                <button type="button" class="stock-option" data-stock="pre-order" role="radio" aria-checked="false">缺货</button>
               </div>
-              <p class="field-note">标成缺货后顾客照样能下单，结账时会看到「这是预付款，到货立刻发出」的提示。</p>
+              <p class="field-note">标成缺货后顾客照样能下单，但在购物袋点「前往结算」时会先弹出预付款说明，确认后才进付款页。</p>
             </div>
           </div>
 

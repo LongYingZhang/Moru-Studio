@@ -391,14 +391,15 @@ body.is-sorting {
   color: var(--primary);
 }
 
+/* 缺货用同一套灰，只把对比拉高一点：不抢眼，但要能一眼分出两种 */
 .stock-chip.is-out {
-  background: #2b2117;
-  color: #d9a45e;
+  background: var(--surface-highest);
+  color: #dcdcdc;
 }
 
 .stock-chip.is-out:hover {
-  background: #3a2c1e;
-  color: #efbe7c;
+  background: #3f3f3e;
+  color: var(--primary);
 }
 
 .product-meta,
@@ -665,14 +666,15 @@ body.is-sorting {
   color: #000;
 }
 
+/* 缺货选中态：比现货的纯白低一档，靠灰度区分，不上暖色 */
 .stock-option[data-stock="pre-order"].is-on {
-  background: #2b2117;
-  color: #e8b878;
+  background: #cfcfcf;
+  color: #000;
 }
 
 .stock-option[data-stock="pre-order"].is-on:hover {
-  background: #3a2c1e;
-  color: #f3c98f;
+  background: #bcbcbc;
+  color: #000;
 }
 
 .field-note {
