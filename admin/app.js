@@ -321,6 +321,8 @@
       throw new Error("登录已过期，请重新登录。");
     }
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    // 服务端会把「有没有推上线上 KV」一起回过来
+    return await response.json().catch(() => ({}));
   }
 
   async function api(url, options = {}) {
@@ -380,13 +382,24 @@
     const previous = products;
     products = nextProducts;
     saveLocal(nextProducts);
-    pushToServer(nextProducts).catch((error) => {
-      products = previous;
-      saveLocal(previous);
-      renderProducts();
-      const reason = error && error.message ? error.message : "请确认网站服务正在运行。";
-      showToast("保存失败，改动已撤回：" + reason, true);
-    });
+    pushToServer(nextProducts)
+      .then((result) => {
+        // 本机存上了、线上没推上去：不能装作没事，否则又会出现
+        // 「后台显示缺货、网站和 app 还是现货」的假象。
+        if (result && result.cloud === false) {
+          showToast(
+            "本机已保存，但没同步到线上：" + (result.message || "请检查网络后重点一次"),
+            true,
+          );
+        }
+      })
+      .catch((error) => {
+        products = previous;
+        saveLocal(previous);
+        renderProducts();
+        const reason = error && error.message ? error.message : "请确认网站服务正在运行。";
+        showToast("保存失败，改动已撤回：" + reason, true);
+      });
     return true;
   }
 

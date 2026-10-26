@@ -12,3 +12,9 @@ id = "60ad9ef69eae4bc48d1e625cce93737a"
 [[kv_namespaces]]
 binding = "MORU_ORDERS"
 id = "970c2287310e4218a5eb8397dfe5f58e"
+
+# 商品目录（functions/api/products.js）：后台保存时直接写这里，
+# 改完不必重新部署就能让网页和桌面版看到。
+[[kv_namespaces]]
+binding = "MORU_PRODUCTS"
+id = "d7ee5f23c3294993acd5d17fb535789c"
