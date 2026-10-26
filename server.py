@@ -210,8 +210,14 @@ traffic_hit_lock = threading.Lock()
 # ---- 商品数据同步到线上 KV ------------------------------------------------
 # 后台点一下「现货/缺货」，除了写本地 admin/data/products.json，还要写进
 # Cloudflare KV（functions/api/products.js 优先读它），这样不用重新部署，
-# 网页和桌面版 app 十几秒内就能看到。写 KV 用 wrangler，凭据和自动续期
-# 都交给它自己处理，避免在这里管 OAuth token。
+# 网页和桌面版 app 十几秒内就能看到。
+#
+# 写线上走的是自家接口 PUT /api/products（带口令），**不依赖 wrangler**：
+# 真正跑店铺的是 2015 那台 Mac，它没有 Cloudflare 登录态，npx 也不一定有。
+# 只要 .env 里有一行 MORU_CATALOG_TOKEN 就能推，运行时也不会过期。
+# 没配口令但本机装了 wrangler（比如 M4）时，退回 wrangler 命令行。
+SITE_ORIGIN = os.environ.get("MORU_SITE_ORIGIN", "https://longying-studio.pages.dev").rstrip("/")
+CATALOG_TOKEN = (os.environ.get("MORU_CATALOG_TOKEN") or "").strip()
 KV_NAMESPACE_ID = os.environ.get(
     "MORU_PRODUCTS_KV", "d7ee5f23c3294993acd5d17fb535789c"
 )
@@ -221,27 +227,74 @@ kv_lock = threading.Lock()
 
 def push_catalog_to_kv(path):
     """把商品 json 推到线上 KV。返回 (是否成功, 给后台看的提示)。"""
-    npx = shutil.which("npx") or shutil.which("npx.cmd")
-    if not npx:
-        return False, "本机找不到 npx，改动只存在这台电脑上"
     with kv_lock:
         try:
-            result = subprocess.run(
-                [
-                    npx, "--yes", "wrangler", "kv", "key", "put", "catalog",
-                    f"--namespace-id={KV_NAMESPACE_ID}",
-                    f"--path={path}",
-                    "--remote",
-                ],
-                cwd=SHOP_DIR,
-                capture_output=True,
-                text=True,
-                timeout=KV_SYNC_TIMEOUT,
-            )
-        except subprocess.TimeoutExpired:
-            return False, "同步线上超时，请稍后重点一次"
-        except Exception as exc:  # noqa: BLE001 - 同步失败不该打断保存
-            return False, f"同步线上出错：{exc}"
+            with open(path, encoding="utf-8") as fh:
+                body = fh.read()
+        except OSError as exc:
+            return False, f"读不到商品文件：{exc}"
+    if CATALOG_TOKEN:
+        return push_catalog_via_api(body)
+    return push_catalog_via_wrangler(path)
+
+
+def push_catalog_via_api(body):
+    """PUT /api/products，口令在 X-Catalog-Token。任何机器都能跑。"""
+    req = urllib_request.Request(
+        SITE_ORIGIN + "/api/products",
+        data=body.encode("utf-8"),
+        method="PUT",
+        headers={
+            "Content-Type": "application/json; charset=utf-8",
+            "X-Catalog-Token": CATALOG_TOKEN,
+            "User-Agent": "moru-shop/1.0",
+        },
+    )
+    try:
+        with urllib_request.urlopen(req, timeout=KV_SYNC_TIMEOUT) as resp:
+            data = json.loads(resp.read().decode("utf-8") or "{}")
+    except urllib_error.HTTPError as exc:
+        detail = ""
+        try:
+            detail = json.loads(exc.read().decode("utf-8")).get("error", "")
+        except Exception:  # noqa: BLE001 - 解析失败不影响错误码判断
+            pass
+        known = {
+            401: "线上拒绝写入：口令不对，检查 .env 里的 MORU_CATALOG_TOKEN",
+            503: "线上还没配置写入口令，需要重新部署一次",
+        }
+        if exc.code in known:
+            return False, known[exc.code]
+        return False, f"线上返回 HTTP {exc.code} {detail}".strip()
+    except Exception as exc:  # noqa: BLE001 - 网络失败不该打断保存
+        return False, f"连不上线上：{exc}"
+    if data.get("ok"):
+        return True, "已同步到线上"
+    return False, "线上返回：" + str(data.get("error") or "未知原因")[:120]
+
+
+def push_catalog_via_wrangler(path):
+    """兜底：本机有 wrangler 登录态时直接写 KV（M4 上可用）。"""
+    npx = shutil.which("npx") or shutil.which("npx.cmd")
+    if not npx:
+        return False, "没配 MORU_CATALOG_TOKEN，本机也没有 npx，改动只存在这台电脑上"
+    try:
+        result = subprocess.run(
+            [
+                npx, "--yes", "wrangler", "kv", "key", "put", "catalog",
+                f"--namespace-id={KV_NAMESPACE_ID}",
+                f"--path={path}",
+                "--remote",
+            ],
+            cwd=SHOP_DIR,
+            capture_output=True,
+            text=True,
+            timeout=KV_SYNC_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        return False, "同步线上超时，请稍后重点一次"
+    except Exception as exc:  # noqa: BLE001 - 同步失败不该打断保存
+        return False, f"同步线上出错：{exc}"
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or "").strip().splitlines()
         return False, "同步线上失败：" + (detail[-1][:120] if detail else "未知原因")

@@ -70,3 +70,51 @@ function json(obj, status = 200) {
     headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
   });
 }
+
+// 定长比较，避免逐字符提前返回泄漏口令长度/前缀
+function sameSecret(given, expected) {
+  if (typeof given !== "string" || typeof expected !== "string") return false;
+  if (given.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < given.length; i += 1) {
+    diff |= given.charCodeAt(i) ^ expected.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+/**
+ * 后台保存商品后，把整份目录写进 KV。
+ *
+ * 真正跑店铺的是另一台 Mac（2015），它没有 Cloudflare 登录态、也未必有 node，
+ * 所以写入口做成这里：只要带上 CATALOG_TOKEN 就能推，不受 OAuth 8 小时过期影响。
+ * 口令是 Pages 的 secret（`wrangler pages secret put CATALOG_TOKEN`），
+ * 同时写在跑店铺那台机器的 .env 里（MORU_CATALOG_TOKEN）。
+ */
+export async function onRequestPut(context) {
+  const { env, request } = context;
+
+  const expected = env.CATALOG_TOKEN;
+  if (!expected) return json({ error: "线上未配置 CATALOG_TOKEN" }, 503);
+  if (!sameSecret(request.headers.get("X-Catalog-Token") || "", expected)) {
+    return json({ error: "unauthorized" }, 401);
+  }
+
+  if (!env.MORU_PRODUCTS) return json({ error: "KV 未绑定 MORU_PRODUCTS" }, 503);
+
+  let items;
+  try {
+    items = JSON.parse(await request.text());
+  } catch (e) {
+    return json({ error: "JSON 解析失败" }, 400);
+  }
+  if (!Array.isArray(items) || items.length === 0) {
+    return json({ error: "商品数据必须是非空数组" }, 400);
+  }
+  if (items.length > 500) {
+    return json({ error: "商品数量超出上限" }, 413);
+  }
+
+  await env.MORU_PRODUCTS.put("catalog", JSON.stringify(items));
+  return json({ ok: true, count: items.length, updatedAt: new Date().toISOString() });
+}
+
