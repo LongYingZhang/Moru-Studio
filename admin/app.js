@@ -333,7 +333,10 @@
     const response = await fetch(url, {
       cache: "no-store",
       ...options,
-      headers: options.body ? { "Content-Type": "application/json" } : undefined,
+      headers: {
+        ...(options.headers || {}),
+        ...(options.body ? { "Content-Type": "application/json" } : {}),
+      },
     });
     const result = await response.json().catch(() => ({}));
     if (response.status === 401 && !url.startsWith(AUTH_API)) {
@@ -1263,7 +1266,7 @@
             <div class="panel-kicker">
               <div>
                 <h2>Moru 助手用量</h2>
-                <p class="traffic-note" style="margin-top:4px">2015 上真正调 DeepSeek 的消耗</p>
+                <p class="traffic-note" style="margin-top:4px">M4 上真正调 DeepSeek 的消耗</p>
               </div>
               <span>AI</span>
             </div>
@@ -1279,8 +1282,8 @@
     const fmt = (n) => Number(n || 0).toLocaleString("zh-CN");
     if (!d) {
       const note = aiUsageError
-        ? "读不到用量：确认 2015 后台服务在运行（python3 server.py）。"
-        : "正在读取 2015 上的 DeepSeek 用量…";
+        ? "读不到用量：确认 M4 后台服务在运行（python3 server.py）。"
+        : "正在读取 M4 上的 DeepSeek 用量…";
       return `
         <div class="token-grid">
           <article><span>本期总用量</span><b>—</b><small>${aiUsageError ? "读取失败" : "读取中…"}</small></article>
@@ -1298,7 +1301,7 @@
         <article><span>单次均耗</span><b>${calls ? fmt(Math.round(d.avg_tokens)) : "—"}</b><small>tokens / 次</small></article>
         <article><span>额度成本</span><b>${costText}</b><small>按 ¥${d.price_in}/M 入 · ¥${d.price_out}/M 出</small></article>
       </div>
-      <p class="traffic-note">${d.since ? `统计自 ${escapeHTML(d.since)} 起` : "实时统计"}，只计 2015 上真正调 DeepSeek 的次数。</p>`;
+      <p class="traffic-note">${d.since ? `统计自 ${escapeHTML(d.since)} 起` : "实时统计"}，只计 M4 上真正调 DeepSeek 的次数。</p>`;
   }
 
   function paintAiUsage() {
@@ -1874,7 +1877,7 @@
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       // ?v= 换 URL 才能强制已有的 SW 立刻更新为新版（Safari 对同 URL 的更新检查很懒）
-      navigator.serviceWorker.register("./sw.js?v=20261026a").catch(() => {});
+      navigator.serviceWorker.register("./sw.js?v=20261027b").catch(() => {});
     });
   }
 

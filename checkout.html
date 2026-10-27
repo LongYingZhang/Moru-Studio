@@ -298,7 +298,7 @@ document.documentElement.classList.add("is-booting");
   }
 
   async function placeOrder(no) {
-    const response = await fetch("/api/orders", {
+    const response = await fetch(Shop.apiUrl("/api/orders"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

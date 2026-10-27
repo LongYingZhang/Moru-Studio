@@ -3,6 +3,8 @@
  * Uses OPENAI_API_KEY (+ optional OPENAI_BASE_URL / MORU_MODEL) when set;
  * otherwise falls back to the local shop brain.
  */
+import { json } from "../../_lib.js";
+
 export async function onRequestPost(context) {
   const { request, env } = context;
   let body;
@@ -85,14 +87,17 @@ export async function onRequestPost(context) {
   });
 }
 
-function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), {
-    status,
-    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
-  });
-}
-
 async function loadCatalog(env, request) {
+  // 优先读 KV（后台保存的实时商品），再回落部署快照，避免核价/报价用的是旧价
+  try {
+    if (env.MORU_PRODUCTS) {
+      const stored = await env.MORU_PRODUCTS.get("catalog");
+      if (stored) {
+        const products = JSON.parse(stored);
+        if (Array.isArray(products)) return products;
+      }
+    }
+  } catch {}
   try {
     const url = new URL(request.url);
     const res = await env.ASSETS.fetch(new URL("/data/products.json", url.origin));
@@ -395,9 +400,8 @@ async function localMoruReply(userText, catalog, ctx, request) {
   const low = text.toLowerCase();
   const tools = [];
 
-  // 闲聊 / 天气：本地俏皮接话，不占大模型（仅无 OPENAI 密钥时走这里）
-  const casual = await localCasualReply(userText, request);
-  if (casual) return { reply: casual, tools };
+  // 注意：外层 onRequestPost 已经在调用 localMoruReply 之前用 localCasualReply
+  // 拦截过闲聊/天气，能命中早就提前 return 了；这里不必再调一次。
 
   if (["作品集", "珑瀛"].some((k) => text.includes(k)) || low.includes("portfolio")) {
     tools.push({ name: "openPortfolio" });
@@ -409,10 +413,6 @@ async function localMoruReply(userText, catalog, ctx, request) {
   if (["购物袋", "购物车", "去买", "结算"].some((k) => text.includes(k)) || low.includes("cart")) {
     tools.push({ name: "openCart" });
     return { reply: "好，带你去购物袋看看～", tools };
-  }
-  if (["作品集", "珑瀛"].some((k) => text.includes(k)) || low.includes("portfolio")) {
-    tools.push({ name: "openPortfolio" });
-    return { reply: "走，带你去看珑瀛的作品集～", tools };
   }
   if (["隐私", "须知", "退换", "售后政策"].some((k) => text.includes(k))) {
     tools.push({ name: "openTerms" });

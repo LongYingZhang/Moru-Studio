@@ -32,12 +32,8 @@ export function corsHeaders(extra = {}) {
   };
 }
 
-export function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), {
-    status,
-    headers: corsHeaders({ "Content-Type": "application/json; charset=utf-8" }),
-  });
-}
+// 统一用 _lib.js 的 json，避免每个文件各抄一份
+export { json } from "./_lib.js";
 
 export function emptyDay() {
   return {
@@ -146,10 +142,11 @@ export async function summarize(env, rangeKey = "7") {
   const today = dayKey(0);
   const yesterday = dayKey(1);
   const unique = [];
+  const KEYS_CAP = 50; // 免费档单请求子请求上限 50；all 时段最多读 50 天，避免 500
   for (let offset = 0; offset < Math.max(span, 14); offset++) {
     unique.push(`d:${dayKey(offset)}`);
   }
-  const keys = [...new Set(unique)];
+  const keys = [...new Set(unique)].slice(-KEYS_CAP);
   const got = await Promise.all(keys.map((k) => env.TRAFFIC.get(k, "json")));
   const byKey = Object.fromEntries(keys.map((k, i) => [k, got[i] || null]));
 

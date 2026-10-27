@@ -139,7 +139,6 @@
 
   const messages = [];
   let busy = false;
-  let greeted = false;
   let chatAbort = null;
   let driveTimer = null;
   let toolsTimer = null;
@@ -321,9 +320,13 @@
   function loadRelease(force) {
     if (latestRelease && !force) return Promise.resolve(latestRelease);
     return new Promise((resolve) => {
+      // 复用同一个 script 标签，避免桌面版长开 + 强制刷新时 head 里无限堆积节点
+      const prev = document.head.querySelector("script[data-release-loader]");
+      if (prev) prev.remove();
       const s = document.createElement("script");
       s.src = RELEASE_JS_URL + "?t=" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
       s.async = true;
+      s.dataset.releaseLoader = "1";
       s.onload = () => {
         latestRelease = window.__MORU_RELEASE__ || latestRelease;
         resolve(latestRelease);
@@ -496,7 +499,6 @@
     root.classList.toggle("is-open", open);
     if (open) {
       placeBubble();
-      if (!greeted) greeted = true;
       // 有对话记录时保持 has-chat；不要在打开时误清掉（终止回复会因此变回问候壳）
       if (messages.length > 0 || (logEl && logEl.textContent.trim())) {
         root.classList.add("has-chat");
@@ -1602,7 +1604,7 @@
   });
 
   // 用户一点返回/离开：先封存任务，离开最后一页后任何页面都不再接管
-  window.addEventListener("popstate", abortTakeover);
+  window.addEventListener("popstate", () => abortTakeover());
   window.addEventListener("pagehide", () => {
     if (moruNavigating) {
       moruNavigating = false;

@@ -181,9 +181,20 @@
         const value = parseProducts(text);
         if (!value || JSON.stringify(value) === serverSnapshot) return;
         remember(value);
-        location.reload();
+        // 顾客正在填收件信息 / 在表单页时，不要整页刷新把已填内容冲掉；
+        // 仅静默更新缓存，下次导航自然用上新数据。
+        if (shouldReloadForCatalog()) location.reload();
       })
       .catch(() => {});
+  }
+
+  // 在结算/购物袋/订单/须知页，或页面上有输入框聚焦时，不自动刷新页面
+  function shouldReloadForCatalog() {
+    const path = (location.pathname || "").split("/").pop().toLowerCase();
+    if (["checkout.html", "cart.html", "order.html", "terms.html"].indexOf(path) !== -1) return false;
+    const el = document.activeElement;
+    if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return false;
+    return true;
   }
 
   function watchServerProducts() {
@@ -721,7 +732,9 @@
     lastOrder,
     navigate,
     showBoot: ensureBoot,
-    hideBoot
+    hideBoot,
+    // 接口地址：桌面壳跑在 127.0.0.1（没有后端），/api/* 一律走线上站点
+    apiUrl: (p) => (IS_LOCAL_SHELL ? SITE_ORIGIN : "") + p
   };
 
   // 访问打点：只统计 Cloudflare 公网；本机 / 局域网不计

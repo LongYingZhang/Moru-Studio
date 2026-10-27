@@ -8,14 +8,8 @@
  *
  * 鉴权与 /api/products 完全一致：Pages secret `CATALOG_TOKEN`，头 `X-Catalog-Token`。
  */
+import { json } from "../../_lib.js";
 import { TYPES, MAX_IMAGE_BYTES, isSafeImageName, sameSecret } from "../../_catalog-auth.js";
-
-function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), {
-    status,
-    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
-  });
-}
 
 export async function onRequestPut(context) {
   const { env, params, request } = context;

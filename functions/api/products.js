@@ -8,6 +8,9 @@
  * KV 是最终一致的：写入后当前节点立刻能读到，其他节点最长约 60 秒。
  * 所以「后台点一下 → 网页/桌面版看到」一般十几秒，最坏一分钟出头。
  */
+import { json } from "../_lib.js";
+import { sameSecret } from "../_catalog-auth.js";
+
 const SITE_ORIGIN = "https://longying-studio.pages.dev";
 
 // 后台存的是 /uploads/xxx.jpg 这种相对路径；已经装好的旧版 app 里没有
@@ -62,24 +65,6 @@ export async function onRequestGet(context) {
     return json({ error: "products unavailable" }, 500);
   }
   return new Response(absolutize(await asset.text()), { status: 200, headers: HEADERS });
-}
-
-function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), {
-    status,
-    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
-  });
-}
-
-// 定长比较，避免逐字符提前返回泄漏口令长度/前缀
-function sameSecret(given, expected) {
-  if (typeof given !== "string" || typeof expected !== "string") return false;
-  if (given.length !== expected.length) return false;
-  let diff = 0;
-  for (let i = 0; i < given.length; i += 1) {
-    diff |= given.charCodeAt(i) ^ expected.charCodeAt(i);
-  }
-  return diff === 0;
 }
 
 /**

@@ -14,6 +14,9 @@
  * - 订单里有姓名/电话/地址，GET 不配 ADMIN_TOKEN 就直接 503，绝不裸奔。
  */
 
+import { json } from "../_lib.js";
+import { sameSecret } from "../_catalog-auth.js";
+
 const ORDER_NO = /^LY\d{10,16}$/;
 const PHONE = /^[+\d][\d\s-]{6,}$/;
 const METHODS = new Set(["wechat", "alipay", "card"]);
@@ -103,9 +106,8 @@ export async function onRequestPost(context) {
     preorder: lines.some((line) => line.stock === "pre-order"),
   };
 
-  // 先写单条，再维护索引；索引挂了也能靠 prefix list 兜底，所以不追求原子
+  // 先写单条；读取订单时直接按前缀列举，无需维护索引，也就没有竞态漏单
   await env.MORU_ORDERS.put(KEY_PREFIX + no, JSON.stringify(order));
-  await indexAdd(env, no);
 
   return json({ ok: true, no, total });
 }
@@ -122,7 +124,7 @@ export async function onRequestGet(context) {
       503
     );
   }
-  if (!safeEqual(given, expected)) {
+  if (!sameSecret(given, expected)) {
     return html(
       page("需要口令", "<p class='muted'>链接里缺少正确的 <code>token</code>，无法查看订单。</p>"),
       401
@@ -130,7 +132,7 @@ export async function onRequestGet(context) {
   }
   if (!env.MORU_ORDERS) return json({ error: "订单服务未配置" }, 500);
 
-  const limit = Math.min(Math.max(Number.parseInt(url.searchParams.get("limit"), 10) || 100, 1), 500);
+  const limit = Math.min(Math.max(Number.parseInt(url.searchParams.get("limit"), 10) || 40, 1), 100);
   const orders = await loadOrders(env, limit);
 
   if (url.searchParams.get("format") === "json") {
@@ -149,6 +151,17 @@ export async function onRequestGet(context) {
 /* ------------------------------ helpers ------------------------------ */
 
 async function loadCatalog(context) {
+  // 优先读 KV（后台保存的实时商品表），再回落部署快照：
+  // 否则后台改价/上新后，线上核价仍用旧快照，会静默错账或新商品无法下单。
+  try {
+    if (context.env.MORU_PRODUCTS) {
+      const stored = await context.env.MORU_PRODUCTS.get("catalog");
+      if (stored) {
+        const data = JSON.parse(stored);
+        return Array.isArray(data) ? data : [];
+      }
+    }
+  } catch {}
   try {
     const asset = await context.env.ASSETS.fetch(
       new URL("/data/products.json", new URL(context.request.url).origin)
@@ -162,37 +175,16 @@ async function loadCatalog(context) {
 }
 
 async function loadOrders(env, limit) {
-  // 索引键按单号（LY+年月日时分+随机）字典序，新单在后面
-  let keys = [];
-  try {
-    const raw = await env.MORU_ORDERS.get("index", "json");
-    if (Array.isArray(raw)) keys = raw.slice(-limit);
-  } catch {
-    keys = [];
-  }
-
-  if (keys.length === 0) {
-    const listed = await env.MORU_ORDERS.list({ prefix: KEY_PREFIX, limit: 500 });
-    keys = listed.keys.map((k) => k.name.slice(KEY_PREFIX.length));
-    keys = keys.slice(-limit);
-  }
-
+  // 直接用 KV 前缀列举，避免 read-modify-write 的「index」键在并发下漏单/丢单。
+  // list 单次返回一组键（本身只占 1 个子请求），再按单号取最近 limit 笔。
+  const listed = await env.MORU_ORDERS.list({ prefix: KEY_PREFIX, limit: Math.min(limit, 100) });
+  const keys = listed.keys
+    .map((k) => k.name.slice(KEY_PREFIX.length))
+    .slice(-limit);
   const values = await Promise.all(
     keys.map((no) => env.MORU_ORDERS.get(KEY_PREFIX + no, "json").catch(() => null))
   );
   return values.filter(Boolean).reverse(); // 新单在前
-}
-
-async function indexAdd(env, no) {
-  try {
-    const raw = await env.MORU_ORDERS.get("index", "json");
-    const list = Array.isArray(raw) ? raw : [];
-    if (list.includes(no)) return;
-    list.push(no);
-    await env.MORU_ORDERS.put("index", JSON.stringify(list.slice(-500)));
-  } catch {
-    // 索引只是加速用，失败不影响下单
-  }
 }
 
 function orderRow(o, token) {
@@ -256,13 +248,6 @@ ${body}
 </body></html>`;
 }
 
-function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), {
-    status,
-    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
-  });
-}
-
 function html(body, status = 200, extra = {}) {
   return new Response(body, {
     status,
@@ -291,11 +276,4 @@ function esc(v) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
-}
-
-function safeEqual(a, b) {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i += 1) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
 }
