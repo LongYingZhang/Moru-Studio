@@ -9,32 +9,20 @@ cd "$(dirname "$0")/.."
 STAGE=".cf-stage"
 mkdir -p "$STAGE"
 
-# 商品数据与后台上传图，以「真正跑后台的那台机器」为准。
-# 后台跑在 2015（用户就是在那台的 admin 里改商品、传实拍图的），
-# 而部署在 M4 上跑；如果直接用 M4 自己的 admin/data，就会把过期数据和
-# 缺图带上线——2026-10-26 就是这么踩的：后台换了图，线上几个月都是旧图。
-# 所以部署前先把 2015 那份拉过来，连不上才退回本机，并且明确提示。
-SHOP_HOST="${MORU_SHOP_HOST:-zhanglongying@zhanglongyingdeMacBook-Air-2015.local}"
-SHOP_REMOTE_DIR="${MORU_SHOP_DIR:-/Users/zhanglongying/Sites/LONGYING STUDIO}"
-if ssh -o BatchMode=yes -o ConnectTimeout=6 "$SHOP_HOST" true 2>/dev/null; then
-  mkdir -p admin/data/uploads
-  if ssh -o BatchMode=yes "$SHOP_HOST" "cat '$SHOP_REMOTE_DIR/admin/data/products.json'" \
-      > admin/data/products.json.pull 2>/dev/null && [[ -s admin/data/products.json.pull ]]; then
-    mv admin/data/products.json.pull admin/data/products.json
-    echo "商品数据：已从 $SHOP_HOST 取回"
-  else
-    rm -f admin/data/products.json.pull
-    echo "⚠️  取回商品数据失败，沿用本机这份"
-  fi
-  if ssh -o BatchMode=yes "$SHOP_HOST" \
-      "cd '$SHOP_REMOTE_DIR/admin/data/uploads' && tar cf - ." 2>/dev/null \
-      | tar xf - -C admin/data/uploads 2>/dev/null; then
-    echo "上传图：已从 $SHOP_HOST 取回，本机共 $(find admin/data/uploads -type f | wc -l | tr -d ' ') 个"
-  else
-    echo "⚠️  取回上传图失败，沿用本机这份"
-  fi
+# 商品数据与后台上传图，以本机（M4，唯一在跑后台的机器）的 admin/data 为准。
+# 2026-10-27 起 2015 退役，M4 成为唯一服务器；部署直接在 M4 本机读取，
+# 不再 ssh 到 2015（避免换网/关机后连不上导致带过期数据上线）。
+# 若以后真要从别的机器取数，仍可临时 export MORU_SHOP_HOST=... 走 ssh。
+LOCAL_DATA="admin/data"
+if [[ -s "$LOCAL_DATA/products.json" ]]; then
+  echo "商品数据：使用本机 $LOCAL_DATA/products.json"
 else
-  echo "⚠️  连不上 ${SHOP_HOST}，商品数据与图片用本机这份（可能不是最新的）"
+  echo "⚠️  本机 $LOCAL_DATA/products.json 不存在，部署可能用到旧数据"
+fi
+if [[ -d "$LOCAL_DATA/uploads" ]]; then
+  echo "上传图：本机 $LOCAL_DATA/uploads 共 $(find "$LOCAL_DATA/uploads" -type f | wc -l | tr -d ' ') 个"
+else
+  echo "⚠️  本机 $LOCAL_DATA/uploads 不存在"
 fi
 
 rsync -a \
