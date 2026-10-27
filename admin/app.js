@@ -113,9 +113,12 @@
   const ORDERS_API = "/api/orders";
   const AUTH_API = "/api/auth";
   // 公网统计在 Cloudflare KV；后台从公网读，本机访问不计。
-  // 这个接口要口令（Pages 环境变量 ADMIN_TOKEN），口令只存在本机 localStorage。
+  // 这个接口的口令来自 Pages 环境变量 ADMIN_TOKEN（本机 localStorage 只存副本）。
+  // 2026-10-27 用户主动删掉了这个 secret → 接口一律 503，后台显示「已停用」不再问口令。
   const TRAFFIC_API = "https://longying-studio.pages.dev/api/traffic";
   const TRAFFIC_TOKEN_KEY = "ly-admin-traffic-token";
+  const TRAFFIC_OFF_MESSAGE =
+    "访问监控已停用：线上没有配置后台口令（ADMIN_TOKEN）。要恢复就在 Cloudflare 给这个 Pages 项目加上该变量，然后重新部署一次。";
   const SHOTS_MAX = 4;
   const ORDER_STATUS = {
     pending: { label: "待确认收款", action: "处理收款" },
@@ -133,6 +136,9 @@
   let trafficRange = "7";
   let trafficCache = null;
   let trafficPoll = 0;
+  // 线上没配 ADMIN_TOKEN 时（2026-10-27 用户主动删除）置 true：
+  // 不再弹口令框、不再轮询，直接说停用，避免给一个永远输不对的入口。
+  let trafficOff = false;
   let aiUsageCache = null;
   let aiUsageAt = 0;
   let aiUsageLoading = false;
@@ -1106,7 +1112,8 @@
    * 取访问统计的口令。第一次用会弹一次输入框，之后存在本机。
    * 传 force=true 表示把已存的清掉重新问（口令换了或输错时用）。
    */
-  function trafficToken(force = false) {
+  function trafficToken(force = false, silent = false) {
+    if (trafficOff) return "";
     let token = "";
     try {
       if (force) localStorage.removeItem(TRAFFIC_TOKEN_KEY);
@@ -1115,6 +1122,8 @@
       token = "";
     }
     if (token) return token;
+    // silent：只读本机存的口令，不弹框。先盲探一次接口，才知道线上到底还配不配口令
+    if (silent) return "";
 
     const input = window.prompt(
       "访问监控需要后台口令（填一次就存在本机，不用每次填）。\n口令就是设置 Cloudflare ADMIN_TOKEN 时用的那串。"
@@ -1129,22 +1138,26 @@
   }
 
   async function loadTraffic(range = trafficRange, allowRetry = true) {
-    const token = trafficToken(false);
-    if (!token) {
-      throw new Error("需要后台口令才能看访问数据。退出这一页再进来会重新问你一次。");
-    }
-    const qs = new URLSearchParams({ range, token });
+    const token = trafficToken(false, true);
+    const qs = new URLSearchParams({ range });
+    if (token) qs.set("token", token);
     const response = await fetch(`${TRAFFIC_API}?${qs}`, {
       cache: "no-store",
     });
     if (response.status === 401 && allowRetry) {
-      // 口令不对：清掉本地存的，重问一次
-      trafficToken(true);
+      // 401 = 线上配了口令，只是本机没有/不对：这时才值得弹框问一次
+      const asked = trafficToken(true);
+      if (!asked) throw new Error("需要后台口令才能看访问数据。刷新这一页会再问你一次。");
       return loadTraffic(range, false);
     }
     const data = await response.json().catch(() => ({}));
+    // 503 = 线上根本没配 ADMIN_TOKEN（口令被删除），别再纠缠口令，直接停用
+    if (response.status === 503 && /ADMIN_TOKEN|还没设置/.test(String(data.error || ""))) {
+      trafficOff = true;
+      stopTrafficPoll();
+    }
     if (!response.ok) {
-      throw new Error(data.error || `HTTP ${response.status}`);
+      throw new Error(trafficOff ? TRAFFIC_OFF_MESSAGE : data.error || `HTTP ${response.status}`);
     }
     trafficCache = data;
     trafficRange = range;
@@ -1363,6 +1376,7 @@
 
   function startTrafficPoll() {
     stopTrafficPoll();
+    if (trafficOff) return;
     trafficPoll = window.setInterval(() => {
       if (readRoute().name !== "traffic" || !auth.authed) {
         stopTrafficPoll();

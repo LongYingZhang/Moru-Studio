@@ -34,7 +34,7 @@ if ssh -o BatchMode=yes -o ConnectTimeout=6 "$SHOP_HOST" true 2>/dev/null; then
     echo "⚠️  取回上传图失败，沿用本机这份"
   fi
 else
-  echo "⚠️  连不上 $SHOP_HOST，商品数据与图片用本机这份（可能不是最新的）"
+  echo "⚠️  连不上 ${SHOP_HOST}，商品数据与图片用本机这份（可能不是最新的）"
 fi
 
 rsync -a \
