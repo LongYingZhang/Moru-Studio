@@ -112,9 +112,10 @@
 
   const ORDERS_API = "/api/orders";
   const AUTH_API = "/api/auth";
-  // 公网统计在 Cloudflare KV；后台从公网读，本机访问不计。
-  // 2026-10-27 起该接口公开只读，不再需要口令（数据只有 UV/页面/设备/城市，不含顾客信息）。
-  const TRAFFIC_API = "https://longying-studio.pages.dev/api/traffic";
+  // 访问监控数据走「同源代理」：本机 server.py 去拉线上 /api/traffic 再返回。
+  // 浏览器不再直接跨域，iPad/Safari 上不会再出现 Load failed
+  // （数据只有 UV/页面/设备/城市，不含顾客信息；仍要求先登录后台）。
+  const TRAFFIC_API = "/api/traffic";
   const SHOTS_MAX = 4;
   const ORDER_STATUS = {
     pending: { label: "待确认收款", action: "处理收款" },
@@ -1102,15 +1103,18 @@
   }
 
   async function loadTraffic(range = trafficRange) {
-    // 2026-10-27 起接口公开只读，不再需要任何口令
     const qs = new URLSearchParams({ range });
+    // 同源请求：本机 server.py 代理线上统计，不走跨域
     const response = await fetch(`${TRAFFIC_API}?${qs}`, {
       cache: "no-store",
+      credentials: "same-origin",
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(data.error || `HTTP ${response.status}`);
     }
+    // 代理拉不到线上时，server.py 会带 error 回来，别把它当 0 数据静默掉
+    if (data.error) throw new Error(data.error);
     trafficCache = data;
     trafficRange = range;
     return data;

@@ -45,6 +45,10 @@ API_PATH = "/api/products"
 MORU_CHAT_PATH = "/api/moru/chat"
 TRAFFIC_HIT_PATH = "/api/traffic/hit"
 TRAFFIC_PATH = "/api/traffic"
+# 后台的访问监控由本机代理线上接口取数（避免浏览器跨域 / Load failed）
+TRAFFIC_CLOUD_URL = "https://longying-studio.pages.dev/api/traffic"
+TRAFFIC_PROXY_TTL = 20
+_traffic_proxy_cache = {}
 AI_USAGE_PATH = "/api/ai-usage"
 TRAFFIC_ONLINE_SEC = 5 * 60
 TRAFFIC_KEEP_DAYS = 90
@@ -1527,27 +1531,51 @@ class ShopHandler(SimpleHTTPRequestHandler):
     # ---- traffic ----
 
     def get_traffic(self):
-        """本机后台已改为直连 Cloudflare；保留接口以免旧客户端报错。"""
+        """同源代理线上统计。
+
+        为什么不直接让浏览器去 fetch 线上：后台跑在 http://192.168.x.x:8787，
+        打 https://…pages.dev 属于跨域。iPad / Safari 一旦被 CORS、内容拦截器
+        或「只能连内网」的网络挡住，页面只会显示 "Load failed"，看不出所以然。
+        改成本机服务去取、浏览器只跟同源说话，任何设备都不会再踩跨域。
+        """
         if not self.require_auth():
             return
         query = parse_qs(urlsplit(self.path).query)
         range_key = (query.get("range") or ["7"])[0]
         if range_key not in ("7", "30", "all"):
             range_key = "7"
-        # 本地不再记账；返回空统计并提示走公网
-        empty = traffic_summary(range_key)
-        empty["live"] = False
-        empty["source"] = "local-disabled"
-        empty["today"] = 0
-        empty["yesterday"] = 0
-        empty["week"] = 0
-        empty["online"] = 0
-        empty["pages"] = []
-        empty["days"] = [
-            {"label": d["label"], "value": 0, "today": d.get("today"), "date": d.get("date")}
-            for d in empty.get("days") or []
-        ]
-        self.send_json(200, empty)
+
+        now = time.time()
+        cached = _traffic_proxy_cache.get(range_key)
+        if cached and now - cached[0] < TRAFFIC_PROXY_TTL:
+            return self.send_json(200, cached[1])
+
+        url = f"{TRAFFIC_CLOUD_URL}?range={range_key}"
+        try:
+            req = urllib_request.Request(
+                url, headers={"User-Agent": "MoruStudioAdmin/1.0", "Accept": "application/json"}
+            )
+            with urllib_request.urlopen(req, timeout=8) as resp:
+                payload = json.loads(resp.read().decode("utf-8"))
+            if not isinstance(payload, dict):
+                raise ValueError("返回格式不对")
+            _traffic_proxy_cache[range_key] = (now, payload)
+            return self.send_json(200, payload)
+        except Exception as exc:  # 网络不通 / 线上 503 / 解析失败
+            empty = traffic_summary(range_key)
+            empty["live"] = False
+            empty["source"] = "proxy-failed"
+            empty["today"] = 0
+            empty["yesterday"] = 0
+            empty["week"] = 0
+            empty["online"] = 0
+            empty["pages"] = []
+            empty["days"] = [
+                {"label": d["label"], "value": 0, "today": d.get("today"), "date": d.get("date")}
+                for d in empty.get("days") or []
+            ]
+            empty["error"] = f"这台后台拉不到线上统计：{exc}"
+            self.send_json(200, empty)
 
     def get_ai_usage(self):
         """Moru 助手（DeepSeek）累计用量，供后台「访问监控」页显示。"""
